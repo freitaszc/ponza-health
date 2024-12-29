@@ -165,9 +165,6 @@ const aboutSections = [
         <li>
           Telefone/WhatsApp: <a href="tel:+5533984613689">+55 33 98461-3689</a>
         </li>
-        <li>
-          Privacidade (DPO): <a href="mailto:privacidade@ponzahealth.com">privacidade@ponzahealth.com</a>
-        </li>
       </ul>
     ),
   },

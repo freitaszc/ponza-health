@@ -74,6 +74,7 @@ section[id],
   background-size: 140% 140%;
   background-position: left center;
   color: #fff;
+  border: 0;
   box-shadow: 0 12px 24px rgba(7, 21, 46, 0.3);
 }
 
@@ -1134,6 +1135,7 @@ section[id],
   border: 1px solid var(--border);
   background: #f9fbff;
   font-size: 16px;
+  font-family: inherit;
   color: var(--ink);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
