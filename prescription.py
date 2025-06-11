@@ -108,6 +108,50 @@ def parse_min_max(ideal_text: str):
     except ValueError:
         return None, None
 
+def analyze_pdf(file_path, references_path="references.json"):
+    lines = read_pdf(file_path)
+    references = read_references(references_path)
+    
+    if lines is None or references is None:
+        return "Erro ao ler PDF ou referências.", ""
+    
+    results = scan_results(lines, references)
+    
+    # Gerar texto de diagnóstico e receita
+    diagnostic_text = "Resumo dos resultados:\n"
+    prescription_text = ""
+    
+    for test, info in results.items():
+        extracted = info["extracted_value"]
+        ideal = info["ideal"]
+        suggestion = info["medication_suggestion"]
+
+        if extracted is None:
+            continue
+
+        if isinstance(ideal, dict):
+            first_key = next(iter(ideal))
+            ideal_text = ideal[first_key]
+        else:
+            ideal_text = ideal
+
+        min_val, max_val = parse_min_max(str(ideal_text))
+        if min_val is None or max_val is None:
+            continue
+
+        if extracted < min_val:
+            diagnostic_text += f"- {test}: ABAIXO ({extracted}) ideal ({min_val}-{max_val})\n"
+            if suggestion:
+                prescription_text += f"- {test}: Medicação sugerida para baixo: {suggestion}\n"
+        elif extracted > max_val:
+            diagnostic_text += f"- {test}: ACIMA ({extracted}) ideal ({min_val}-{max_val})\n"
+            if suggestion:
+                prescription_text += f"- {test}: Medicação sugerida para alto: {suggestion}\n"
+        else:
+            diagnostic_text += f"- {test}: Normal ({extracted}) ideal ({min_val}-{max_val})\n"
+
+    return diagnostic_text, prescription_text
+
 
 #main
 if __name__ == "__main__":
@@ -131,22 +175,22 @@ if __name__ == "__main__":
         extracted = info["extracted_value"]
         ideal = info["ideal"]
         suggestion = info["medication_suggestion"]
-    
+
         if extracted is None:
             continue
-    
+
         if isinstance(ideal, dict):
             # pega a primeira faixa do dict (ex.: “male” ou “female”)
             first_key = next(iter(ideal))
             ideal_text = ideal[first_key]
         else:
             ideal_text = ideal
-    
+
         min_val, max_val = parse_min_max(str(ideal_text))
         # se não conseguiu extrair intervalo numérico, pula
         if min_val is None or max_val is None:
             continue
-    
+
         if extracted < min_val:
             print(f"  {test}: valor extraído {extracted} está ABAIXO do valor ideal ({min_val}–{max_val}).")
             if suggestion:
