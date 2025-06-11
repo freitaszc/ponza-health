@@ -127,31 +127,31 @@ if __name__ == "__main__":
     results = scan_results(lines, references)
     
     print("\nResultados:\n")
-for test, info in results.items():
-    extracted = info["extracted_value"]
-    ideal = info["ideal"]
-    suggestion = info["medication_suggestion"]
-
-    if extracted is None:
-        continue
-
-    if isinstance(ideal, dict):
-        # pega a primeira faixa do dict (ex.: “male” ou “female”)
-        first_key = next(iter(ideal))
-        ideal_text = ideal[first_key]
-    else:
-        ideal_text = ideal
-
-    min_val, max_val = parse_min_max(str(ideal_text))
-    # se não conseguiu extrair intervalo numérico, pula
-    if min_val is None or max_val is None:
-        continue
-
-    if extracted < min_val:
-        print(f"  {test}: valor extraído {extracted} está ABAIXO do valor ideal ({min_val}–{max_val}).")
-        if suggestion:
-            print(f"    → Medicações sugeridas: {suggestion}\n")
-    elif extracted > max_val:
-        print(f"  {test}: valor extraído {extracted} está ACIMA do valor ideal ({min_val}–{max_val}).")
-        if suggestion:
-            print(f"   → Medicações sugeridas: {suggestion}\n")
+    for test, info in results.items():
+        extracted = info["extracted_value"]
+        ideal = info["ideal"]
+        suggestion = info["medication_suggestion"]
+    
+        if extracted is None:
+            continue
+    
+        if isinstance(ideal, dict):
+            # pega a primeira faixa do dict (ex.: “male” ou “female”)
+            first_key = next(iter(ideal))
+            ideal_text = ideal[first_key]
+        else:
+            ideal_text = ideal
+    
+        min_val, max_val = parse_min_max(str(ideal_text))
+        # se não conseguiu extrair intervalo numérico, pula
+        if min_val is None or max_val is None:
+            continue
+    
+        if extracted < min_val:
+            print(f"  {test}: valor extraído {extracted} está ABAIXO do valor ideal ({min_val}–{max_val}).")
+            if suggestion:
+                print(f"    → Medicações sugeridas: {suggestion}\n")
+        elif extracted > max_val:
+            print(f"  {test}: valor extraído {extracted} está ACIMA do valor ideal ({min_val}–{max_val}).")
+            if suggestion:
+                print(f"   → Medicações sugeridas: {suggestion}\n")
