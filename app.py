@@ -1,52 +1,108 @@
-import gradio as gr
-from prescription import read_pdf, read_references, scan_results, parse_min_max
+# app.py
 
-def analisar(pdf_file):
-    lines = read_pdf(pdf_file.name)
-    if lines is None:
-        return "❌ Erro ao ler o PDF."
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List
+from records import (
+    add_patient, get_patients, get_patient,
+    add_consultation, get_consults
+)
+from prescription import read_pdf  # supondo que já exista
+from prescription import analyze_pdf  # se não existir, criaremos depois
 
-    references = read_references("references.json")
-    if references is None:
-        return "❌ Erro ao carregar o arquivo de referências (JSON)."
+from datetime import datetime
 
-    results = scan_results(lines, references)
-    
-    output = ""
-    for test, info in results.items():
-        extracted = info["extracted_value"]
-        ideal = info["ideal"]
-        suggestion = info["medication_suggestion"]
+app = FastAPI()
 
-        if extracted is None:
-            continue
+# MODELOS PARA A API
 
-        if isinstance(ideal, dict):
-            first_key = next(iter(ideal))
-            ideal_text = ideal[first_key]
-        else:
-            ideal_text = ideal
+class PatientRequest(BaseModel):
+    name: str
+    age: int
+    cpf: str
+    phone: str
 
-        min_val, max_val = parse_min_max(str(ideal_text))
-        if min_val is None or max_val is None:
-            continue
+class ConsultationRequest(BaseModel):
+    patient_id: int
+    date: str
+    diagnostic: str
+    prescription: str
 
-        if extracted < min_val:
-            output += f"❌ {test}: valor {extracted} está ABAIXO do ideal ({min_val}–{max_val}).\n"
-            if suggestion:
-                output += f"   → Medicação sugerida: {suggestion}\n\n"
-        elif extracted > max_val:
-            output += f"❌ {test}: valor {extracted} está ACIMA do ideal ({min_val}–{max_val}).\n"
-            if suggestion:
-                output += f"   → Medicação sugerida: {suggestion}\n\n"
-        else:
-            output += f"✅ {test}: valor {extracted} dentro do ideal ({min_val}–{max_val}).\n\n"
+class ProcessPDFRequest(BaseModel):
+    pdf_path: str
+    name: str
+    birth_date: str  # vamos armazenar como "idade" = 0 só para simplificar no add_patient
 
-    return output if output.strip() else "Todos os exames estão dentro do intervalo ideal."
+# ROTAS
 
-gr.Interface(
-    fn=analisar,
-    inputs=gr.File(label="Envie o PDF do laudo"),
-    outputs=gr.Textbox(label="Resultado"),
-    title="Analisador de Laudos Clínicos",
-).launch(server_name="0.0.0.0", server_port=7860)
+# GET /patients → lista todos os pacientes
+@app.get("/patients")
+def list_patients():
+    patients = get_patients()
+    return [vars(patient) for patient in patients]
+
+# POST /patients → cadastra novo paciente
+@app.post("/patients")
+def create_patient(patient_request: PatientRequest):
+    patient = add_patient(
+        patient_request.name,
+        patient_request.age,
+        patient_request.cpf,
+        patient_request.phone
+    )
+    return vars(patient)
+
+# GET /patients/{id} → paciente + histórico de consultas
+@app.get("/patients/{patient_id}")
+def get_patient_with_history(patient_id: int):
+    patient = get_patient(patient_id)
+    if patient is None:
+        return {"error": "Patient not found"}
+
+    consultations = get_consults(patient_id)
+
+    return {
+        "patient": vars(patient),
+        "consultations": [vars(consultation) for consultation in consultations]
+    }
+
+# POST /consultations → cadastra nova consulta manual
+@app.post("/consultations")
+def create_consultation(consultation_request: ConsultationRequest):
+    consultation = add_consultation(
+        consultation_request.patient_id,
+        consultation_request.date,
+        consultation_request.diagnostic,
+        consultation_request.prescription
+    )
+    return vars(consultation)
+
+# POST /process_pdf → fluxo automático: cria paciente + consulta com receita
+@app.post("/process_pdf")
+def process_pdf(request: ProcessPDFRequest):
+    # 1. Ler e analisar o PDF
+    text = read_pdf(request.pdf_path)
+    diagnostic, prescription = analyze_pdf(text)
+
+    # 2. Criar paciente (idade=0 por simplificação, pois só temos birth_date em string)
+    patient = add_patient(
+        name=request.name,
+        age=0,
+        cpf="",
+        phone=""
+    )
+
+    # 3. Criar consulta associada com a receita
+    today = datetime.today().strftime('%Y-%m-%d')
+
+    consultation = add_consultation(
+        patient.id,
+        today,
+        diagnostic,
+        prescription
+    )
+
+    return {
+        "patient": vars(patient),
+        "consultation": vars(consultation)
+    }
