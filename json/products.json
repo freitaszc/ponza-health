@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "name": "ADEK",
+    "purchase_price": 50.0,
+    "sale_price": 100.0,
+    "quantity": 1,
+    "status": "Ativo",
+    "code": "12",
+    "min_stock": 5
+  }
+]

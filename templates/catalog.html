@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Catálogo de Pacientes - BioO3</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Montserrat', sans-serif;
+      background-color: #f9f9f9;
+    }
+    .logo-img {
+      width: 100px;
+      display: block;
+      margin: 0 auto 20px auto;
+    }
+    .top-menu {
+      background-color: white;
+      padding: 10px 0;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .top-menu a {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+      color: #333;
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: 0.3s;
+    }
+    .top-menu a:hover {
+      background-color: #00c5d3;
+      color: white;
+    }
+    .content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    h2 {
+      font-size: 24px;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+    .menu-button {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      border: 2px solid #00c5d3;
+      background-color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: 0.3s ease;
+      cursor: pointer;
+    }
+    .menu-button:hover {
+      background-color: #00c5d3;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-menu">
+    <a href="{{ url_for('index') }}">Início</a>
+    <a href="{{ url_for('upload') }}">BioO3 Lab</a>
+    <a href="{{ url_for('catalog') }}">Catálogo de Pacientes</a>
+    <a href="{{ url_for('products') }}">Estoque</a>
+    <a href="{{ url_for('agenda') }}">Agenda</a>
+    <a href="{{ url_for('videos') }}">Vídeoaulas</a>
+    <a href="{{ url_for('logout') }}">Sair</a>
+  </div>
+  <div class="content">
+    <a href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img">
+    </a>
+    <h2>Catálogo de Pacientes</h2>
+    <button class="menu-button" onclick="openPatientModal()">Cadastrar Paciente</button>
+  </div>
+
+  <form method="get" action="{{ url_for('catalog') }}" class="filter-form" style="text-align:center;">
+    <input type="search" name="search" placeholder="Pesquisar paciente..." value="{{ request.args.get('search', '') }}">
+    <select name="status">
+      <option value="">Todos</option>
+      <option value="Ativo" {% if request.args.get('status') == 'Ativo' %}selected{% endif %}>Ativo</option>
+      <option value="Inativo" {% if request.args.get('status') == 'Inativo' %}selected{% endif %}>Inativo</option>
+    </select>
+    <button type="submit" class="menu-button">Filtrar</button>
+  </form>
+
+  <table class="catalog-table">
+    <thead>
+      <tr>
+        <th>Paciente</th>
+        <th>Telefone</th>
+        <th>Médico</th>
+        <th>Status</th>
+        <th style="text-align: center;">Opções</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for patient in patients %}
+      <tr>
+        <td>{{ patient.name }}</td>
+        <td>{{ patient.phone }}</td>
+        <td>{{ patient.doctor_name }}</td>
+        <td>
+          <div class="options-container">
+            <span class="status-badge status-{{ patient.status|lower }}" onclick="toggleStatusMenu(this)">
+              {{ patient.status }} ▾
+            </span>
+            <div class="options-menu">
+              {% if patient.status != 'Ativo' %}
+              <a href="{{ url_for('toggle_patient_status', patient_id=patient.id, new_status='Ativo') }}">Ativo</a>
+              {% endif %}
+              {% if patient.status != 'Inativo' %}
+              <a href="{{ url_for('toggle_patient_status', patient_id=patient.id, new_status='Inativo') }}">Inativo</a>
+              {% endif %}
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="options-container">
+            <button class="options-button" onclick="toggleMenu(this)">⋮</button>
+            <div class="options-menu">
+              <a href="{{ url_for('patient_result', patient_id=patient.id) }}">Ver Diagnóstico</a>
+              <a href="{{ url_for('edit_patient', patient_id=patient.id) }}">Editar Informações</a>
+              <a href="{{ url_for('add_consultation_route', patient_id=patient.id) }}">Adicionar Consulta</a>
+              <form method="post" action="{{ url_for('delete_patient', patient_id=patient.id) }}" onsubmit="return confirm('Deseja realmente remover este paciente?')" style="margin: 0;">
+                <button type="submit" style="
+                  background: none;
+                  border: none;
+                  padding: 8px 12px;
+                  margin: 0;
+                  width: 100%;
+                  font: inherit;
+                  cursor: pointer;
+                  text-align: left;
+                  color: #333;
+                  font-family: 'Montserrat', sans-serif;
+                  font-size: 14px;
+                  display: block;
+                  text-decoration: none;
+                "
+                onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
+                onmouseout="this.style.backgroundColor=''; this.style.color='#333';">
+                  Remover Paciente
+                </button>
+              </form>
+                          </div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+<!-- MODAL AJAX COM SELECT DE MÉDICOS -->
+<div id="patientModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+  <div style="background:white; padding:30px; border-radius:10px; width:90%; max-width:500px; text-align:center; font-family:'Montserrat', sans-serif;">
+    <h2 style="margin-bottom: 20px; color: #2c3e50; font-weight: 600;">Novo Paciente</h2>
+    
+    <input type="text" id="name" placeholder="Nome" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
+    <input type="number" id="age" placeholder="Idade" required style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
+    <input type="text" id="cpf" placeholder="CPF" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
+    <input type="text" id="gender" placeholder="Sexo" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
+    <input type="text" id="phone" placeholder="Telefone" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
+
+    <select id="doctor" required style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
+      <option value="">Selecione o médico</option>
+    </select>
+
+    <button type="button" onclick="submitPatient()" style="
+      width: 100%;
+      padding: 10px 16px;
+      background-color: white;
+      color: #333;
+      border: 2px solid #00c5d3;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      margin-bottom: 10px;
+    " onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
+       onmouseout="this.style.backgroundColor='white'; this.style.color='#333';">
+      Salvar
+    </button>
+
+    <button type="button" onclick="closePatientModal()" style="
+      width: 100%;
+      padding: 10px 16px;
+      background-color: white;
+      color: #333;
+      border: 2px solid #00c5d3;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    " onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
+       onmouseout="this.style.backgroundColor='white'; this.style.color='#333';">
+      Cancelar
+    </button>
+  </div>
+</div>
+
+  <script>
+    function toggleMenu(button) {
+      document.querySelectorAll('.options-menu').forEach(menu => {
+        if (menu !== button.nextElementSibling) menu.style.display = 'none';
+      });
+      const menu = button.nextElementSibling;
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function toggleStatusMenu(span) {
+      document.querySelectorAll('.options-menu').forEach(menu => {
+        if (menu !== span.nextElementSibling) menu.style.display = 'none';
+      });
+      const menu = span.nextElementSibling;
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    }
+
+    window.addEventListener('click', function(e) {
+      document.querySelectorAll('.options-container').forEach(container => {
+        if (!container.contains(e.target)) {
+          const menu = container.querySelector('.options-menu');
+          if (menu) menu.style.display = 'none';
+        }
+      });
+    });
+
+    function openPatientModal() {
+      carregarMedicos();
+      document.getElementById("patientModal").style.display = "flex";
+    }
+
+    function closePatientModal() {
+      document.getElementById("patientModal").style.display = "none";
+    }
+
+    function carregarMedicos() {
+      fetch('/api/doctors')
+        .then(response => response.json())
+        .then(data => {
+          const select = document.getElementById('doctor');
+          select.innerHTML = '<option value="">Selecione o médico</option>';
+          data.forEach(med => {
+            const opt = document.createElement('option');
+            opt.value = med.id;
+            opt.textContent = med.name;
+            select.appendChild(opt);
+          });
+        });
+    }
+
+    function submitPatient() {
+      const data = {
+        name: document.getElementById("name").value,
+        age: document.getElementById("age").value,
+        cpf: document.getElementById("cpf").value,
+        gender: document.getElementById("gender").value,
+        phone: document.getElementById("phone").value,
+        doctor: document.getElementById("doctor").value,
+      };
+
+      fetch("/api/add_patient", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          alert("Paciente cadastrado com sucesso!");
+          closePatientModal();
+          window.location.reload();
+        } else {
+          alert("Erro: " + (result.error || "Erro desconhecido"));
+        }
+      });
+    }
+  </script>
+</body>
+</html>
