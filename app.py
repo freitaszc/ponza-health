@@ -44,7 +44,14 @@ if missing:
 token_id = required_env["MUX_TOKEN_ID"]
 token_secret = required_env["MUX_TOKEN_SECRET"]
 signing_key = required_env["MUX_SIGNING_KEY"]
-private_key_path = os.path.abspath(cast(str, required_env["MUX_PRIVATE_KEY"]))
+mux_key_content = required_env["MUX_PRIVATE_KEY"]
+if mux_key_content:
+    os.makedirs("Keys", exist_ok=True)
+    private_key_path = "Keys/mux_private.key"
+    with open(private_key_path, "w") as f:
+        f.write(mux_key_content.replace("\\n", "\n"))
+else:
+    raise EnvironmentError("MUX_PRIVATE_KEY está ausente ou inválida.")
 
 # --- AUTENTICAÇÃO ---
 def load_users():
