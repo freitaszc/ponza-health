@@ -161,12 +161,14 @@ def download_pdf():
     doctor_name = session.get('doctor_name', '')
     patient_info = session.get('patient_info', '')
 
+    logo_path = os.path.join(app.static_folder, "images", "logocompleta.png")
     html = render_template(
         "result_pdf.html",
         diagnostic_text=diagnostic_text,
         prescription_text=prescription_text,
         doctor_name=doctor_name,
-        patient_info=patient_info
+        patient_info=patient_info,
+        logo_path=logo_path
     )
     pdf = weasyprint.HTML(string=html, base_url=request.url_root).write_pdf()
     response = make_response(pdf)
