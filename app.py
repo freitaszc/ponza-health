@@ -16,7 +16,6 @@ import jwt
 from typing import cast
 from whatsapp import enviar_pdf_whatsapp
 
-
 # --- CONFIGURAÇÃO INICIAL ---
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
@@ -75,7 +74,6 @@ def login():
 def logout():
     session.pop('user', None)
     return redirect(url_for('login'))
-
 
 # --- DASHBOARD INICIAL ---
 @app.route('/index')
