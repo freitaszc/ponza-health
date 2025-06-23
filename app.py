@@ -130,7 +130,7 @@ def upload():
             doctor_name=doctor_name,
             patient_info=patient_info
         )
-        pdf = weasyprint.HTML(string=html, base_url=os.path.abspath(".")).write_pdf()
+        pdf = weasyprint.HTML(string=html, base_url=request.url_root).write_pdf()
         if not isinstance(pdf, bytes):
             raise ValueError("Erro ao gerar PDF: resultado não é do tipo bytes.")
 
@@ -170,7 +170,7 @@ def download_pdf():
         doctor_name=doctor_name,
         patient_info=patient_info
     )
-    pdf = weasyprint.HTML(string=html, base_url=os.path.abspath(".")).write_pdf()
+    pdf = weasyprint.HTML(string=html, base_url=request.url_root).write_pdf()
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=prescription.pdf'
