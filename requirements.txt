@@ -6,3 +6,4 @@ Weasyprint
 pyjwt
 dotenv
 requests
+gunicorn
