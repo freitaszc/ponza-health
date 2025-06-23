@@ -22,8 +22,8 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 load_dotenv()
 
-USERNAME = 'admin'
-PASSWORD = 'senha123'
+USERNAME = os.getenv("APP_USERNAME")
+PASSWORD = os.getenv("APP_PASSWORD")
 
 MUX_TOKEN_ID = os.getenv("MUX_TOKEN_ID")
 MUX_TOKEN_SECRET = os.getenv("MUX_TOKEN_SECRET")
