@@ -23,23 +23,14 @@ def enviar_pdf_whatsapp(medico_nome: str, pdf_link: str):
         }
 
         payload = {
-            "messaging_product": "whatsapp",
-            "to": telefone_destino,
-            "type": "template",
-            "template": {
-                "name": "lab_result_ready",
-                "language": { "code": "pt_BR" },
-                "components": [
-                    {
-                        "type": "body",
-                        "parameters": [
-                            { "type": "text", "text": medico_nome.split()[0] },
-                            { "type": "text", "text": pdf_link }
-                        ]
-                    }
-                ]
-            }
-        }
+    "messaging_product": "whatsapp",
+    "to": telefone_destino,
+    "type": "template",
+    "template": {
+        "name": "hello_world",
+        "language": { "code": "en_US" }
+    }
+}
 
         response = requests.post(
             f"{WHATSAPP_API_URL}/{WHATSAPP_PHONE_NUMBER_ID}/messages",
