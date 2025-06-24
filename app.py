@@ -109,6 +109,7 @@ def upload():
         pdf_file.save(temp_pdf_path)
 
         diagnostic, prescription, name, gender, age, cpf, phone, doctor_name = analyze_pdf(temp_pdf_path)
+        print("[DEBUG] Médico extraído:", doctor_name)
         doctor_id, doctor_phone = add_doctor_if_not_exists(doctor_name)
         patient_id = add_patient(name, age, cpf, gender, phone, doctor_id)
         today = datetime.today().strftime('%d-%m-%Y')
@@ -132,14 +133,20 @@ def upload():
         if not isinstance(pdf, bytes):
             raise ValueError("Erro ao gerar PDF: resultado não é do tipo bytes.")
 
-        temp_pdf_result_path = f"/tmp/resultado_{cpf.replace('.', '').replace('-', '')}.pdf"
-        with open(temp_pdf_result_path, 'wb') as f:
+        cpf_limpo = cpf.replace('.', '').replace('-', '')
+        output_folder = os.path.join("static", "output")
+        os.makedirs(output_folder, exist_ok=True)
+
+        pdf_filename = f"resultado_{cpf_limpo}.pdf"
+        pdf_path_publico = os.path.join(output_folder, pdf_filename)
+
+        with open(pdf_path_publico, 'wb') as f:
             f.write(pdf)
 
         # Enviar automaticamente para WhatsApp
-        temp_pdf_original_path = temp_pdf_path
+        pdf_link = f"https://bioo3.com.br/static/output/{pdf_filename}"
         if doctor_name:
-            status_envio = enviar_pdf_whatsapp(doctor_name, temp_pdf_result_path, temp_pdf_original_path)
+            status_envio = enviar_pdf_whatsapp(doctor_name, pdf_link)
             print("[WHATSAPP] Status:", status_envio)
 
         return render_template(
@@ -161,20 +168,19 @@ def download_pdf():
     doctor_name = session.get('doctor_name', '')
     patient_info = session.get('patient_info', '')
 
-    logo_path = os.path.join(app.static_folder, "images", "logocompleta.png")
     html = render_template(
         "result_pdf.html",
         diagnostic_text=diagnostic_text,
         prescription_text=prescription_text,
         doctor_name=doctor_name,
-        patient_info=patient_info,
-        logo_path=logo_path
+        patient_info=patient_info
     )
     pdf = weasyprint.HTML(string=html, base_url=request.url_root).write_pdf()
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=prescription.pdf'
     return response
+
 
 # --- PACIENTES ---
 @app.route('/catalog')

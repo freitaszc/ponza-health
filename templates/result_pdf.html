@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Resultado - BioO3 (PDF)</title>
-    <link rel="stylesheet" href="/static/pdf.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='pdf.css', _external=True) }}">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
     <style>
         body {
-            margin: 1cm 0.5cm; 
+            margin: 1cm 0.5cm;
             font-family: "Times New Roman", serif;
             font-size: 14px;
         }
@@ -54,9 +54,7 @@
 </head>
 <body>
     <div class="header">
-        <div class="patient-info">
-            {{ patient_info.strip() }}
-        </div>        
+        <div class="patient-info">{{ patient_info.strip() }}</div>
         <div>
             <img src="{{ logo_path }}" class="logo">
         </div>
