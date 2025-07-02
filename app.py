@@ -168,19 +168,23 @@ def download_pdf():
     doctor_name = session.get('doctor_name', '')
     patient_info = session.get('patient_info', '')
 
+    logo_path = os.path.join(app.root_path, 'static', 'logo.png')
     html = render_template(
         "result_pdf.html",
         diagnostic_text=diagnostic_text,
         prescription_text=prescription_text,
         doctor_name=doctor_name,
-        patient_info=patient_info
+        patient_info=patient_info,
+        logo_path=logo_path
     )
-    pdf = weasyprint.HTML(string=html, base_url=request.url_root).write_pdf()
+
+    base_path = os.path.join(app.root_path, 'static')
+    pdf = weasyprint.HTML(string=html, base_url=base_path).write_pdf()
+
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=prescription.pdf'
     return response
-
 
 # --- PACIENTES ---
 @app.route('/catalog')
