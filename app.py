@@ -168,7 +168,7 @@ def download_pdf():
     doctor_name = session.get('doctor_name', '')
     patient_info = session.get('patient_info', '')
 
-    logo_path = os.path.join(app.root_path, 'static', 'logo.png')
+    logo_path = os.path.join(app.root_path, 'static', 'images', 'logo.png')
     html = render_template(
         "result_pdf.html",
         diagnostic_text=diagnostic_text,
