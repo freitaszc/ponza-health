@@ -1,38 +1,39 @@
 [
   {
-    "title": "Apresentação",
-    "playback_id": "3wsP1kiXXsMoxbk9k00GesrIGHAculvOop8wgQNvQqXY"
+    "title": "0. Apresentação",
+    "playback_id": "3wsP1kiXXsMoxbk9k00GesrIGHAculvOop8wgQNvQqXY",
+    "pdf": "Aviso_Legal.pdf"
   },
   {
-    "title": "Biorressonância",
-    "playback_id": "TCqCyPee2MS02vidlyRgBA3c01LBWLkGyDo16pjANp7YQ"
-  },
-  {
-    "title": "Análise de Paciente com Aparelho",
+    "title": "1. Análise de Paciente com Aparelho",
     "playback_id": "SAjGDIMzauiLP1L79ab8MYRWQX02SfFk6502EUMZFYdpY"
   },
   {
-    "title": "Formatação da Receita com o Support Health",
+    "title": "2. Formatação da Receita com o Support Health",
     "playback_id": "yzDbOP3HbQ3kxH7riTJZ1ApUyTsFlv14EkqDn5Y4Pg4"
   },
   {
-    "title": "Protocolo de Injetáveis",
-    "playback_id": "46BTZY00FkKqDbkJkIMNw11lR7EiKsZWd8lnSjLpZHCc"
+    "title": "3. Protocolo de Injetáveis",
+    "playback_id": "46BTZY00FkKqDbkJkIMNw11lR7EiKsZWd8lnSjLpZHCc",
+    "pdf": "Soroterapia.pdf"
   },
   {
-    "title": "Prática de Terapias Injetáveis",
+    "title": "4. Prática de Terapias Injetáveis",
     "playback_id": ""
   },
   {
-    "title": "Vitaminas",
-    "playback_id": "CwSiaerN19kk02nvfyVITczwCRDwgV229FGO1RRVKaM8"
+    "title": "5. Vitaminas",
+    "playback_id": "CwSiaerN19kk02nvfyVITczwCRDwgV229FGO1RRVKaM8",
+    "pdf": "Vitaminas.pdf"
   },
   {
-    "title": "Minerais",
-    "playback_id": "IQ8b4hSIIlzgmlB9WLHZpTT5FaGfaz5kHds8XKwVDos"
+    "title": "6. Minerais",
+    "playback_id": "IQ8b4hSIIlzgmlB9WLHZpTT5FaGfaz5kHds8XKwVDos",
+    "pdf": "Minerais.pdf"
   },
   {
-    "title": "Outros Ativos Importantes",
-    "playback_id": "4j2JNMgajMpvqBFknyPZ7utoizEne02PzradOl302X18U"
+    "title": "7. Outros Ativos Importantes",
+    "playback_id": "4j2JNMgajMpvqBFknyPZ7utoizEne02PzradOl302X18U",
+    "pdf": "Outros.pdf"
   }
 ]

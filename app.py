@@ -230,27 +230,32 @@ def edit_patient(patient_id):
 def patient_result(patient_id):
     if 'user' not in session:
         return redirect(url_for('login'))
+
     patient = get_patient(patient_id)
     if not patient:
         return render_template('result.html', result_text="Paciente não encontrado.")
+
     consultations = get_consults(patient_id)
     if not consultations:
-        result_text = f"Paciente: {patient['name']}\n\nNenhuma consulta cadastrada."
-    else:
-        latest = consultations[-1]
-        result_text = f"""
-Paciente: {patient["name"]}
-Idade: {patient["age"]}
-CPF: {patient["cpf"]}
-Sexo: {patient["gender"]}
-Telefone: {patient["phone"]}
+        return render_template(
+            'result.html',
+            diagnostic_text="Nenhuma consulta cadastrada.",
+            prescription_text="",
+            doctor_name=patient.get("doctor", "Desconhecido")
+        )
 
-Última consulta:
+    latest = consultations[-1]  # texto completo
+    parts = latest.split("Prescrição:\n")
 
-{latest}
-"""
-    session['doctor_name'] = patient.get("doctor_name", "")
-    return render_template('result.html', result_text=result_text)
+    diagnostic_text = parts[0].strip() if len(parts) > 0 else ""
+    prescription_text = parts[1].strip() if len(parts) > 1 else ""
+
+    return render_template(
+        'result.html',
+        diagnostic_text=diagnostic_text,
+        prescription_text=prescription_text,
+        doctor_name=patient.get("doctor", "Desconhecido")
+    )
 
 @app.route('/delete_patient/<int:patient_id>', methods=['POST'])
 def delete_patient(patient_id):
@@ -549,9 +554,17 @@ def watch_video(playback_id):
     video = next((v for v in videos if v["playback_id"] == playback_id), None)
     if not video:
         return "Vídeo não encontrado", 404
-    token = create_signed_token(playback_id)
-    return render_template('watch_video.html', title=video["title"], playback_id=playback_id, token=token)
 
+    token = create_signed_token(playback_id)
+    pdf_filename = video.get("pdf")  # pode ser None
+
+    return render_template(
+        'watch_video.html',
+        title=video["title"],
+        playback_id=playback_id,
+        token=token,
+        pdf_filename=pdf_filename
+    )
 
 # --- UTILITÁRIOS ---
 def send_pdf_to_doctor(phone_number, pdf_path):

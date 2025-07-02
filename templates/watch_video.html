@@ -66,9 +66,18 @@
 
   <video id="video" controls></video>
 
-  <div>
-    <a href="{{ url_for('videos') }}" class="button-outline">Voltar</a>
+  {% if pdf_filename %}
+  <div style="margin-top: 30px;">
+    <h3>Material Complementar</h3>
+    <a href="{{ url_for('static', filename='pdfs/' + pdf_filename) }}" target="_blank" class="button-outline">
+      Baixar {{ pdf_filename }}
+    </a>
   </div>
+{% endif %}
+
+<div style="margin-top: 20px;">
+  <a href="{{ url_for('videos') }}" class="button-outline">Voltar</a>
+</div>
 
   <script>
     const video = document.getElementById('video');

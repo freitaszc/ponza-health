@@ -1,7 +1,7 @@
 import re
 import json
 from PyPDF2 import PdfReader
-
+from datetime import datetime
 
 def read_pdf(file_path):
     try:
@@ -164,6 +164,12 @@ def analyze_pdf(file_path, references_path="json/references.json"):
     if lines is None or references is None:
         return "Erro ao ler o PDF ou as referências.", "", "", "", 0, "", "", ""
 
+    # Concatena o texto em uma string só para análise por padrão
+    texto = "\n".join(lines)
+
+    if "Diagnósticos do Brasil" in texto or "Drª. Christiany" in texto:
+        return analyze_pdf_biocell(texto)
+
     name, gender, age, cpf, phone, doctor = extract_patient_info(lines)
     results = scan_results(lines, references, gender)
 
@@ -205,3 +211,89 @@ def analyze_pdf(file_path, references_path="json/references.json"):
     prescription_text = "\n".join(prescription_lines)
 
     return diagnostic_text, prescription_text, name, gender, age, cpf, phone, doctor
+
+import re
+from datetime import datetime
+import json
+
+def analyze_pdf_biocell(texto: str, references_path="json/references.json"):
+    # Nome
+    linhas = texto.splitlines()
+    linhas_limpa = [l.strip() for l in linhas if l.strip()]
+    nome_raw = linhas_limpa[0] if linhas_limpa else "Desconhecido"
+
+    # Remove "CAD" ou "CAD7" do final, se existir
+    nome = re.sub(r'\bCAD\d*\b$', '', nome_raw, flags=re.IGNORECASE).strip().title()
+
+    # CPF
+    cpf_match = re.search(r'C\.?P\.?F\.?\s+(\d{3}\.\d{3}\.\d{3}-\d{2})', texto)
+    cpf = cpf_match.group(1) if cpf_match else ""
+
+    # Data de nascimento e idade
+    dn_match = re.search(r'D\.?N\.?\s+(\d{2}/\d{2}/\d{4})', texto)
+    data_nasc = dn_match.group(1) if dn_match else ""
+    try:
+        birth_date_dt = datetime.strptime(data_nasc, "%d/%m/%Y")
+        today = datetime.today()
+        age = today.year - birth_date_dt.year - ((today.month, today.day) < (birth_date_dt.month, birth_date_dt.day))
+    except:
+        age = 0
+
+    # Médico responsável
+    medico_match = re.search(r'Dr[ªa\.]*\s+([A-ZÁÉÍÓÚÇ][^\n]+?)(?:CRF|CPF)', texto, re.IGNORECASE)
+    doctor_name = medico_match.group(1).strip() if medico_match else ""
+
+    # Gênero deduzido pelo nome
+    #gender = "Feminino" if nome.lower().split()[0].endswith("a") else "Masculino"
+    gender = ""
+
+    # Leitura das referências
+    try:
+        with open(references_path, "r", encoding="utf-8") as f:
+            references = json.load(f)
+    except:
+        return "Erro ao ler referências", "", nome, gender, age, cpf, "", doctor_name
+
+    # Processamento de linhas
+    lines = texto.splitlines()
+    lines = [line.strip() for line in lines if line.strip()]
+    results = scan_results(lines, references, gender)
+
+    diagnostic_text = ""
+    prescriptions_structured = []
+
+    for test, info in results.items():
+        extracted = info["extracted_value"]
+        ideal_text = info["ideal"]
+        meds = info["medications"]
+
+        if extracted is None or ideal_text is None:
+            continue
+
+        min_val, max_val = parse_min_max(str(ideal_text))
+        if min_val is None or max_val is None:
+            continue
+
+        if extracted < min_val:
+            diagnostic_text += f"{test}: valor extraído {extracted} está ABAIXO do valor ideal ({ideal_text}).\n"
+            prescriptions_structured.extend([{"exame": test, **med} for med in meds])
+        elif extracted > max_val:
+            diagnostic_text += f"{test}: valor extraído {extracted} está ACIMA do valor ideal ({ideal_text}).\n"
+            prescriptions_structured.extend([{"exame": test, **med} for med in meds])
+        else:
+            diagnostic_text += f"{test}: valor extraído {extracted} está dentro do valor ideal ({ideal_text}).\n"
+
+    # Agrupar prescrições por medicamento, evitando repetições
+    seen = set()
+    prescription_lines = []
+    for item in prescriptions_structured:
+        key = item["nome"]
+        if key not in seen:
+            seen.add(key)
+            prescription_lines.append(
+                f"- {item['nome']}\nPreparo: {item['preparo']}\nAplicação: {item['aplicacao']}\n"
+            )
+
+    prescription_text = "\n".join(prescription_lines)
+
+    return diagnostic_text.strip(), prescription_text.strip(), nome, gender, age, cpf, "", doctor_name
