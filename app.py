@@ -151,11 +151,20 @@ def upload():
         with open(pdf_path_publico, 'wb') as f:
             f.write(pdf)
 
-        # Enviar automaticamente para WhatsApp
-        pdf_link = f"https://bioo3.com.br/static/output/{pdf_filename}"
-        if doctor_name:
-            status_envio = enviar_pdf_whatsapp(doctor_name, pdf_link)
-            print("[WHATSAPP] Status:", status_envio)
+        pdf_link_analisado = f"https://bioo3.com.br/static/output/{pdf_filename}"
+        pdf_link_original = "https://bioo3.com.br/static/output/original.pdf" 
+
+        status_envio = enviar_pdf_whatsapp(
+            medico_nome=doctor_name,
+            paciente_nome=name,
+            pdf_link_analisado=pdf_link_analisado,
+            pdf_link_original=pdf_link_original
+        )
+
+        if status_envio:
+            print("[WHATSAPP] Erro ao enviar mensagem:", status_envio)
+        else:
+            print(f"[WHATSAPP] Mensagem enviada com sucesso para {doctor_name}.")
 
         return render_template(
         'result.html',
