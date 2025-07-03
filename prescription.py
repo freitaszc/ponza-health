@@ -168,8 +168,9 @@ def analyze_pdf(file_path, references_path="json/references.json"):
     texto = "\n".join(lines)
 
     if "Diagnósticos do Brasil" in texto or "Drª. Christiany" in texto:
-        return analyze_pdf_biocell(texto)
+        return analyze_pdf_biocell(texto)  # ← Análise automática para BioCell
 
+    # Análise padrão
     name, gender, age, cpf, phone, doctor = extract_patient_info(lines)
     results = scan_results(lines, references, gender)
 
@@ -210,11 +211,7 @@ def analyze_pdf(file_path, references_path="json/references.json"):
 
     prescription_text = "\n".join(prescription_lines)
 
-    return diagnostic_text, prescription_text, name, gender, age, cpf, phone, doctor
-
-import re
-from datetime import datetime
-import json
+    return diagnostic_text.strip(), prescription_text.strip(), name, gender, age, cpf, phone, doctor
 
 def analyze_pdf_biocell(texto: str, references_path="json/references.json"):
     # Nome

@@ -57,6 +57,14 @@ def load_users():
     with open('json/users.json', 'r', encoding='utf-8') as f:
         return json.load(f)
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
