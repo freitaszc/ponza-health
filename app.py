@@ -158,7 +158,8 @@ def upload():
             medico_nome=doctor_name,
             paciente_nome=name,
             pdf_link_analisado=pdf_link_analisado,
-            pdf_link_original=pdf_link_original
+            pdf_link_original=pdf_link_original,
+            template_name="hello_world"
         )
 
         if status_envio:
