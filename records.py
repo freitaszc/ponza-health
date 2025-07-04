@@ -9,7 +9,7 @@ DOCTORS_FILE = 'json/doctors.json'
 
 # simple patient class
 class Patient:
-    def __init__(self, id, name, age, cpf, gender, phone, doctor, status='Ativo', doctor_name="Não informado"):
+    def __init__(self, id, name, age, cpf, gender, phone, doctor, prescription="", status='Ativo', doctor_name="Não informado"):
         self.id = id
         self.name = name
         self.age = age
@@ -18,6 +18,7 @@ class Patient:
         self.phone = phone
         self.doctor = doctor
         self.status = status
+        self.prescription = prescription
         self.doctor_name = doctor_name
 
 # load all patients
@@ -42,6 +43,7 @@ def get_patients():
             gender=item.get('gender', ''),
             phone=item.get('phone', ''),
             doctor=item.get('doctor', ''),
+            prescription=item.get('prescription', ''),
             status=item.get('status', 'Ativo'),
             doctor_name=doctor_name
         )
@@ -60,7 +62,7 @@ def get_patient(patient_id):
     return patient
 
 # add a new patient
-def add_patient(name, age, cpf, gender, phone, doctor):
+def add_patient(name, age, cpf, gender, phone, doctor, prescription=""):
     patients = get_patients()
 
     # generate a new ID
@@ -68,9 +70,10 @@ def add_patient(name, age, cpf, gender, phone, doctor):
 
     # cria o novo paciente com a data atual
     new_patient = Patient(new_id, name, int(age), cpf, gender, phone, doctor)
+    new_patient.prescription = prescription 
     patients.append(new_patient)
 
-    # salva com o campo created_at
+    # salva com o campo created_at e prescription
     patients_data = []
     for p in patients:
         data = {
@@ -82,6 +85,7 @@ def add_patient(name, age, cpf, gender, phone, doctor):
             "phone": p.phone,
             "doctor": p.doctor,
             "status": p.status,
+            "prescription": getattr(p, 'prescription', '')  # ✅ Salva a prescrição (se houver)
         }
         # se já tiver uma data salva, preserva; senão, define hoje
         if hasattr(p, 'created_at'):
@@ -95,8 +99,8 @@ def add_patient(name, age, cpf, gender, phone, doctor):
 
     return new_id
 
-#update existing patient data
-def update_patient(patient_id, name, age, cpf, gender, phone, doctor):
+# update existing patient data
+def update_patient(patient_id, name, age, cpf, gender, phone, doctor, prescription):
     patients = get_patients()
     for p in patients:
         if p.id == patient_id:
@@ -107,6 +111,7 @@ def update_patient(patient_id, name, age, cpf, gender, phone, doctor):
             p.phone = phone
             p.doctor = doctor
             p.doctor_name = get_doctor_by_id(doctor) or "Não informado"
+            p.prescription = prescription  
             break
     save_patients(patients)
 

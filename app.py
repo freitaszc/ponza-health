@@ -86,22 +86,41 @@ def logout():
 # --- DASHBOARD INICIAL ---
 @app.route('/index')
 def index():
-    if 'user' not in session:
-        return redirect(url_for('login'))
+    file_path = os.path.join(os.path.dirname(__file__), 'json', 'consults.json')
+    with open(file_path, encoding="utf-8") as f:
+        consults = json.load(f)
 
-    pacientes = get_patients()
-    produtos = get_products()
-    agenda = load_agenda()
+    counts = {}
+    for consultas in consults.values():
+        for consulta in consultas:
+            lines = consulta.splitlines()
+            for line in lines:
+                if "Data:" in line:
+                    date_str = line.split("Data:")[1].strip()
+                    try:
+                        date_obj = datetime.strptime(date_str, "%d-%m-%Y")
+                        date_obj = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
+                        counts[date_obj] = counts.get(date_obj, 0) + 1
+                    except ValueError:
+                        continue
 
-    total_pdfs_analisados = sum(len(get_consults(p.id)) for p in pacientes)
+    today = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
+    chart_data = []
+    total = 0
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        count = counts.get(day, 0)
+        total += count
+        dias_passados = 7 - i  # conta desde o primeiro dia
+        media_acumulada = round(total / dias_passados, 2)
+        chart_data.append({
+            "date": day.strftime("%d/%m"),
+            "count": count,
+            "media": media_acumulada
+        })
 
-    return render_template(
-        "index.html",
-        produtos=produtos,
-        agenda=agenda,
-        now=datetime.now(),
-        total_pdfs_analisados=total_pdfs_analisados
-    )
+    return render_template("index.html", chart_data=chart_data)
+
 
 # --- BioO3 Lab E PROCESSAMENTO ---
 @app.route('/upload', methods=['GET', 'POST'])
@@ -113,13 +132,20 @@ def upload():
         pdf_file = request.files.get('pdf_file')
         if not pdf_file or pdf_file.filename == '':
             return render_template('upload.html', error='Por favor, selecione um arquivo PDF.')
-        temp_pdf_path = f"/tmp/{pdf_file.filename}"
-        pdf_file.save(temp_pdf_path)
+        
+        # Salva o PDF original na pasta uploads
+        uploads_folder = os.path.join("static", "uploads")
+        os.makedirs(uploads_folder, exist_ok=True)
 
-        diagnostic, prescription, name, gender, age, cpf, phone, doctor_name = analyze_pdf(temp_pdf_path)
+        filename = pdf_file.filename or "arquivo.pdf"
+        upload_path = os.path.join(uploads_folder, filename)
+        pdf_file.save(upload_path)
+
+        # Processamento do PDF
+        diagnostic, prescription, name, gender, age, cpf, phone, doctor_name = analyze_pdf(upload_path)
         print("[DEBUG] Médico extraído:", doctor_name)
         doctor_id, doctor_phone = add_doctor_if_not_exists(doctor_name)
-        patient_id = add_patient(name, age, cpf, gender, phone, doctor_id)
+        patient_id = add_patient(name, age, cpf, gender, phone, doctor_id, prescription)
         today = datetime.today().strftime('%d-%m-%Y')
 
         add_consultation(patient_id, f"Data: {today}\n\nDiagnóstico:\n{diagnostic}\n\nPrescrição:\n{prescription}")
@@ -130,18 +156,28 @@ def upload():
         session['doctor_name'] = doctor_name
         session['patient_info'] = patient_info
 
+        # --- DEBUG: Verificar os dados antes de gerar o PDF ---
+        print("[DEBUG] Dados no momento da geração do PDF:")
+        print("diagnostic:\n", diagnostic)
+        print("prescription:\n", prescription)
+        print("doctor_name:\n", doctor_name)
+        print("patient_info:\n", patient_info)
+        print("[DEBUG] Fim dos dados\n")
+
         html = render_template(
             "result_pdf.html",
             diagnostic_text=diagnostic,
             prescription_text=prescription,
             doctor_name=doctor_name,
-            patient_info=patient_info
+            patient_info=patient_info,
+            logo_path=os.path.join(app.root_path, 'static', 'images', 'logo.png')
         )
-        pdf = weasyprint.HTML(string=html, base_url=request.url_root).write_pdf()
+        pdf = weasyprint.HTML(string=html, base_url=os.path.join(app.root_path, 'static')).write_pdf()
+
         if not isinstance(pdf, bytes):
             raise ValueError("Erro ao gerar PDF: resultado não é do tipo bytes.")
 
-        cpf_limpo = cpf.replace('.', '').replace('-', '')
+        cpf_limpo = (cpf or "").replace('.', '').replace('-', '')
         output_folder = os.path.join("static", "output")
         os.makedirs(output_folder, exist_ok=True)
 
@@ -151,15 +187,16 @@ def upload():
         with open(pdf_path_publico, 'wb') as f:
             f.write(pdf)
 
-        pdf_link_analisado = f"https://bioo3.com.br/static/output/{pdf_filename}"
-        pdf_link_original = "https://bioo3.com.br/static/output/original.pdf" 
+        # Gerar os links corretos
+        pdf_link_analisado = url_for('static', filename=f"output/{pdf_filename}", _external=True)
+        pdf_link_original = url_for('static', filename=f"uploads/{pdf_file.filename}", _external=True)
 
         status_envio = enviar_pdf_whatsapp(
             medico_nome=doctor_name,
             paciente_nome=name,
-            pdf_link_analisado=pdf_link_analisado,
-            pdf_link_original=pdf_link_original,
-            template_name="hello_world"
+            patient_info=patient_info,
+            result_text=diagnostic + "\n\n" + prescription,
+            nome_pdf_original=pdf_file.filename
         )
 
         if status_envio:
@@ -168,11 +205,10 @@ def upload():
             print(f"[WHATSAPP] Mensagem enviada com sucesso para {doctor_name}.")
 
         return render_template(
-        'result.html',
-        diagnostic_text=diagnostic,
-        prescription_text=prescription
+            'result.html',
+            diagnostic_text=diagnostic,
+            prescription_text=prescription
         )
-
 
     return render_template('upload.html')
 
@@ -238,7 +274,8 @@ def edit_patient(patient_id):
             request.form['cpf'],
             request.form['gender'],
             request.form['phone'],
-            int(request.form['doctor'])
+            int(request.form['doctor']),
+            request.form.get('prescription', '').strip() 
         )
         return redirect(url_for('catalog'))
 
@@ -518,7 +555,8 @@ def api_add_patient():
         data.get("cpf", ""),
         data.get("gender", ""),
         data.get("phone", ""),
-        int(data.get("doctor", 0))
+        int(data.get("doctor", 0)),
+        data.get("prescription", "").strip()
     )
     return jsonify({'success': True, 'patient_id': patient_id})
 
