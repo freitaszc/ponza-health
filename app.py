@@ -178,10 +178,9 @@ def upload():
             raise ValueError("Erro ao gerar PDF: resultado não é do tipo bytes.")
 
         cpf_limpo = (cpf or "").replace('.', '').replace('-', '')
+        pdf_filename = f"resultado_{cpf_limpo}.pdf"
         output_folder = os.path.join("static", "output")
         os.makedirs(output_folder, exist_ok=True)
-
-        pdf_filename = f"resultado_{cpf_limpo}.pdf"
         pdf_path_publico = os.path.join(output_folder, pdf_filename)
 
         with open(pdf_path_publico, 'wb') as f:
@@ -194,15 +193,15 @@ def upload():
         status_envio = enviar_pdf_whatsapp(
             medico_nome=doctor_name,
             paciente_nome=name,
-            patient_info=patient_info,
-            result_text=diagnostic + "\n\n" + prescription,
-            nome_pdf_original=pdf_file.filename
+            pdf_link_analisado=pdf_link_analisado,
+            pdf_link_original=pdf_link_original
         )
 
         if status_envio:
             print("[WHATSAPP] Erro ao enviar mensagem:", status_envio)
         else:
             print(f"[WHATSAPP] Mensagem enviada com sucesso para {doctor_name}.")
+
 
         return render_template(
             'result.html',
