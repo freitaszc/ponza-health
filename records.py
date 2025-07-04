@@ -210,9 +210,9 @@ def update_patient_status(patient_id, new_status):
     save_patients(patients)
 
 def get_doctors():
-    if not os.path.exists(DOCTORS_FILE):
+    if not os.path.exists("json/doctors.json"):
         return []
-    with open(DOCTORS_FILE, "r", encoding="utf-8") as f:
+    with open("json/doctors.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
 def get_doctor_by_id(doc_id):
@@ -253,3 +253,13 @@ def get_patients_dict():
         }
         for p in get_patients()
     ]
+
+def update_doctor(doctor_id, name, phone):
+    doctors = get_doctors()
+    for doctor in doctors:
+        if doctor['id'] == doctor_id:
+            doctor['name'] = name
+            doctor['phone'] = phone
+            break
+    with open(DOCTORS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(doctors, f, indent=4, ensure_ascii=False)

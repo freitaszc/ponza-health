@@ -7,7 +7,7 @@ import weasyprint
 from prescription import analyze_pdf
 from records import (
     add_consultation, add_patient, get_consults, get_patient, get_patients, update_patient,
-    delete_patient_record, add_product, get_products, update_product_status,
+    delete_patient_record, add_product, get_products, update_product_status, update_doctor,
     update_patient_status, save_products, get_doctors, add_doctor_if_not_exists, get_consults
 )
 from werkzeug.security import check_password_hash
@@ -647,6 +647,41 @@ def api_add_event():
     save_agenda(events)
 
     return jsonify({'success': True})
+
+@app.route("/doctors")
+def doctors():
+    doctors = get_doctors()
+    return render_template("doctors.html", doctors=doctors)
+
+@app.route("/update_doctor/<int:doctor_id>", methods=["POST"])
+def update_doctor_route(doctor_id):
+    update_doctor(doctor_id, request.form["name"], request.form["phone"])
+    return redirect(url_for("doctors"))
+
+@app.route('/add_doctor', methods=['POST'])
+def add_doctor_route():
+    name = request.form['name']
+    phone = request.form['phone']
+    doctors = get_doctors()
+    new_id = max((d['id'] for d in doctors), default=0) + 1
+    doctors.append({'id': new_id, 'name': name, 'phone': phone})
+    with open('json/doctors.json', 'w', encoding='utf-8') as f:
+        json.dump(doctors, f, ensure_ascii=False, indent=2)
+    return redirect(url_for('doctors'))
+
+@app.route('/edit_doctor/<int:doctor_id>', methods=['GET', 'POST'])
+def edit_doctor(doctor_id):
+    doctors = get_doctors()
+    doctor = next((d for d in doctors if d['id'] == doctor_id), None)
+    if not doctor:
+        return "Médico não encontrado", 404
+    if request.method == 'POST':
+        doctor['name'] = request.form['name']
+        doctor['phone'] = request.form['phone']
+        with open('json/doctors.json', 'w', encoding='utf-8') as f:
+            json.dump(doctors, f, indent=4, ensure_ascii=False)
+        return redirect(url_for('doctors'))
+    return render_template('edit_doctor.html', doctor=doctor)
 
 # --- EXECUÇÃO ---
 if __name__ == '__main__':
