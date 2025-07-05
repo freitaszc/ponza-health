@@ -127,7 +127,8 @@ def save_patients(patients):
             "gender": p.gender,
             "phone": p.phone,
             "doctor": p.doctor,
-            "status": p.status
+            "status": p.status,
+            "prescription": p.prescription
         })
     with open(PATIENTS_FILE, 'w', encoding='utf-8') as f:
         json.dump(patients_data, f, indent=4, ensure_ascii=False)
