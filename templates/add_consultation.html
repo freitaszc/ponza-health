@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
   <title>Adicionar Consulta - BioO3</title>
@@ -12,26 +13,32 @@
       background-color: #f9f9f9;
       padding: 40px;
     }
+
     .form-box {
       max-width: 500px;
       margin: auto;
       background: white;
       padding: 30px;
       border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
+
     h2 {
       text-align: center;
       margin-bottom: 20px;
       color: #2c3e50;
     }
+
     label {
       font-weight: 500;
       display: block;
       margin-top: 20px;
       color: #2c3e50;
     }
-    input, textarea, select {
+
+    input,
+    textarea,
+    select {
       width: 100%;
       padding: 10px 12px;
       margin-top: 8px;
@@ -40,6 +47,7 @@
       font-family: 'Montserrat', sans-serif;
       font-size: 14px;
     }
+
     button {
       width: 100%;
       padding: 12px;
@@ -53,21 +61,25 @@
       cursor: pointer;
       transition: background-color 0.3s ease;
     }
+
     button:hover {
       background-color: #009fb0;
     }
+
     .button-outline {
       background-color: transparent;
       border: 1px solid #00c5d3;
       color: #00c5d3;
       margin-top: 10px;
     }
+
     .button-outline:hover {
       background-color: #00c5d3;
       color: white;
     }
   </style>
 </head>
+
 <body>
   <div class="form-box">
     <h2>Adicionar Consulta{% if patient %} - {{ patient.name }}{% endif %}</h2>
@@ -89,13 +101,14 @@
       <textarea id="notes" name="notes" rows="4" placeholder="Digite as observações..."></textarea>
 
       <button type="submit">Adicionar Consulta</button>
-      <a href="{{ url_for('agenda') }}" class="button-outline" style="display: block; text-align: center; text-decoration: none; padding: 12px;">Voltar</a>
+      <a href="{{ url_for('agenda') }}" class="button-outline"
+        style="display: block; text-align: center; text-decoration: none; padding: 12px;">Voltar</a>
     </form>
   </div>
 
   <script>
     // garante o formato dd/mm/aaaa no campo de data
-    document.getElementById("date").addEventListener("input", function(e) {
+    document.getElementById("date").addEventListener("input", function (e) {
       let value = e.target.value.replace(/\D/g, '');
       if (value.length >= 3) value = value.slice(0, 2) + '/' + value.slice(2);
       if (value.length >= 6) value = value.slice(0, 5) + '/' + value.slice(5, 9);
@@ -103,4 +116,5 @@
     });
   </script>
 </body>
+
 </html>

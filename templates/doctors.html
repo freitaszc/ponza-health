@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
   <title>Cadastro de Médicos - BioO3</title>
@@ -12,6 +13,7 @@
       font-family: 'Montserrat', sans-serif;
       background-color: #f9f9f9;
     }
+
     .top-menu {
       background-color: white;
       padding: 10px 0;
@@ -20,6 +22,7 @@
       gap: 20px;
       border-bottom: 1px solid #eee;
     }
+
     .top-menu a {
       font-family: 'Montserrat', sans-serif;
       font-weight: 500;
@@ -30,21 +33,25 @@
       border-radius: 6px;
       transition: 0.3s;
     }
+
     .top-menu a:hover {
       background-color: #00c5d3;
       color: white;
     }
+
     .content {
       max-width: 900px;
       margin: 0 auto;
       padding: 20px;
       text-align: center;
     }
+
     h2 {
       font-size: 26px;
       color: #2c3e50;
       margin-bottom: 20px;
     }
+
     .menu-button {
       font-family: 'Montserrat', sans-serif;
       font-size: 14px;
@@ -58,39 +65,47 @@
       transition: 0.3s ease;
       cursor: pointer;
     }
+
     .menu-button:hover {
       background-color: #00c5d3;
       color: white;
     }
+
     .catalog-table {
       width: 100%;
       border-collapse: collapse;
       background-color: #fff;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
       margin-top: 20px;
     }
-    .catalog-table th, .catalog-table td {
+
+    .catalog-table th,
+    .catalog-table td {
       padding: 12px 14px;
       border-bottom: 1px solid #ddd;
       text-align: center;
     }
+
     .catalog-table th {
       background-color: #f5f5f5;
       font-weight: 600;
       color: #2c3e50;
     }
+
     .options-container {
       position: relative;
       display: inline-block;
     }
+
     .options-button {
       background: none;
       border: none;
       cursor: pointer;
       font-size: 18px;
     }
+
     .options-menu {
       display: none;
       position: absolute;
@@ -99,10 +114,11 @@
       background-color: white;
       border: 1px solid #ddd;
       border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
       min-width: 160px;
       z-index: 100;
     }
+
     .options-menu a {
       display: block;
       padding: 10px 12px;
@@ -111,12 +127,14 @@
       font-size: 14px;
       transition: background 0.3s ease;
     }
+
     .options-menu a:hover {
       background-color: #00c5d3;
       color: white;
     }
   </style>
 </head>
+
 <body>
   <div class="top-menu">
     <a href="{{ url_for('index') }}">Início</a>
@@ -131,7 +149,8 @@
 
   <div class="content">
     <a href="{{ url_for('index') }}">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img" style="width: 100px; margin-bottom: 20px;">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img"
+        style="width: 100px; margin-bottom: 20px;">
     </a>
     <h2>Cadastro de Médicos</h2>
     <a href="#" class="menu-button" onclick="openModal()">Cadastrar Médico</a>
@@ -164,19 +183,38 @@
   </div>
 
   <!-- MODAL para cadastrar médico -->
-  <div id="addDoctorModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
-    <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:500px; position:relative;">
-      <h2 style="text-align:center;">Cadastrar Médico</h2>
+  <div id="addDoctorModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:300px; position:relative;">
+      <!-- Botão X no topo -->
+      <button onclick="closeModal()" style="
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    " onmouseover="this.style.color='#00c5d3';" onmouseout="this.style.color='#333';">
+        ×
+      </button>
+
+      <h2 style="text-align:center; margin-top: 10px;">Cadastrar Médico</h2>
       <form method="post" action="{{ url_for('add_doctor_route') }}">
-        <input type="text" name="name" placeholder="Nome do Médico" required style="width:97%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size: 14px; font-family: 'Montserrat', sans-serif;">
-        <input type="text" name="phone" placeholder="Telefone" required style="width:97%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size: 14px; font-family: 'Montserrat', sans-serif;">
-        <div style="display:flex; justify-content:center; gap:12px;">
-          <button type="submit" class="menu-button">Salvar</button>
-          <button type="button" class="menu-button" onclick="closeModal()">Cancelar</button>
+        <input type="text" name="name" placeholder="Nome do Médico" required
+          style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size: 14px; font-family: 'Montserrat', sans-serif;">
+        <input type="text" name="phone" placeholder="Telefone" required
+          style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size: 14px; font-family: 'Montserrat', sans-serif;">
+        <div style="display:flex; justify-content:center;">
+          <button type="submit" class="menu-button" style="width: 100%;">Salvar</button>
         </div>
       </form>
     </div>
   </div>
+
 
   <script>
     function toggleMenu(button) {
@@ -187,7 +225,7 @@
       menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
     }
 
-    window.addEventListener('click', function(e) {
+    window.addEventListener('click', function (e) {
       document.querySelectorAll('.options-container').forEach(container => {
         if (!container.contains(e.target)) {
           const menu = container.querySelector('.options-menu');
@@ -207,4 +245,5 @@
     }
   </script>
 </body>
+
 </html>

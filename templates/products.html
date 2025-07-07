@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
   <title>Estoque - BioO3</title>
@@ -12,11 +13,13 @@
       font-family: 'Montserrat', sans-serif;
       background-color: #f9f9f9;
     }
+
     .logo-img {
       width: 100px;
       display: block;
       margin: 0 auto 20px auto;
     }
+
     .top-menu {
       background-color: white;
       padding: 10px 0;
@@ -25,6 +28,7 @@
       gap: 20px;
       border-bottom: 1px solid #eee;
     }
+
     .top-menu a {
       font-family: 'Montserrat', sans-serif;
       font-weight: 500;
@@ -35,21 +39,25 @@
       border-radius: 6px;
       transition: 0.3s;
     }
+
     .top-menu a:hover {
       background-color: #00c5d3;
       color: white;
     }
+
     .content {
       max-width: 900px;
       margin: 0 auto;
       padding: 20px;
       text-align: center;
     }
+
     h2 {
       font-size: 26px;
       color: #2c3e50;
       margin-bottom: 20px;
     }
+
     .menu-button {
       font-family: 'Montserrat', sans-serif;
       font-size: 14px;
@@ -63,12 +71,14 @@
       transition: 0.3s ease;
       cursor: pointer;
     }
+
     .menu-button:hover {
       background-color: #00c5d3;
       color: white;
     }
   </style>
 </head>
+
 <body>
   <div class="top-menu">
     <a href="{{ url_for('index') }}">Início</a>
@@ -91,8 +101,8 @@
     <input type="search" name="search" placeholder="Pesquisar produto..." value="{{ request.args.get('search', '') }}">
     <select name="status">
       <option value="">Todos</option>
-      <option value="Ativo" {% if request.args.get('status') == 'Ativo' %}selected{% endif %}>Ativo</option>
-      <option value="Inativo" {% if request.args.get('status') == 'Inativo' %}selected{% endif %}>Inativo</option>
+      <option value="Ativo" {% if request.args.get('status')=='Ativo' %}selected{% endif %}>Ativo</option>
+      <option value="Inativo" {% if request.args.get('status')=='Inativo' %}selected{% endif %}>Inativo</option>
     </select>
     <button type="submit" class="menu-button">Filtrar</button>
   </form>
@@ -134,8 +144,9 @@
           <div class="options-container">
             <button class="options-button" onclick="toggleMenu(this)">⋮</button>
             <div class="options-menu">
-              <a href="{{ url_for('stock_edit', product_id=prod.id) }}">Editar</a>
-              <form method="post" action="{{ url_for('delete_product', product_id=prod.id) }}" onsubmit="return confirm('Deseja realmente remover este produto?')" style="margin: 0;">
+              <a href="#" onclick="openEditProductModal({{ prod.id }})">Editar</a>
+              <form method="post" action="{{ url_for('delete_product', product_id=prod.id) }}"
+                onsubmit="return confirm('Deseja realmente remover este produto?')" style="margin: 0;">
                 <button type="submit" style="
                   background: none;
                   border: none;
@@ -150,12 +161,11 @@
                   font-size: 14px;
                   display: block;
                   text-decoration: none;
-                "
-                onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
-                onmouseout="this.style.backgroundColor=''; this.style.color='#333';">
+                " onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
+                  onmouseout="this.style.backgroundColor=''; this.style.color='#333';">
                   Remover
                 </button>
-              </form>                          
+              </form>
             </div>
           </div>
         </td>
@@ -164,26 +174,98 @@
     </tbody>
   </table>
 
-  <!-- MODAL: Cadastro de Produto -->
-  <div id="addProductModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+  <!-- MODAL: Cadastro de Produto (Novo Padrão com X) -->
+  <div id="addProductModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
     <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:500px; position:relative;">
+      <!-- Botão X no canto -->
+      <button onclick="closeModal()" style="
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    " onmouseover="this.style.color='#00c5d3';" onmouseout="this.style.color='#333';">
+        ×
+      </button>
+
       <h2 style="text-align:center;">Cadastrar Produto</h2>
       <form method="post" action="{{ url_for('add_product_route') }}">
-        <input type="text" name="name" placeholder="Nome do Produto" required><br>
-        <input type="number" name="quantity" placeholder="Quantidade" required><br>
-        <input type="number" name="purchase_price" placeholder="Preço de Compra" step="0.01" required><br>
-        <input type="number" name="sale_price" placeholder="Preço de Venda" step="0.01" required><br>
-        <select name="status" required>
+        <input type="text" name="name" placeholder="Nome do Produto" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+        <input type="number" name="quantity" placeholder="Quantidade" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+        <input type="number" name="purchase_price" placeholder="Preço de Compra" step="0.01" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+        <input type="number" name="sale_price" placeholder="Preço de Venda" step="0.01" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+        <select name="status" required
+          style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
           <option value="Ativo">Ativo</option>
           <option value="Inativo">Inativo</option>
-        </select><br><br>
-        <button type="submit" class="menu-button">Salvar</button>
-        <button type="button" class="menu-button" onclick="closeModal()">Cancelar</button>
+        </select>
+
+        <button type="submit" class="menu-button" style="width: 100%;">Salvar</button>
       </form>
     </div>
   </div>
 
+  <!-- MODAL: Editar Produto -->
+  <div id="editProductModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div style="background:white; padding:30px; border-radius:10px; width:90%; max-width:500px; position:relative;">
+      <!-- Botão X no topo -->
+      <button onclick="closeEditProductModal()" style="
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      font-weight: bold;
+      color: #333;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    " onmouseover="this.style.color='#00c5d3';" onmouseout="this.style.color='#333';">
+        ×
+      </button>
+
+      <h2 style="text-align:center; margin-top: 10px;">Editar Produto</h2>
+
+      <!-- Formulário com ID para setar action via JS -->
+      <form method="post" id="editProductForm">
+        <input type="text" name="code" placeholder="Código" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="text" name="name" placeholder="Nome" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="number" name="quantity" placeholder="Quantidade" min="0" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="number" name="purchase_price" placeholder="Preço de Compra" step="0.01" required
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="number" name="sale_price" placeholder="Preço de Venda" step="0.01" required
+          style="width: 97%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+
+        <button type="submit" class="menu-button" style="width: 100%;">Salvar Alterações</button>
+      </form>
+    </div>
+  </div>
+
+
   <script>
+    function openEditProductModal(productId) {
+      const form = document.getElementById('editProductForm');
+      form.action = `/estoque/editar/${productId}`;  // Ajuste a URL conforme sua rota real
+      document.getElementById('editProductModal').style.display = 'flex';
+    }
+
+    function closeEditProductModal() {
+      document.getElementById('editProductModal').style.display = 'none';
+    }
     function toggleMenu(button) {
       document.querySelectorAll('.options-menu').forEach(menu => {
         if (menu !== button.nextElementSibling) menu.style.display = 'none';
@@ -200,7 +282,7 @@
       if (menu) menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
     }
 
-    window.addEventListener('click', function(e) {
+    window.addEventListener('click', function (e) {
       document.querySelectorAll('.options-container').forEach(container => {
         if (!container.contains(e.target)) {
           const menu = container.querySelector('.options-menu');
@@ -220,4 +302,5 @@
     }
   </script>
 </body>
+
 </html>

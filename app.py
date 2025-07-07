@@ -854,4 +854,4 @@ def proteger_rotas_admin():
 
 # --- EXECUÇÃO ---
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

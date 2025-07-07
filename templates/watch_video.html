@@ -1,6 +1,7 @@
 <!-- templates/watch_video.html -->
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
   <meta charset="UTF-8">
   <title>{{ title }} - BioO3</title>
@@ -57,6 +58,7 @@
     }
   </style>
 </head>
+
 <body>
   <a href="{{ url_for('index') }}">
     <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img" alt="Logo">
@@ -73,11 +75,11 @@
       Baixar {{ pdf_filename }}
     </a>
   </div>
-{% endif %}
+  {% endif %}
 
-<div style="margin-top: 20px;">
-  <a href="{{ url_for('videos') }}" class="button-outline">Voltar</a>
-</div>
+  <div style="margin-top: 20px;">
+    <a href="{{ url_for('videos') }}" class="button-outline">Voltar</a>
+  </div>
 
   <script>
     const video = document.getElementById('video');
@@ -92,4 +94,5 @@
     }
   </script>
 </body>
+
 </html>
