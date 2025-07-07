@@ -11,6 +11,8 @@
   <script>
     google.charts.load('current', {packages: ['corechart']});
     google.charts.setOnLoadCallback(drawChart);
+    google.charts.setOnLoadCallback(drawDonutChart);
+  
     function drawChart() {
         const data = google.visualization.arrayToDataTable([
             ['Data', 'PDFs Analisados', 'Média'],
@@ -18,20 +20,45 @@
             ['{{ item.date }}', {{ item.count }}, {{ item.media }} ]{% if not loop.last %},{% endif %}
             {% endfor %}
         ]);
-
+  
         const options = {
-            title: '',  // sem título no gráfico
+            title: '',
             seriesType: 'bars',
             series: {1: {type: 'line', color: '#00c5d3'}},
             colors: ['#2c3e50'],
             legend: {position: 'bottom'},
             vAxis: { minValue: 0 }
         };
-
+  
         const chart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
         chart.draw(data, options);
     }
-  </script>
+  
+    function drawDonutChart() {
+        const pacotes_comprados = 500;
+        const pacotes_usados = 50;
+        const pacotes_restantes = pacotes_comprados - pacotes_usados;
+  
+        const data = google.visualization.arrayToDataTable([
+            ['Pacotes', 'Quantidade'],
+            ['Usados', pacotes_usados],
+            ['Restantes', pacotes_restantes]
+        ]);
+  
+        const options = {
+            pieHole: 0.7,
+            pieSliceText: 'none',
+            colors: ['#00c5d3', '#2c3e50'],
+            legend: 'none'
+        };
+  
+        const chart = new google.visualization.PieChart(document.getElementById('donut_chart'));
+        chart.draw(data, options);
+  
+        document.getElementById('donut_label').innerText =
+            Math.round((pacotes_usados / pacotes_comprados) * 100) + '%';
+    }
+  </script>  
   <style>
     body {
       margin: 0;
@@ -64,6 +91,8 @@
     }
     .sidebar a.menu-item i {
       margin-right: 8px;
+      width: 24px;
+      text-align: center;
     }
     .sidebar a.menu-item:hover {
       color: #00c5d3;
@@ -86,9 +115,30 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.05);
       padding: 25px 30px;
     }
+    .user-menu {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    }
+    .user-menu img {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 2px solid #ccc;
+        cursor: pointer;
+        transition: 0.3s ease;
+    }
+    .user-menu img:hover {
+        border-color: #00c5d3;
+    }
   </style>
 </head>
 <body>
+  <div class="user-menu">
+    <a href="{{ url_for('account') }}">
+        <img src="{{ url_for('static', filename=user.get('profile_image', 'images/user-icon.png')) }}" alt="Minha Conta">
+    </a>
+</div>
   <div class="sidebar">
     <a href="{{ url_for('index') }}">
       <img src="{{ url_for('static', filename='images/logo.png') }}">
@@ -99,17 +149,61 @@
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i> Controle de Estoque</a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i> Agenda</a>
     <a href="{{ url_for('videos') }}" class="menu-item"><i class="fa fa-video-camera"></i> Vídeoaulas</a>
+    <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i> Pagamentos</a>
     <a href="{{ url_for('logout') }}" class="menu-item"><i class="fa fa-sign-out"></i> Logout</a>
   </div>
 
   <div class="content">
-    <h2>Bem-vindo ao BioO3</h2>
-    <div class="info-box">
-      <h3 style="font-size: 24px; font-weight: 600; color: #2c3e50; text-align: center; margin-bottom: 20px;">
-        PDFs Analisados nos Últimos 7 Dias
-      </h3>
-      <div id="curve_chart" style="width: 100%; height: 400px;"></div>
+    <h2>Bem-vindo, {{username}}</h2>
+    <div style="display: flex; justify-content: center; align-items: flex-start; flex-wrap: wrap;">
+      
+      <!-- Gráfico de Barras Reduzido -->
+      <div class="info-box" style="width: 700px; padding: 20px;">
+        <h3 style="font-size: 20px; font-weight: 600; color: #2c3e50; text-align: center; margin-bottom: 15px;">
+          PDFs Analisados nos Últimos 7 Dias
+        </h3>
+        <div id="curve_chart" style="width: 100%; height: 500px;"></div>
+      </div>
+  
+      <!-- Gráfico de Donut ao lado -->
+      <div class="info-box" style="width: 260px; padding: 20px; text-align: center;">
+        <div style="position: relative; width: 160px; height: 160px; margin: 0 auto;">
+          <div id="donut_chart" style="width: 160px; height: 160px;"></div>
+          <div id="donut_label" style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+          "></div>
+        </div>
+        <p style="margin-top: 15px;">Pacotes de Análise Utilizados</p>
+          <button style="
+          background: linear-gradient(90deg, #00c5d3, #2c3e50);
+          color: #fff;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 30px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          box-shadow: 0 4px 8px rgba(0, 197, 211, 0.5);
+          transition: background 0.3s ease, transform 0.2s ease;
+        "
+        onmouseover="this.style.background='linear-gradient(90deg, #2c3e50, #00c5d3)'"
+        onmouseout="this.style.background='linear-gradient(90deg, #00c5d3, #2c3e50)'"
+        onmousedown="this.style.transform='scale(0.95)'"
+        onmouseup="this.style.transform='scale(1)'">
+          Ver Detalhes
+        </button>
+      </div>
     </div>
-  </div>
+  </div>  
 </body>
 </html>

@@ -8,3 +8,5 @@ dotenv
 requests
 gunicorn
 cryptography
+mercadopago
+

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Pagamentos - BioO3</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      font-family: 'Montserrat', sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+  .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 250px;
+      background-color: #fff;
+      padding: 30px 20px;
+      border-right: 1px solid #ddd;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+  .content {
+      flex-grow: 1;
+      padding: 40px;
+      margin-left: 250px;
+    }
+    .sidebar img {
+      width: 100px;
+      display: block;
+      margin: 0 auto 30px auto;
+    }
+    .sidebar a.menu-item {
+      display: block;
+      margin-bottom: 16px;
+      color: #333;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: 0.3s ease;
+    }
+    .sidebar a.menu-item i {
+      margin-right: 8px;
+      width: 24px;
+      text-align: center;
+    }
+    .sidebar a.menu-item:hover {
+      color: #00c5d3;
+    }
+    h2 {
+      font-size: 32px;
+      text-align: center;
+      color: #12181f;
+      margin-bottom: 30px;
+    }
+    .info-box {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      padding: 30px 40px;
+    }
+    form input {
+      width: 50%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: 'Montserrat', sans-serif;
+    }
+    form input::placeholder {
+      font-family: 'Montserrat', sans-serif;
+    }
+    form input:focus {
+      border-color: #00c5d3;
+      outline: none;
+    }
+    .button-outline {
+      width: 100%;
+      background-color: white;
+      color: #000000;
+      border: 2px solid #00c5d3;
+      padding: 12px 0;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: 0.3s ease;
+    }
+    .button-outline:active {
+      background-color: #00c5d3; 
+      color: white;
+      border-color: #00c5d3;
+    }
+    .button-outline:hover {
+      background-color: #00c5d3;
+      color: white;
+    }
+    .message {
+      font-size: 14px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .message.error {
+      color: #e74c3c;
+    }
+    .message.success {
+      color: #2ecc71;
+    }
+    .user-menu {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+    .user-menu img {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 2px solid #ccc;
+        cursor: pointer;
+        transition: 0.3s ease;
+    }
+    .user-menu img:hover {
+        border-color: #00c5d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="user-menu">
+    <a href="{{ url_for('account') }}">
+        <img src="{{ url_for('static', filename=(user.get('profile_image', 'images/user-icon.png') if user else 'images/user-icon.png')) }}" alt="Minha Conta">
+    </a>
+  </div>
+
+  <div class="sidebar">
+    <a href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='images/logo.png') }}">
+    </a>
+    <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i> BioO3 Lab</a>
+    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i> Cadastro de Médicos</a>
+    <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i> Catálogo de Pacientes</a>
+    <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i> Controle de Estoque</a>
+    <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i> Agenda</a>
+    <a href="{{ url_for('videos') }}" class="menu-item"><i class="fa fa-video-camera"></i> Vídeoaulas</a>
+    <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i> Pagamentos</a>
+    <a href="{{ url_for('logout') }}" class="menu-item"><i class="fa fa-sign-out"></i> Logout</a>
+  </div>
+
+  <div class="content">
+    <h2>Pagamentos</h2>
+    <div class="info-box">
+      <form method="post">
+        <h3>Comprar Pacote de Análises</h3>
+
+        <div style="text-align: center; margin: 20px 0;">
+          <label for="package" style="display: block; margin-bottom: 8px; font-weight: 550;">Selecione o Pacote</label>
+          <select name="package" id="package" style="width: 60%; padding: 12px; border-radius: 6px; border: 1px solid #ccc; font-family: 'Montserrat', sans-serif;" required>
+            <option value="500">500 Análises - R$ 500</option>
+            <option value="1500">1500 Análises - R$ 1250</option>
+            <option value="3000">3000 Análises - R$ 2125</option>
+          </select>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+          <button type="submit" class="button-outline" style="width: 200px;">Gerar Boleto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

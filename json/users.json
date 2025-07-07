@@ -1,6 +1,10 @@
 [
-    {
-        "username": "admin",
-        "password": "scrypt:32768:8:1$0O2mJhXxAyA4mFnY$1e0c99fd49acb5d7820093e025e13c91507e47a404a81edb9eec1b3c31986f4b3f7fa2a022db932135f6b913107ff464a50eb41ee89cf8a6bf926b02c0c1b194"
-    }
+  {
+    "username": "admin",
+    "password": "scrypt:32768:8:1$XPyvLv5ez0oo2c3u$aa60664d52e81b9cced5df2cca7fa9c1edf815f4bcd0b749da0f0da8afec79f4c3907463d9dd7a909d8851190e3040ff0d9537524f6ae187fd7baae60881b504",
+    "name": "Gabriel Freitas",
+    "email": "gabrielfreitaszc@gmail.com",
+    "birthdate": "",
+    "profile_image": "profile_images/admin_profile.png"
+  }
 ]

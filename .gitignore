@@ -16,7 +16,7 @@ venv/
 Web/json/*.json
 
 # Private keys
-Keys/mux_private.key
+Keys/
 
 # ZIP backups
 *.zip

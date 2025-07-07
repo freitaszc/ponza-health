@@ -10,11 +10,12 @@ from records import (
     delete_patient_record, add_product, get_products, update_product_status, update_doctor,
     update_patient_status, save_products, get_doctors, add_doctor_if_not_exists, get_consults
 )
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
 import jwt
 from typing import cast
 from whatsapp import enviar_pdf_whatsapp
+from mercado_pago import gerar_link_pagamento
 
 # --- CONFIGURAÇÃO INICIAL ---
 app = Flask(__name__)
@@ -78,6 +79,75 @@ def login():
         return render_template('login.html', error='Credenciais inválidas')
     return render_template('login.html')
 
+@app.route('/update_personal_info', methods=['POST'])
+def update_personal_info():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    users = load_users()
+    user = next((u for u in users if u['username'] == session['user']), None)
+
+    if not user:
+        return "Usuário não encontrado", 404
+
+    firstname = request.form.get("name", "")
+    secondname = request.form.get("secondname", "")
+    birthdate = request.form.get("birthdate", "")
+    email = request.form.get("email", "")
+
+    user["name"] = f"{firstname.strip()} {secondname.strip()}"
+    user["birthdate"] = birthdate
+    user["email"] = email
+
+    profile_image = request.files.get("profile_image")
+    if profile_image and profile_image.filename:
+        uploads_folder = os.path.join("static", "profile_images")
+        os.makedirs(uploads_folder, exist_ok=True)
+        image_filename = f"{session['user']}_profile.png"
+        image_path = os.path.join(uploads_folder, image_filename)
+        profile_image.save(image_path)
+        user["profile_image"] = f"profile_images/{image_filename}"
+
+    with open('json/users.json', 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=2, ensure_ascii=False)
+
+    return redirect(url_for("account"))
+
+@app.route('/update_password', methods=['POST'])
+def update_password():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    users = load_users()
+    user = next((u for u in users if u['username'] == session['user']), None)
+
+    if not user:
+        return "Usuário não encontrado", 404
+
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    if not check_password_hash(user['password'], current_password):
+        return render_template("account.html", user=user, error="Senha atual incorreta.")
+
+    if new_password != confirm_password:
+        return render_template("account.html", user=user, error="As senhas não coincidem.")
+
+    user['password'] = generate_password_hash(new_password)
+
+    with open('json/users.json', 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=2, ensure_ascii=False)
+
+    return redirect(url_for("account"))
+
+@app.route('/payment', methods=['POST'])
+def payment():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    return redirect(url_for("account"))
+
 @app.route('/logout')
 def logout():
     session.pop('user', None)
@@ -86,6 +156,9 @@ def logout():
 # --- DASHBOARD INICIAL ---
 @app.route('/index')
 def index():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
     file_path = os.path.join(os.path.dirname(__file__), 'json', 'consults.json')
     with open(file_path, encoding="utf-8") as f:
         consults = json.load(f)
@@ -111,7 +184,7 @@ def index():
         day = today - timedelta(days=i)
         count = counts.get(day, 0)
         total += count
-        dias_passados = 7 - i  # conta desde o primeiro dia
+        dias_passados = 7 - i
         media_acumulada = round(total / dias_passados, 2)
         chart_data.append({
             "date": day.strftime("%d/%m"),
@@ -119,8 +192,10 @@ def index():
             "media": media_acumulada
         })
 
-    return render_template("index.html", chart_data=chart_data)
-
+    users = load_users()
+    user_data = next((u for u in users if u['username'] == session['user']), {})
+    full_name = user_data.get('name', session['user'])
+    return render_template("index.html", chart_data=chart_data, username=full_name, user=user_data)
 
 # --- BioO3 Lab E PROCESSAMENTO ---
 @app.route('/upload', methods=['GET', 'POST'])
@@ -683,6 +758,100 @@ def edit_doctor(doctor_id):
         return redirect(url_for('doctors'))
     return render_template('edit_doctor.html', doctor=doctor)
 
+@app.route("/account")
+def account():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    users = load_users()
+    user = next((u for u in users if u['username'] == session['user']), None)
+    if not user:
+        return "Usuário não encontrado", 404
+
+    return render_template("account.html", user=user)
+
+@app.route('/remove_profile_image', methods=['POST'])
+def remove_profile_image():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    users = load_users()
+    user = next((u for u in users if u['username'] == session['user']), None)
+
+    if not user:
+        return "Usuário não encontrado", 404
+
+    # Remove a imagem do sistema
+    if user.get('profile_image') and user['profile_image'] != 'images/user-icon.png':
+        image_path = os.path.join("static", user['profile_image'])
+        if os.path.exists(image_path):
+            os.remove(image_path)
+    
+    # Reseta para o padrão
+    user['profile_image'] = 'images/user-icon.png'
+
+    with open('json/users.json', 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=2, ensure_ascii=False)
+
+    return redirect(url_for('account'))
+
+# --- PAGAMENTO ---
+
+from mercado_pago import gerar_link_pagamento
+
+@app.route('/purchase', methods=['GET', 'POST'])
+def purchase():
+    try:
+        if request.method == 'POST':
+            pacote = request.form.get('package')
+            valor = {'500': 500, '1500': 1250, '3000': 2125}.get(pacote or "")
+
+            if not valor:
+                print("[DEBUG] Pacote inválido selecionado:", pacote)
+                return redirect(url_for('purchase'))
+
+            # Gera link de pagamento no Mercado Pago (Checkout Pro)
+            link_pagamento = gerar_link_pagamento(pacote, valor)
+            if link_pagamento:
+                print("[DEBUG] Link de pagamento gerado com sucesso:", link_pagamento)
+                return redirect(link_pagamento)
+            else:
+                print("[DEBUG] Erro ao gerar link de pagamento (link vazio)")
+                return redirect(url_for('pagamento_falha'))
+
+        # Sempre envie a variável user, mesmo que vazia (para evitar erro no template)
+        return render_template('purchase.html', user={})
+
+    except Exception as e:
+        print("[ERRO NA ROTA /purchase]", str(e))
+        return redirect(url_for('pagamento_falha'))
+
+@app.route('/pagamento-sucesso')
+def pagamento_sucesso():
+    return "Pagamento realizado com sucesso."
+
+@app.route('/pagamento-falha')
+def pagamento_falha():
+    return "Pagamento não foi concluído."
+
+@app.route('/pagamento-pendente')
+def pagamento_pendente():
+    return "Pagamento em análise. Aguarde a confirmação."
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid payload'}), 400
+
+    print("[Webhook recebido]", data)
+    return jsonify({'status': 'received'}), 200
+
+@app.before_request
+def proteger_rotas_admin():
+    if request.path.startswith(('/purchase', '/webhook', '/api/')) and 'user' not in session:
+        return redirect(url_for('login'))
+
 # --- EXECUÇÃO ---
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
