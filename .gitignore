@@ -8,16 +8,32 @@ __pycache__/
 # Environment & credentials
 .env
 *.key
+*.pem
+*.crt
 
 # Virtual environment (if used)
 venv/
+ENV/
+env/
+.venv/
 
 # JSON data (sensitive)
-Web/json/*.json
+json/
+Web/json/
+*.json
 
 # Private keys
 Keys/
+keys/
 
 # ZIP backups
 *.zip
+*.tar
+*.tar.gz
 
+# Logs (optional)
+*.log
+
+# IDE settings (optional, se usar)
+.vscode/
+.idea/
