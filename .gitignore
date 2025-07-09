@@ -41,6 +41,6 @@ keys/
 # Static (Sensitive user files)
 static/pdfs/
 static/output/
-static/profile_image/
-static/upload/
+static/profile_images/
+static/uploads/
 
