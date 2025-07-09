@@ -37,3 +37,10 @@ keys/
 # IDE settings (optional, se usar)
 .vscode/
 .idea/
+
+# Static (Sensitive user files)
+static/pdfs/
+static/output/
+static/profile_image/
+static/upload/
+
