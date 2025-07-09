@@ -39,6 +39,7 @@
 
     .form-group {
       margin-bottom: 20px;
+      width: 96.5%
     }
 
     .form-group label {
@@ -97,6 +98,40 @@
       background-color: #e74c3c;
       color: white;
     }
+
+    .doctor-select-group {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    .doctor-select-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #2c3e50;
+      text-align: left;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .doctor-select-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      color: #333;
+      outline-color: #00c5d3;
+      font-weight: 500;
+    }
+
+    .doctor-select-group select option {
+      color: #333;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+    }
   </style>
 </head>
 
@@ -134,7 +169,7 @@
         <input type="text" id="phone" name="phone" value="{{ patient.phone }}">
       </div>
 
-      <div class="form-group">
+      <div class="doctor-select-group">
         <label for="doctor">Médico</label>
         <select name="doctor" id="doctor" required>
           {% for d in doctors %}
@@ -150,7 +185,7 @@
       </div>
 
       {% if patient.prescription %}
-      <div class="form-group">
+      <div class="doctor-select-group">
         <label>Prescrição Atual Registrada</label>
         <pre
           style="white-space: pre-wrap; background-color: #f9f9f9; border: 1px solid #ccc; padding: 10px; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">

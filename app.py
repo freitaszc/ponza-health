@@ -1,4 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, session, make_response, jsonify
+# ==============================================
+# INITIAL CONFIGURATION AND UTILITIES
+# ==============================================
+
+from flask import Flask, render_template, request, redirect, url_for, session, make_response, jsonify, flash
 from datetime import datetime, timedelta
 import os
 import json
@@ -8,16 +12,16 @@ from prescription import analyze_pdf
 from records import (
     add_consultation, add_patient, get_consults, get_patient, get_patients, update_patient,
     delete_patient_record, add_product, get_products, update_product_status, update_doctor,
-    update_patient_status, save_products, get_doctors, add_doctor_if_not_exists, get_consults
+    update_patient_status, save_products, get_doctors, add_doctor_if_not_exists, get_consults,
+    get_package_info, is_package_available, update_package_usage
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
 import jwt
 from typing import cast
-from whatsapp import enviar_pdf_whatsapp
-from mercado_pago import gerar_link_pagamento
+from whatsapp import send_pdf_whatsapp
+from mercado_pago import generate_payment_link
 
-# --- CONFIGURAÇÃO INICIAL ---
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
 load_dotenv()
@@ -39,7 +43,7 @@ required_env = {
 
 missing = [key for key, value in required_env.items() if not value]
 if missing:
-    raise EnvironmentError(f"As seguintes variáveis de ambiente MUX estão ausentes: {', '.join(missing)}")
+    raise EnvironmentError(f"The following MUX environment variables are missing: {', '.join(missing)}")
 
 token_id = required_env["MUX_TOKEN_ID"]
 token_secret = required_env["MUX_TOKEN_SECRET"]
@@ -51,12 +55,49 @@ if mux_key_content:
     with open(private_key_path, "w") as f:
         f.write(mux_key_content.replace("\\n", "\n"))
 else:
-    raise EnvironmentError("MUX_PRIVATE_KEY está ausente ou inválida.")
+    raise EnvironmentError("MUX_PRIVATE_KEY is missing or invalid.")
 
-# --- AUTENTICAÇÃO ---
+
 def load_users():
     with open('json/users.json', 'r', encoding='utf-8') as f:
         return json.load(f)
+
+def load_agenda():
+    if os.path.exists('json/agenda.json'):
+        with open('json/agenda.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
+def save_agenda(events):
+    with open('json/agenda.json', 'w', encoding='utf-8') as f:
+        json.dump(events, f, ensure_ascii=False, indent=2)
+
+def get_videos():
+    if os.path.exists('json/videos.json'):
+        with open('json/videos.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
+def create_signed_token(playback_id: str) -> str:
+    with open(private_key_path, 'r') as f:
+        private_key = f.read()
+    payload = {
+        "exp": datetime.utcnow() + timedelta(hours=1),
+        "kid": signing_key,
+        "aud": "v",
+        "sub": playback_id
+    }
+    token = jwt.encode(payload, private_key, algorithm="RS256")
+    return token.decode("utf-8") if isinstance(token, bytes) else token
+
+@app.before_request
+def protect_admin_routes():
+    if request.path.startswith(('/purchase', '/webhook', '/api/')) and 'user' not in session:
+        return redirect(url_for('login'))
+
+# ==============================================
+# AUTHENTICATION AND ACCOUNT MANAGEMENT
+# ==============================================
 
 @app.route('/about')
 def about():
@@ -76,8 +117,13 @@ def login():
         if user and check_password_hash(user['password'], password):
             session['user'] = username
             return redirect(url_for('index'))
-        return render_template('login.html', error='Credenciais inválidas')
+        return render_template('login.html', error='Invalid credentials')
     return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('login'))
 
 @app.route('/update_personal_info', methods=['POST'])
 def update_personal_info():
@@ -88,7 +134,7 @@ def update_personal_info():
     user = next((u for u in users if u['username'] == session['user']), None)
 
     if not user:
-        return "Usuário não encontrado", 404
+        return "User not found", 404
 
     firstname = request.form.get("name", "")
     secondname = request.form.get("secondname", "")
@@ -122,17 +168,17 @@ def update_password():
     user = next((u for u in users if u['username'] == session['user']), None)
 
     if not user:
-        return "Usuário não encontrado", 404
+        return "User not found", 404
 
     current_password = request.form.get("current_password", "")
     new_password = request.form.get("new_password", "")
     confirm_password = request.form.get("confirm_password", "")
 
     if not check_password_hash(user['password'], current_password):
-        return render_template("account.html", user=user, error="Senha atual incorreta.")
+        return render_template("account.html", user=user, error="Incorrect current password.")
 
     if new_password != confirm_password:
-        return render_template("account.html", user=user, error="As senhas não coincidem.")
+        return render_template("account.html", user=user, error="Passwords do not match.")
 
     user['password'] = generate_password_hash(new_password)
 
@@ -141,24 +187,70 @@ def update_password():
 
     return redirect(url_for("account"))
 
-@app.route('/payment', methods=['POST'])
-def payment():
+@app.route("/account")
+def account():
     if 'user' not in session:
         return redirect(url_for('login'))
 
-    return redirect(url_for("account"))
+    user_data = get_logged_user()
+    if not user_data:
+        return "User not found", 404
 
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect(url_for('login'))
+    return render_template("account.html", user=user_data)
 
-# --- DASHBOARD INICIAL ---
+@app.route('/remove_profile_image', methods=['POST'])
+def remove_profile_image():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    users = load_users()
+    user = next((u for u in users if u['username'] == session['user']), None)
+
+    if not user:
+        return "User not found", 404
+
+    if user.get('profile_image') and user['profile_image'] != 'images/user-icon.png':
+        image_path = os.path.join("static", user['profile_image'])
+        if os.path.exists(image_path):
+            os.remove(image_path)
+    
+    user['profile_image'] = 'images/user-icon.png'
+
+    with open('json/users.json', 'w', encoding='utf-8') as f:
+        json.dump(users, f, indent=2, ensure_ascii=False)
+
+    return redirect(url_for('account'))
+
+@app.route('/bioo3-lab')
+def bioo3_lab():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    user_data = get_logged_user()
+    if not user_data:
+        return redirect(url_for('login'))
+
+    if not is_package_available(user_data['id']):
+        return redirect(url_for('purchase'))
+
+    return render_template('upload.html')
+
+def get_logged_user():
+    if 'user' not in session:
+        return None
+    users = load_users()
+    return next((u for u in users if u['username'] == session['user']), None)
+
+# ==============================================
+#  - DASHBOARD AND PDF UPLOAD
+# ==============================================
+
 @app.route('/index')
 def index():
     if 'user' not in session:
         return redirect(url_for('login'))
 
+    # Consultas por dia
     file_path = os.path.join(os.path.dirname(__file__), 'json', 'consults.json')
     with open(file_path, encoding="utf-8") as f:
         consults = json.load(f)
@@ -192,52 +284,59 @@ def index():
             "media": media_acumulada
         })
 
-    users = load_users()
-    user_data = next((u for u in users if u['username'] == session['user']), {})
+    # Dados do usuário  
+    user_data = get_logged_user() or {}
     full_name = user_data.get('name', session['user'])
-    return render_template("index.html", chart_data=chart_data, username=full_name, user=user_data)
 
-# --- BioO3 Lab E PROCESSAMENTO ---
+    # Pacotes
+    package_info = get_package_info(user_data['id'])
+    remaining = package_info['total'] - package_info['used']
+    used = package_info['used']
+
+    return render_template(
+        "index.html",
+        chart_data=chart_data,
+        username=full_name,
+        user=user_data,
+        remaining=remaining,
+        used=used
+    )
+
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
-    if 'user' not in session:
+    user_data = get_logged_user()
+    if not user_data:
         return redirect(url_for('login'))
+    
+    if not is_package_available(user_data['id']):
+        flash('Seu pacote de análises acabou. Por favor, adquira mais para continuar usando o BioO3 Lab.')
+        return redirect(url_for('purchase', message='pacote'))
+
 
     if request.method == 'POST':
         pdf_file = request.files.get('pdf_file')
         if not pdf_file or pdf_file.filename == '':
-            return render_template('upload.html', error='Por favor, selecione um arquivo PDF.')
+            return render_template('upload.html', error='Please select a PDF file.')
         
-        # Salva o PDF original na pasta uploads
         uploads_folder = os.path.join("static", "uploads")
         os.makedirs(uploads_folder, exist_ok=True)
 
-        filename = pdf_file.filename or "arquivo.pdf"
+        filename = pdf_file.filename or "file.pdf"
         upload_path = os.path.join(uploads_folder, filename)
         pdf_file.save(upload_path)
 
-        # Processamento do PDF
         diagnostic, prescription, name, gender, age, cpf, phone, doctor_name = analyze_pdf(upload_path)
-        print("[DEBUG] Médico extraído:", doctor_name)
         doctor_id, doctor_phone = add_doctor_if_not_exists(doctor_name)
         patient_id = add_patient(name, age, cpf, gender, phone, doctor_id, prescription)
         today = datetime.today().strftime('%d-%m-%Y')
 
-        add_consultation(patient_id, f"Data: {today}\n\nDiagnóstico:\n{diagnostic}\n\nPrescrição:\n{prescription}")
+        add_consultation(patient_id, f"Data: {today}\n\nDiagnóstico:\n{diagnostic}\n\nPrescrição:\n{prescription}", user_data['id'])
 
         patient_info = f"Paciente: {name}\nIdade: {age}\nCPF: {cpf}\nSexo: {gender}\nTelefone: {phone}\nMédico: {doctor_name}"
         session['diagnostic_text'] = diagnostic
         session['prescription_text'] = prescription
         session['doctor_name'] = doctor_name
         session['patient_info'] = patient_info
-
-        # --- DEBUG: Verificar os dados antes de gerar o PDF ---
-        print("[DEBUG] Dados no momento da geração do PDF:")
-        print("diagnostic:\n", diagnostic)
-        print("prescription:\n", prescription)
-        print("doctor_name:\n", doctor_name)
-        print("patient_info:\n", patient_info)
-        print("[DEBUG] Fim dos dados\n")
 
         html = render_template(
             "result_pdf.html",
@@ -250,33 +349,30 @@ def upload():
         pdf = weasyprint.HTML(string=html, base_url=os.path.join(app.root_path, 'static')).write_pdf()
 
         if not isinstance(pdf, bytes):
-            raise ValueError("Erro ao gerar PDF: resultado não é do tipo bytes.")
+            raise ValueError("PDF generation failed: result is not bytes.")
 
-        cpf_limpo = (cpf or "").replace('.', '').replace('-', '')
-        pdf_filename = f"resultado_{cpf_limpo}.pdf"
+        cpf_clean = (cpf or "").replace('.', '').replace('-', '')
+        pdf_filename = f"result_{cpf_clean}.pdf"
         output_folder = os.path.join("static", "output")
         os.makedirs(output_folder, exist_ok=True)
-        pdf_path_publico = os.path.join(output_folder, pdf_filename)
+        pdf_path = os.path.join(output_folder, pdf_filename)
 
-        with open(pdf_path_publico, 'wb') as f:
+        with open(pdf_path, 'wb') as f:
             f.write(pdf)
 
-        # Gerar os links corretos
-        pdf_link_analisado = url_for('static', filename=f"output/{pdf_filename}", _external=True)
+        pdf_link_analyzed = url_for('static', filename=f"output/{pdf_filename}", _external=True)
         pdf_link_original = url_for('static', filename=f"uploads/{pdf_file.filename}", _external=True)
 
-        status_envio = enviar_pdf_whatsapp(
-            medico_nome=doctor_name,
-            paciente_nome=name,
-            pdf_link_analisado=pdf_link_analisado,
-            pdf_link_original=pdf_link_original
+        send_pdf_whatsapp(
+            doctor_name=doctor_name,
+            patient_name=name,
+            analyzed_pdf_link=pdf_link_analyzed,
+            original_pdf_link=pdf_link_original
         )
 
-        if status_envio:
-            print("[WHATSAPP] Erro ao enviar mensagem:", status_envio)
-        else:
-            print(f"[WHATSAPP] Mensagem enviada com sucesso para {doctor_name}.")
-
+        # Atualiza o uso do pacote
+        package_data = get_package_info(user_data['id'])
+        update_package_usage(user_data['id'], package_data['used'] + 1)
 
         return render_template(
             'result.html',
@@ -306,15 +402,17 @@ def download_pdf():
         logo_path=logo_path
     )
 
-    base_path = os.path.join(app.root_path, 'static')
-    pdf = weasyprint.HTML(string=html, base_url=base_path).write_pdf()
+    pdf = weasyprint.HTML(string=html, base_url=os.path.join(app.root_path, 'static')).write_pdf()
 
     response = make_response(pdf)
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = 'attachment; filename=prescription.pdf'
     return response
 
-# --- PACIENTES ---
+# ==============================================
+#  - PATIENT MANAGEMENT
+# ==============================================
+
 @app.route('/catalog')
 def catalog():
     if 'user' not in session:
@@ -337,7 +435,7 @@ def edit_patient(patient_id):
         return redirect(url_for('login'))
     patient = get_patient(patient_id)
     if not patient:
-        return "Paciente não encontrado", 404
+        return "Patient not found", 404
     doctors = get_doctors()
 
     if request.method == 'POST':
@@ -349,7 +447,7 @@ def edit_patient(patient_id):
             request.form['gender'],
             request.form['phone'],
             int(request.form['doctor']),
-            request.form.get('prescription', '').strip() 
+            request.form.get('prescription', '').strip()
         )
         return redirect(url_for('catalog'))
 
@@ -362,28 +460,27 @@ def patient_result(patient_id):
 
     patient = get_patient(patient_id)
     if not patient:
-        return render_template('result.html', result_text="Paciente não encontrado.")
+        return render_template('result.html', diagnostic_text="Paciente não encontrado.", prescription_text="")
 
     consultations = get_consults(patient_id)
-    if not consultations:
-        return render_template(
-            'result.html',
-            diagnostic_text="Nenhuma consulta cadastrada.",
-            prescription_text="",
-            doctor_name=patient.get("doctor", "Desconhecido")
-        )
+    if consultations:
+        latest = consultations[-1]
+        parts = latest.split("Prescrição:\n")
+        diagnostic_text = parts[0].strip() if len(parts) > 0 else ""
+        prescription_text = parts[1].strip() if len(parts) > 1 else ""
+    else:
+        diagnostic_text = "Nenhuma consulta registrada."
+        prescription_text = ""
 
-    latest = consultations[-1]  # texto completo
-    parts = latest.split("Prescrição:\n")
-
-    diagnostic_text = parts[0].strip() if len(parts) > 0 else ""
-    prescription_text = parts[1].strip() if len(parts) > 1 else ""
+    # Inclui a prescrição configurada no cadastro do paciente (prioridade ao histórico)
+    if not prescription_text.strip():
+        prescription_text = patient.get("prescription", "")
 
     return render_template(
         'result.html',
         diagnostic_text=diagnostic_text,
         prescription_text=prescription_text,
-        doctor_name=patient.get("doctor", "Desconhecido")
+        doctor_name=patient.get("doctor_name", "Desconhecido")
     )
 
 @app.route('/delete_patient/<int:patient_id>', methods=['POST'])
@@ -393,7 +490,42 @@ def delete_patient(patient_id):
     delete_patient_record(patient_id)
     return redirect(url_for('catalog'))
 
-# --- CONSULTAS ---
+@app.route('/toggle_patient_status/<int:patient_id>/<new_status>')
+def toggle_patient_status(patient_id, new_status):
+    update_patient_status(patient_id, new_status)
+    return redirect(url_for('catalog'))
+
+@app.route('/api/add_patient', methods=['POST'])
+def api_add_patient():
+    if 'user' not in session:
+        return jsonify(success=False, error='Unauthorized'), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify(success=False, error='Invalid JSON data'), 400
+
+    name = data.get("name", "").strip()
+    age = data.get("age", "").strip()
+    cpf = data.get("cpf", "").strip()
+    gender = data.get("gender", "").strip()
+    phone = data.get("phone", "").strip()
+    doctor_id = data.get("doctor")
+    prescription = data.get("prescription", "").strip()
+
+    if not name or not age or not doctor_id:
+        return jsonify(success=False, error='Missing required fields'), 400
+
+    try:
+        patient_id = add_patient(name, age, cpf, gender, phone, int(doctor_id), prescription)
+        return jsonify(success=True, patient_id=patient_id)
+    except Exception as e:
+        return jsonify(success=False, error=str(e)), 500
+
+
+# ==============================================
+#  - CONSULTATION MANAGEMENT
+# ==============================================
+
 @app.route('/add_consultation/<int:patient_id>', methods=['GET', 'POST'])
 def add_consultation_route(patient_id):
     if 'user' not in session:
@@ -401,7 +533,7 @@ def add_consultation_route(patient_id):
 
     patient = get_patient(patient_id)
     if not patient:
-        return "Paciente não encontrado", 404
+        return "Patient not found", 404
 
     if request.method == 'POST':
         data = request.form['date']
@@ -410,57 +542,42 @@ def add_consultation_route(patient_id):
             data_obj = datetime.strptime(data, '%d/%m/%Y')
             datetime_str = data_obj.strftime('%Y-%m-%dT00:00:00')
         except ValueError:
-            return "Data inválida. Use o formato dd/mm/aaaa.", 400
+            return "Invalid date format. Use dd/mm/yyyy.", 400
 
         events = load_agenda()
         events.append({
-            'title': f"Consulta - {patient['name']}",
+            'title': f"Consultation - {patient['name']}",
             'datetime': datetime_str,
             'notes': notes
         })
         save_agenda(events)
         return redirect(url_for('agenda'))
 
-    return render_template('add_consultation.html', patients=[patient])
+    user_data = get_logged_user()
+    return render_template(
+        'add_consultation.html',
+        patients=[patient],
+        user=user_data
+    )
+
+
+
 
 @app.route('/submit_consultation', methods=['POST'])
 def submit_consultation():
-    if 'user' not in session:
-        return redirect(url_for('login'))
+    patient_id = int(request.form['patient']) if request.form['patient'] else None
+    consultation_text = f"Data: {request.form['date']}\nObservações: {request.form['notes']}"
+    user_id = int(request.form['user_id'])
 
-    data = request.form['date']
-    notes = request.form.get('notes', '')
-    patient_id = request.form.get('patient')
-
-    try:
-        data_obj = datetime.strptime(data, '%d/%m/%Y')
-        datetime_str = data_obj.strftime('%Y-%m-%dT00:00:00')
-    except ValueError:
-        return "Data inválida. Use o formato dd/mm/aaaa.", 400
-
-    title = "Consulta Geral"
     if patient_id:
-        try:
-            patient = get_patient(int(patient_id))
-            if patient:
-                title = f"Consulta - {patient['name']}"
-        except Exception:
-            pass
-
-    events = load_agenda()
-    events.append({
-        'title': title,
-        'datetime': datetime_str,
-        'notes': notes
-    })
-    save_agenda(events)
+        add_consultation(patient_id, consultation_text, user_id)
 
     return redirect(url_for('agenda'))
 
 @app.route('/add_general_consultation', methods=['POST'])
 def add_general_consultation():
     if 'user' not in session:
-        return jsonify({'error': 'Não autenticado'}), 403
+        return jsonify({'error': 'Unauthorized'}), 403
 
     data = request.get_json()
     date_str = data.get('date', '')
@@ -471,14 +588,14 @@ def add_general_consultation():
         date_obj = datetime.strptime(date_str, '%d/%m/%Y')
         datetime_str = date_obj.strftime('%Y-%m-%dT00:00:00')
     except ValueError:
-        return jsonify({'error': 'Data inválida. Use o formato dd/mm/aaaa.'}), 400
+        return jsonify({'error': 'Invalid date format. Use dd/mm/yyyy.'}), 400
 
-    title = "Consulta Geral"
+    title = "General Consultation"
     if patient_id:
         try:
             patient = get_patient(int(patient_id))
             if patient:
-                title = f"Consulta - {patient['name']}"
+                title = f"Consultation - {patient['name']}"
         except Exception:
             pass
 
@@ -499,7 +616,10 @@ def modal_consultation():
     patients = get_patients()
     return render_template('add_consultation.html', patients=patients)
 
-# --- PRODUTOS ---
+# ==============================================
+#  - PRODUCT MANAGEMENT
+# ==============================================
+
 @app.route('/products')
 def products():
     if 'user' not in session:
@@ -539,7 +659,7 @@ def add_product_route():
     sale_price = float(request.form.get('sale_price', 0))
 
     if not name:
-        return "Nome do produto é obrigatório.", 400
+        return "Product name is required.", 400
 
     add_product(name, purchase_price, sale_price, quantity)
     return redirect(url_for('products'))
@@ -549,16 +669,11 @@ def toggle_product_status(product_id, new_status):
     update_product_status(product_id, new_status)
     return redirect(url_for('products'))
 
-@app.route('/toggle_patient_status/<int:patient_id>/<new_status>')
-def toggle_patient_status(patient_id, new_status):
-    update_patient_status(patient_id, new_status)
-    return redirect(url_for('catalog'))
-
 @app.route('/stock_view/<int:product_id>')
 def stock_view(product_id):
     product = next((p for p in get_products() if p['id'] == product_id), None)
     if not product:
-        return "Produto não encontrado", 404
+        return "Product not found", 404
     return render_template('stock_view.html', product=product)
 
 @app.route('/stock_edit/<int:product_id>', methods=['GET','POST'])
@@ -566,7 +681,7 @@ def stock_edit(product_id):
     produtos = get_products()
     product = next((p for p in produtos if p['id'] == product_id), None)
     if not product:
-        return "Produto não encontrado", 404
+        return "Product not found", 404
     if request.method == 'POST':
         product['code'] = request.form['code']
         product['name'] = request.form['name']
@@ -583,25 +698,16 @@ def delete_product(product_id):
     save_products(produtos)
     return redirect(url_for('products'))
 
-
-# --- AGENDA ---
-AGENDA_FILE = 'json/agenda.json'
-
-def load_agenda():
-    if os.path.exists(AGENDA_FILE):
-        with open(AGENDA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return []
-
-def save_agenda(events):
-    with open(AGENDA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(events, f, ensure_ascii=False, indent=2)
+# ==============================================
+#  - SCHEDULER (AGENDA)
+# ==============================================
 
 @app.route('/agenda')
 def agenda():
     if 'user' not in session:
         return redirect(url_for('login'))
-    return render_template('agenda.html')
+    doctors = get_doctors()
+    return render_template('agenda.html', doctors=doctors)
 
 @app.route('/api/events')
 def api_events():
@@ -616,112 +722,34 @@ def api_events():
     ]
     return jsonify(calendar_events)
 
-
-# --- API AJAX ---
-@app.route('/api/add_patient', methods=['POST'])
-def api_add_patient():
-    if 'user' not in session:
-        return jsonify({'error': 'Não autenticado'}), 403
-    data = request.get_json()
-    patient_id = add_patient(
-        data.get("name", "").strip(),
-        int(data.get("age", 0)),
-        data.get("cpf", ""),
-        data.get("gender", ""),
-        data.get("phone", ""),
-        int(data.get("doctor", 0)),
-        data.get("prescription", "").strip()
-    )
-    return jsonify({'success': True, 'patient_id': patient_id})
-
-@app.route('/api/doctors')
-def api_doctors():
-    if 'user' not in session:
-        return jsonify({'error': 'Não autenticado'}), 403
-    return jsonify(get_doctors())
-
-
-# --- VÍDEOS MUX ---
-VIDEOS_FILE = 'json/videos.json'
-
-def get_videos():
-    if os.path.exists(VIDEOS_FILE):
-        with open(VIDEOS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return []
-
-def create_signed_token(playback_id: str) -> str:
-    from jwt import encode
-    with open(private_key_path, 'r') as f:
-        private_key = f.read()
-    payload = {
-        "exp": datetime.utcnow() + timedelta(hours=1),
-        "kid": signing_key,
-        "aud": "v",
-        "sub": playback_id
-    }
-    token = encode(payload, private_key, algorithm="RS256")
-    return token.decode("utf-8") if isinstance(token, bytes) else token
-
-@app.route('/videos')
-def videos():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    raw_videos = get_videos()
-    videos = [
-        {
-            "title": v["title"],
-            "playback_id": v["playback_id"],
-            "token": create_signed_token(v["playback_id"])
-        }
-        for v in raw_videos
-    ]
-    return render_template('videos.html', videos=videos)
-
-@app.route('/watch/<playback_id>')
-def watch_video(playback_id):
-    videos = get_videos()
-    video = next((v for v in videos if v["playback_id"] == playback_id), None)
-    if not video:
-        return "Vídeo não encontrado", 404
-
-    token = create_signed_token(playback_id)
-    pdf_filename = video.get("pdf")  # pode ser None
-
-    return render_template(
-        'watch_video.html',
-        title=video["title"],
-        playback_id=playback_id,
-        token=token,
-        pdf_filename=pdf_filename
-    )
-
-# --- UTILITÁRIOS ---
-def send_pdf_to_doctor(phone_number, pdf_path):
-    print(f"[ENVIO] Enviando PDF para o número {phone_number}... (simulação)")
-
 @app.route('/api/add_event', methods=['POST'])
 def api_add_event():
     if 'user' not in session:
-        return jsonify({'success': False, 'error': 'Não autenticado'}), 403
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     data = request.get_json()
-    title = data.get('title', '').strip()
-    datetime_str = data.get('start', '').strip()
-    notes = data.get('notes', '').strip()
+    title = data.get('title', '')
+    datetime_str = data.get('start', '')
+    notes = data.get('notes', '')
+    doctor_id = data.get('doctor_id')
 
     if not title or not datetime_str:
-        return jsonify({'success': False, 'error': 'Título e data são obrigatórios.'})
+        return jsonify({'success': False, 'error': 'All fields are required.'}), 400
 
+    # Salvar o evento incluindo o ID do médico:
     events = load_agenda()
     events.append({
         'title': title,
         'datetime': datetime_str,
-        'notes': notes
+        'notes': notes,
     })
     save_agenda(events)
 
     return jsonify({'success': True})
+
+# ==============================================
+#  - DOCTOR MANAGEMENT
+# ==============================================
 
 @app.route("/doctors")
 def doctors():
@@ -749,7 +777,7 @@ def edit_doctor(doctor_id):
     doctors = get_doctors()
     doctor = next((d for d in doctors if d['id'] == doctor_id), None)
     if not doctor:
-        return "Médico não encontrado", 404
+        return "Doctor not found", 404
     if request.method == 'POST':
         doctor['name'] = request.form['name']
         doctor['phone'] = request.form['phone']
@@ -758,85 +786,55 @@ def edit_doctor(doctor_id):
         return redirect(url_for('doctors'))
     return render_template('edit_doctor.html', doctor=doctor)
 
-@app.route("/account")
-def account():
-    if 'user' not in session:
-        return redirect(url_for('login'))
+@app.route('/delete_doctor/<int:doctor_id>', methods=['POST'])
+def delete_doctor(doctor_id):
+    doctors = get_doctors()
+    doctors = [d for d in doctors if d['id'] != doctor_id]
+    with open('json/doctors.json', 'w', encoding='utf-8') as f:
+        json.dump(doctors, f, ensure_ascii=False, indent=2)
+    return redirect(url_for('doctors'))
 
-    users = load_users()
-    user = next((u for u in users if u['username'] == session['user']), None)
-    if not user:
-        return "Usuário não encontrado", 404
 
-    return render_template("account.html", user=user)
-
-@app.route('/remove_profile_image', methods=['POST'])
-def remove_profile_image():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-
-    users = load_users()
-    user = next((u for u in users if u['username'] == session['user']), None)
-
-    if not user:
-        return "Usuário não encontrado", 404
-
-    # Remove a imagem do sistema
-    if user.get('profile_image') and user['profile_image'] != 'images/user-icon.png':
-        image_path = os.path.join("static", user['profile_image'])
-        if os.path.exists(image_path):
-            os.remove(image_path)
-    
-    # Reseta para o padrão
-    user['profile_image'] = 'images/user-icon.png'
-
-    with open('json/users.json', 'w', encoding='utf-8') as f:
-        json.dump(users, f, indent=2, ensure_ascii=False)
-
-    return redirect(url_for('account'))
-
-# --- PAGAMENTO ---
-
-from mercado_pago import gerar_link_pagamento
+# ==============================================
+#  - PAYMENT AND WEBHOOK
+# ==============================================
 
 @app.route('/purchase', methods=['GET', 'POST'])
 def purchase():
     try:
         if request.method == 'POST':
             pacote = request.form.get('package')
-            valor = {'500': 500, '1500': 1250, '3000': 2125}.get(pacote or "")
+            valor = {'50': 120, '150': 300, '500': 950}.get(pacote or "")
 
             if not valor:
-                print("[DEBUG] Pacote inválido selecionado:", pacote)
+                print("[DEBUG] Invalid package selected:", pacote)
                 return redirect(url_for('purchase'))
 
-            # Gera link de pagamento no Mercado Pago (Checkout Pro)
-            link_pagamento = gerar_link_pagamento(pacote, valor)
-            if link_pagamento:
-                print("[DEBUG] Link de pagamento gerado com sucesso:", link_pagamento)
-                return redirect(link_pagamento)
+            payment_link = generate_payment_link(pacote, valor)
+            if payment_link:
+                print("[DEBUG] Payment link generated successfully:", payment_link)
+                return redirect(payment_link)
             else:
-                print("[DEBUG] Erro ao gerar link de pagamento (link vazio)")
+                print("[DEBUG] Error generating payment link (empty link)")
                 return redirect(url_for('pagamento_falha'))
 
-        # Sempre envie a variável user, mesmo que vazia (para evitar erro no template)
         return render_template('purchase.html', user={})
 
     except Exception as e:
-        print("[ERRO NA ROTA /purchase]", str(e))
+        print("[ERROR IN /purchase ROUTE]", str(e))
         return redirect(url_for('pagamento_falha'))
 
 @app.route('/pagamento-sucesso')
 def pagamento_sucesso():
-    return "Pagamento realizado com sucesso."
+    return "Pagamento completo com sucesso."
 
 @app.route('/pagamento-falha')
 def pagamento_falha():
-    return "Pagamento não foi concluído."
+    return "Pagamento falhou."
 
 @app.route('/pagamento-pendente')
 def pagamento_pendente():
-    return "Pagamento em análise. Aguarde a confirmação."
+    return "Pagamento está pendente. Por favor espere pela confirmação"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -844,14 +842,49 @@ def webhook():
     if not data:
         return jsonify({'error': 'Invalid payload'}), 400
 
-    print("[Webhook recebido]", data)
+    print("[Webhook received]", data)
     return jsonify({'status': 'received'}), 200
 
-@app.before_request
-def proteger_rotas_admin():
-    if request.path.startswith(('/purchase', '/webhook', '/api/')) and 'user' not in session:
-        return redirect(url_for('login'))
+# ==============================================
+#  - VIDEO MANAGEMENT (MUX)
+# ==============================================
 
-# --- EXECUÇÃO ---
+@app.route('/videos')
+def videos():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    raw_videos = get_videos()
+    videos = [
+        {
+            "title": v["title"],
+            "playback_id": v["playback_id"],
+            "token": create_signed_token(v["playback_id"])
+        }
+        for v in raw_videos
+    ]
+    return render_template('videos.html', videos=videos)
+
+@app.route('/watch/<playback_id>')
+def watch_video(playback_id):
+    videos = get_videos()
+    video = next((v for v in videos if v["playback_id"] == playback_id), None)
+    if not video:
+        return "Video not found", 404
+
+    token = create_signed_token(playback_id)
+    pdf_filename = video.get("pdf")
+
+    return render_template(
+        'watch_video.html',
+        title=video["title"],
+        playback_id=playback_id,
+        token=token,
+        pdf_filename=pdf_filename
+    )
+
+# ==============================================
+# APPLICATION EXECUTION
+# ==============================================
+
 if __name__ == '__main__':
     app.run(debug=True)

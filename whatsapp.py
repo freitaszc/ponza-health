@@ -8,28 +8,28 @@ WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 
 
-def enviar_pdf_whatsapp(medico_nome: str, paciente_nome: str, pdf_link_analisado: str, pdf_link_original: str):
+def send_pdf_whatsapp(doctor_name, patient_name, analyzed_pdf_link, original_pdf_link):
     """
-    Envia a mensagem WhatsApp com os dois links dos PDFs já gerados.
+    Sends a WhatsApp message with the links to the analyzed and original PDFs.
     """
-    # 1. Busca o telefone do médico
-    with open("json/doctors.json", "r", encoding="utf-8") as f:
-        doctors = json.load(f)
+    # Load doctors data
+    with open("json/doctors.json", "r", encoding="utf-8") as file:
+        doctors = json.load(file)
 
-    nomes_dos_medicos = [d["name"] for d in doctors]
-    matches = get_close_matches(medico_nome, nomes_dos_medicos, n=1, cutoff=0.6)
+    doctor_names = [d["name"] for d in doctors]
+    matches = get_close_matches(doctor_name, doctor_names, n=1, cutoff=0.6)
 
     if not matches:
-        return f"Médico '{medico_nome}' não encontrado no sistema."
+        return f"Doctor '{doctor_name}' not found in the system."
 
-    medico = next((d for d in doctors if d["name"] == matches[0]), None)
+    doctor = next((d for d in doctors if d["name"] == matches[0]), None)
 
-    if not medico or not medico.get("phone"):
-        return f"Médico '{matches[0]}' não encontrado ou sem telefone cadastrado."
+    if not doctor or not doctor.get("phone"):
+        return f"Doctor '{matches[0]}' not found or phone not registered."
 
-    telefone_destino = medico["phone"]
+    phone_number = doctor["phone"]
 
-    # 2. Envia a mensagem WhatsApp
+    # Send WhatsApp message
     try:
         headers = {
             "Authorization": f"Bearer {WHATSAPP_TOKEN}",
@@ -38,19 +38,19 @@ def enviar_pdf_whatsapp(medico_nome: str, paciente_nome: str, pdf_link_analisado
 
         payload = {
             "messaging_product": "whatsapp",
-            "to": telefone_destino,
+            "to": phone_number,
             "type": "template",
             "template": {
                 "name": "relatorio_bioo3",
-                "language": { "code": "pt_BR" },
+                "language": {"code": "pt_BR"},
                 "components": [
                     {
                         "type": "body",
                         "parameters": [
-                            {"type": "text", "text": medico_nome},
-                            {"type": "text", "text": paciente_nome},
-                            {"type": "text", "text": pdf_link_analisado},
-                            {"type": "text", "text": pdf_link_original}
+                            {"type": "text", "text": doctor_name},
+                            {"type": "text", "text": patient_name},
+                            {"type": "text", "text": analyzed_pdf_link},
+                            {"type": "text", "text": original_pdf_link}
                         ]
                     }
                 ]
@@ -64,9 +64,9 @@ def enviar_pdf_whatsapp(medico_nome: str, paciente_nome: str, pdf_link_analisado
         )
 
         if response.status_code != 200:
-            return f"Erro ao enviar mensagem: {response.text}"
+            return f"Error sending message: {response.text}"
 
-        return None  # sucesso
+        return None  # success
 
     except Exception as e:
-        return f"Erro inesperado: {e}"
+        return f"Unexpected error: {e}"

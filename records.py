@@ -2,12 +2,16 @@ import json
 import os
 from datetime import datetime
 
+# Files Paths (Constants)
+
 PATIENTS_FILE = 'json/patients.json'
 CONSULTS_FILE = 'json/consults.json'
 PRODUCTS_FILE = 'json/products.json'
 DOCTORS_FILE = 'json/doctors.json'
+PACKAGES_FILE = 'json/packages.json'
 
-# simple patient class
+# Patient Model (Class)
+
 class Patient:
     def __init__(self, id, name, age, cpf, gender, phone, doctor, prescription="", status='Ativo', doctor_name="Não informado"):
         self.id = id
@@ -21,7 +25,8 @@ class Patient:
         self.prescription = prescription
         self.doctor_name = doctor_name
 
-# load all patients
+# Patient Management
+
 def get_patients():
     if not os.path.exists(PATIENTS_FILE):
         return []
@@ -51,7 +56,6 @@ def get_patients():
 
     return patients
 
-#returns a patient by his ID
 def get_patient(patient_id):
     with open(PATIENTS_FILE, "r", encoding="utf-8") as f:
         patients = json.load(f)
@@ -61,19 +65,14 @@ def get_patient(patient_id):
         patient["doctor_name"] = doctor_name or "Não informado"
     return patient
 
-# add a new patient
 def add_patient(name, age, cpf, gender, phone, doctor, prescription=""):
     patients = get_patients()
-
-    # generate a new ID
     new_id = max((p.id for p in patients), default=0) + 1
 
-    # cria o novo paciente com a data atual
     new_patient = Patient(new_id, name, int(age), cpf, gender, phone, doctor)
-    new_patient.prescription = prescription 
+    new_patient.prescription = prescription
     patients.append(new_patient)
 
-    # salva com o campo created_at e prescription
     patients_data = []
     for p in patients:
         data = {
@@ -85,9 +84,8 @@ def add_patient(name, age, cpf, gender, phone, doctor, prescription=""):
             "phone": p.phone,
             "doctor": p.doctor,
             "status": p.status,
-            "prescription": getattr(p, 'prescription', '')  # ✅ Salva a prescrição (se houver)
+            "prescription": getattr(p, 'prescription', '')
         }
-        # se já tiver uma data salva, preserva; senão, define hoje
         if hasattr(p, 'created_at'):
             data["created_at"] = p.created_at
         elif p == new_patient:
@@ -99,7 +97,6 @@ def add_patient(name, age, cpf, gender, phone, doctor, prescription=""):
 
     return new_id
 
-# update existing patient data
 def update_patient(patient_id, name, age, cpf, gender, phone, doctor, prescription):
     patients = get_patients()
     for p in patients:
@@ -111,11 +108,10 @@ def update_patient(patient_id, name, age, cpf, gender, phone, doctor, prescripti
             p.phone = phone
             p.doctor = doctor
             p.doctor_name = get_doctor_by_id(doctor) or "Não informado"
-            p.prescription = prescription  
+            p.prescription = prescription
             break
     save_patients(patients)
 
-#save all patients to JSON
 def save_patients(patients):
     patients_data = []
     for p in patients:
@@ -133,8 +129,9 @@ def save_patients(patients):
     with open(PATIENTS_FILE, 'w', encoding='utf-8') as f:
         json.dump(patients_data, f, indent=4, ensure_ascii=False)
 
-# add a new consultation to a patient
-def add_consultation(patient_id, consultation_text):
+# Consultation Management
+
+def add_consultation(patient_id, consultation_text, user_id):
     consults = {}
     if os.path.exists(CONSULTS_FILE):
         with open(CONSULTS_FILE, 'r', encoding='utf-8') as f:
@@ -144,7 +141,10 @@ def add_consultation(patient_id, consultation_text):
     with open(CONSULTS_FILE, 'w', encoding='utf-8') as f:
         json.dump(consults, f, indent=4, ensure_ascii=False)
 
-# return consultations of a patient
+    package_info = get_package_info(user_id)
+    update_package_usage(user_id, package_info['used'] + 1)
+
+
 def get_consults(patient_id):
     if not os.path.exists(CONSULTS_FILE):
         return []
@@ -152,7 +152,6 @@ def get_consults(patient_id):
         consults = json.load(f)
     return consults.get(str(patient_id), [])
 
-#delete a patient and their consults
 def delete_patient_record(patient_id):
     patients = [p for p in get_patients() if p.id != patient_id]
     save_patients(patients)
@@ -163,7 +162,8 @@ def delete_patient_record(patient_id):
         with open(CONSULTS_FILE, 'w', encoding='utf-8') as f:
             json.dump(consults, f, indent=4, ensure_ascii=False)
 
-#product-related functions
+# Product Management
+
 def get_products():
     if not os.path.exists(PRODUCTS_FILE):
         return []
@@ -173,12 +173,12 @@ def get_products():
 
     for product in data:
         if 'min_stock' not in product:
-            product['min_stock'] = 5  # valor padrão
+            product['min_stock'] = 5
     return data
 
-def save_products(produtos):
+def save_products(products):
     with open(PRODUCTS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(produtos, f, ensure_ascii=False, indent=2)
+        json.dump(products, f, ensure_ascii=False, indent=2)
 
 def add_product(name, purchase_price, sale_price, quantity):
     products = get_products()
@@ -195,12 +195,12 @@ def add_product(name, purchase_price, sale_price, quantity):
     save_products(products)
 
 def update_product_status(product_id, new_status):
-    produtos = get_products()
-    for p in produtos:
+    products = get_products()
+    for p in products:
         if p['id'] == product_id:
             p['status'] = new_status
             break
-    save_products(produtos)
+    save_products(products)
 
 def update_patient_status(patient_id, new_status):
     patients = get_patients()
@@ -210,10 +210,12 @@ def update_patient_status(patient_id, new_status):
             break
     save_patients(patients)
 
+# Doctor Management
+
 def get_doctors():
-    if not os.path.exists("json/doctors.json"):
+    if not os.path.exists(DOCTORS_FILE):
         return []
-    with open("json/doctors.json", "r", encoding="utf-8") as f:
+    with open(DOCTORS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def get_doctor_by_id(doc_id):
@@ -239,6 +241,19 @@ def add_doctor_if_not_exists(doctor_name):
 
     return new_id, ""
 
+def update_doctor(doctor_id, name, phone):
+    doctors = get_doctors()
+    for doctor in doctors:
+        if doctor['id'] == doctor_id:
+            doctor['name'] = name
+            doctor['phone'] = phone
+            break
+    with open(DOCTORS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(doctors, f, indent=4, ensure_ascii=False)
+
+
+# Utility Functions
+
 def get_patients_dict():
     return [
         {
@@ -255,12 +270,43 @@ def get_patients_dict():
         for p in get_patients()
     ]
 
-def update_doctor(doctor_id, name, phone):
-    doctors = get_doctors()
-    for doctor in doctors:
-        if doctor['id'] == doctor_id:
-            doctor['name'] = name
-            doctor['phone'] = phone
+def count_completed_analysis():
+    try:
+        with open(CONSULTS_FILE, 'r', encoding='utf-8') as f:
+            consults = json.load(f)
+        total = sum(len(v) for v in consults.values())
+        return total
+    except FileNotFoundError:
+        return 0
+
+#Packages Management
+
+def get_package_info(user_id):
+    if not os.path.exists(PACKAGES_FILE):
+        return {"total": 0, "used": 0}
+
+    with open(PACKAGES_FILE, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    user_data = next((u for u in data['users'] if u['user_id'] == user_id), None)
+    if user_data:
+        return user_data
+    else:
+        return {"total": 50, "used": 0}  # starts with 50 free analysis
+def update_package_usage(user_id, new_used_value):
+    if not os.path.exists(PACKAGES_FILE):
+        data = {"users": []}
+    else:
+        with open(PACKAGES_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+    for user in data['users']:
+        if user['user_id'] == user_id:
+            user['used'] = min(new_used_value, user['total'])
             break
-    with open(DOCTORS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(doctors, f, indent=4, ensure_ascii=False)
+
+    with open(PACKAGES_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def is_package_available(user_id):
+    data = get_package_info(user_id)
+    return data['total'] - data['used'] > 0

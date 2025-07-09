@@ -11,40 +11,40 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <script>
+    const pacotes_usados = {{ used }};
+    const pacotes_comprados = {{ used + remaining }};
+
     google.charts.load('current', { packages: ['corechart'] });
     google.charts.setOnLoadCallback(drawChart);
     google.charts.setOnLoadCallback(drawDonutChart);
 
     function drawChart() {
-      const data = google.visualization.arrayToDataTable([
-        ['Data', 'PDFs Analisados', 'Média'],
-        {% for item in chart_data %}
+  const data = google.visualization.arrayToDataTable([
+    ['Data', 'PDFs Analisados', 'Média'],
+    {% for item in chart_data %}
     ['{{ item.date }}', {{ item.count }}, {{ item.media }}]{% if not loop.last %}, {% endif %}
     {% endfor %}
-        ]);
+  ]);
 
-    const options = {
-      title: '',
-      seriesType: 'bars',
-      series: { 1: { type: 'line', color: '#00c5d3' } },
-      colors: ['#2c3e50'],
-      legend: { position: 'bottom' },
-      vAxis: { minValue: 0 }
-    };
+  const options = {
+    title: '',
+    seriesType: 'bars',
+    series: { 1: { type: 'line', color: '#00c5d3' } },
+    colors: ['#2c3e50'],
+    legend: { position: 'bottom' },
+    vAxis: { minValue: 0 }
+  };
 
-    const chart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
-    chart.draw(data, options);
-    }
+  const chart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
+  chart.draw(data, options);
+}
+
 
     function drawDonutChart() {
-      const pacotes_comprados = 500;
-      const pacotes_usados = 50;
-      const pacotes_restantes = pacotes_comprados - pacotes_usados;
-
       const data = google.visualization.arrayToDataTable([
-        ['Pacotes', 'Quantidade'],
-        ['Usados', pacotes_usados],
-        ['Restantes', pacotes_restantes]
+        ['Pacote', 'Análises'],
+        ['Usado', pacotes_usados],
+        ['Disponível', pacotes_comprados - pacotes_usados]
       ]);
 
       const options = {
@@ -60,15 +60,8 @@
       document.getElementById('donut_label').innerText =
         Math.round((pacotes_usados / pacotes_comprados) * 100) + '%';
     }
+
     function openModal() {
-      const initial = 100; // Gratuitas
-      const purchased = 500; // Compradas
-      const used = 50; // Usadas
-
-      const total = initial + purchased;
-      const remaining = total - used;
-
-      document.getElementById('remaining').innerText = remaining;
       document.getElementById('detailsModal').style.display = 'flex';
     }
 
@@ -183,10 +176,9 @@
     </button>
 
     <h3 style="margin-bottom: 20px;">Detalhes do Pacote</h3>
-    <p><strong>Pacote Inicial:</strong> 100 Análises Gratuitas</p>
-    <p><strong>Compradas:</strong> 500</p>
-    <p><strong>Usadas:</strong> 50</p>
-    <p><strong>Disponíveis:</strong> <span id="remaining"></span></p>
+    <p><strong>Pacotes Totais:</strong> {{ used + remaining }}</p>
+    <p><strong>Usadas:</strong> {{ used }}</p>
+    <p><strong>Disponíveis:</strong> {{ remaining }}</p>
 
     <!-- Botão Comprar Pacotes -->
     <button type="button" onclick="window.location.href='{{ url_for('purchase') }}'" style="

@@ -144,9 +144,9 @@
           <div class="options-container">
             <button class="options-button" onclick="toggleMenu(this)">⋮</button>
             <div class="options-menu">
-              <a href="#" onclick="openEditProductModal({{ prod.id }})">Editar</a>
+              <a href="#" onclick="openEditProductModal({{ prod.id | int }})">Editar</a>
               <form method="post" action="{{ url_for('delete_product', product_id=prod.id) }}"
-                onsubmit="return confirm('Deseja realmente remover este produto?')" style="margin: 0;">
+                onsubmit="closeMenu(this); return confirm('Deseja realmente remover este produto?')">
                 <button type="submit" style="
                   background: none;
                   border: none;
@@ -197,18 +197,13 @@
       <h2 style="text-align:center;">Cadastrar Produto</h2>
       <form method="post" action="{{ url_for('add_product_route') }}">
         <input type="text" name="name" placeholder="Nome do Produto" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+          style="width: 95%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="number" name="quantity" placeholder="Quantidade" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+          style="width: 95%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="number" name="purchase_price" placeholder="Preço de Compra" step="0.01" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
+          style="width: 95%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="number" name="sale_price" placeholder="Preço de Venda" step="0.01" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
-        <select name="status" required
-          style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
-          <option value="Ativo">Ativo</option>
-          <option value="Inativo">Inativo</option>
-        </select>
+          style="width: 95%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
 
         <button type="submit" class="menu-button" style="width: 100%;">Salvar</button>
       </form>
@@ -240,15 +235,15 @@
       <!-- Formulário com ID para setar action via JS -->
       <form method="post" id="editProductForm">
         <input type="text" name="code" placeholder="Código" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="text" name="name" placeholder="Nome" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="number" name="quantity" placeholder="Quantidade" min="0" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="number" name="purchase_price" placeholder="Preço de Compra" step="0.01" required
-          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          style="width: 97%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
         <input type="number" name="sale_price" placeholder="Preço de Venda" step="0.01" required
-          style="width: 97%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          style="width: 97%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px;">
 
         <button type="submit" class="menu-button" style="width: 100%;">Salvar Alterações</button>
       </form>
@@ -259,7 +254,7 @@
   <script>
     function openEditProductModal(productId) {
       const form = document.getElementById('editProductForm');
-      form.action = `/estoque/editar/${productId}`;  // Ajuste a URL conforme sua rota real
+      form.action = `/stock_edit/${productId}`;
       document.getElementById('editProductModal').style.display = 'flex';
     }
 

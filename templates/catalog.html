@@ -145,25 +145,26 @@
             <div class="options-menu">
               <a href="{{ url_for('patient_result', patient_id=patient.id) }}">Ver Diagnóstico</a>
               <a href="{{ url_for('edit_patient', patient_id=patient.id) }}">Editar Informações</a>
-              <a href="{{ url_for('add_consultation_route', patient_id=patient.id) }}">Adicionar Consulta</a>
+              <a href="javascript:void(0);" onclick="openConsultationModal({{ patient.id }})">Adicionar Consulta</a>
               <form method="post" action="{{ url_for('delete_patient', patient_id=patient.id) }}"
                 onsubmit="return confirm('Deseja realmente remover este paciente?')" style="margin: 0;">
                 <button type="submit" style="
-                  background: none;
-                  border: none;
-                  padding: 8px 12px;
-                  margin: 0;
-                  width: 100%;
-                  font: inherit;
-                  cursor: pointer;
-                  text-align: left;
-                  color: #333;
-                  font-family: 'Montserrat', sans-serif;
-                  font-size: 14px;
-                  display: block;
-                  text-decoration: none;
-                " onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
-                  onmouseout="this.style.backgroundColor=''; this.style.color='#333';">
+                background-color: white;
+                border: none;
+                padding: 8px 12px;
+                margin: 0;
+                width: 100%;
+                font: inherit;
+                cursor: pointer;
+                text-align: left;
+                color: #333;
+                font-family: 'Montserrat', sans-serif;
+                font-size: 14px;
+                display: block;
+                text-decoration: none;
+                transition: background-color 0.3s ease, color 0.3s ease;
+              " onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
+                  onmouseout="this.style.backgroundColor='white'; this.style.color='#333';">
                   Remover Paciente
                 </button>
               </form>
@@ -220,9 +221,14 @@
       outline-color: #00c5d3;
       font-weight: 500;
     "></textarea>
+      <!-- Campo de Médico no Modal -->
       <select id="doctor" required
-        style="width: 100%; padding: 10px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;">
-        <option value="">Selecione o médico</option>
+        style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Montserrat', sans-serif; font-size: 14px; color: #333; outline-color: #00c5d3; font-weight: 500;"
+        onfocus="this.style.border='1px solid #00c5d3';" onblur="this.style.border='1px solid #ccc';">
+        <option value="">Selecione o Médico</option>
+        {% for doctor in doctors %}
+        <option value="{{ doctor.id }}">{{ doctor.name }}</option>
+        {% endfor %}
       </select>
 
       <button type="button" onclick="submitPatient()" style="
@@ -244,6 +250,88 @@
     </div>
   </div>
 
+  <!-- Modal de Adicionar Consulta -->
+  <div id="consultationModal"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
+    <div
+      style="background:white; padding:30px; border-radius:10px; width:90%; max-width:500px; text-align:center; font-family:'Montserrat', sans-serif; position: relative;">
+      <!-- Botão X -->
+      <button onclick="closeConsultationModal()" style="
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  " onmouseover="this.style.color='#00c5d3';" onmouseout="this.style.color='#333';">
+        ×
+      </button>
+
+      <h2 style="margin-bottom: 20px; color: #2c3e50; font-weight: 600;">Nova Consulta</h2>
+
+      <select id="patient_consultation" required style="
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: #333;
+    outline-color: #00c5d3;
+    font-weight: 500;">
+        <option value="">Selecione o Paciente</option>
+        {% for patient in patients %}
+        <option value="{{ patient.id }}">{{ patient.name }}</option>
+        {% endfor %}
+      </select>
+
+      <input type="text" id="consultation_date" placeholder="Data (dd/mm/aaaa)" maxlength="10" required style="
+    width: 96%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: #333;
+    outline-color: #00c5d3;
+    font-weight: 500;">
+
+      <textarea id="consultation_notes" placeholder="Observações" rows="4" style="
+    width: 96%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    color: #333;
+    outline-color: #00c5d3;
+    font-weight: 500;"></textarea>
+
+      <button type="button" onclick="submitConsultation()" style="
+    width: 100%;
+    padding: 10px 16px;
+    background-color: white;
+    color: #333;
+    border: 2px solid #00c5d3;
+    border-radius: 6px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  " onmouseover="this.style.backgroundColor='#00c5d3'; this.style.color='white';"
+        onmouseout="this.style.backgroundColor='white'; this.style.color='#333';">
+        Salvar Consulta
+      </button>
+    </div>
+  </div>
 
   <script>
     function toggleMenu(button) {
@@ -323,6 +411,87 @@
           }
         });
     }
+
+    function submitEvent() {
+      const title = document.getElementById("title").value;
+      const date = document.getElementById("date").value;
+      const time = document.getElementById("time").value;
+      const notes = document.getElementById("notes").value;
+      const doctor = document.getElementById("doctor").value;
+
+      const datetime = time ? `${date}T${time}` : `${date}T00:00`;
+
+      fetch("/api/add_event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title,
+          start: datetime,
+          notes: notes,
+          doctor: doctor
+        })
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            alert("Consulta adicionada com sucesso!");
+            closeModal();
+            location.reload();
+          } else {
+            alert("Erro: " + (result.error || "Erro desconhecido"));
+          }
+        });
+    }
+    function openConsultationModal(patientId = '') {
+      document.getElementById("consultationModal").style.display = "flex";
+      document.getElementById("patient_consultation").value = patientId;
+    }
+
+    function closeConsultationModal() {
+      document.getElementById("consultationModal").style.display = "none";
+    }
+
+    function submitConsultation() {
+      const patientSelect = document.getElementById("patient_consultation");
+      const patientId = patientSelect.value;
+      const patientName = patientSelect.options[patientSelect.selectedIndex].text;
+
+      const data = {
+        title: "Consulta - " + patientName,
+        start: `${formatDateToISO(document.getElementById("consultation_date").value)}`,
+        notes: document.getElementById("consultation_notes").value,
+      };
+
+      fetch("/api/add_event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+        .then(response => response.json())
+        .then(result => {
+          if (result.success) {
+            alert("Consulta adicionada com sucesso!");
+            closeConsultationModal();
+            window.location.reload();
+          } else {
+            alert("Erro: " + (result.error || "Erro desconhecido"));
+          }
+        });
+    }
+
+    function formatDateToISO(dateStr) {
+      const [day, month, year] = dateStr.split('/');
+      return `${year}-${month}-${day}T00:00:00`;
+    }
+
+
+    // Máscara de data dd/mm/aaaa
+    document.getElementById("consultation_date").addEventListener("input", function (e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.length >= 3) value = value.slice(0, 2) + '/' + value.slice(2);
+      if (value.length >= 6) value = value.slice(0, 5) + '/' + value.slice(5, 9);
+      e.target.value = value.slice(0, 10);
+    });
   </script>
 </body>
 
