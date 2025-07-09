@@ -17,11 +17,6 @@ ENV/
 env/
 .venv/
 
-# JSON data (sensitive)
-json/
-Web/json/
-*.json
-
 # Private keys
 Keys/
 keys/
@@ -37,10 +32,4 @@ keys/
 # IDE settings (optional, se usar)
 .vscode/
 .idea/
-
-# Static (Sensitive user files)
-static/pdfs/
-static/output/
-static/profile_images/
-static/uploads/
 
