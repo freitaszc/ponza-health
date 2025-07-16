@@ -167,13 +167,13 @@ def build_diagnosis_and_prescriptions(results):
         if min_val is None or max_val is None:
             continue
         if value < min_val:
-            diagnosis_text += f"{test}: value {value} BELOW ideal ({ideal}).\n"
+            diagnosis_text += f"{test}: valor {value} ABAIXO do valor ideal ({ideal}).\n"
             prescriptions.extend([{"test": test, **med} for med in meds])
         elif value > max_val:
-            diagnosis_text += f"{test}: value {value} ABOVE ideal ({ideal}).\n"
+            diagnosis_text += f"{test}: valor {value} ACIMA do valor ideal ({ideal}).\n"
             prescriptions.extend([{"test": test, **med} for med in meds])
         else:
-            diagnosis_text += f"{test}: value {value} within ideal range ({ideal}).\n"
+            diagnosis_text += f"{test}: valor {value} está dentro do valor ideal ({ideal}).\n"
 
     seen = set()
     prescription_lines = []
@@ -182,7 +182,7 @@ def build_diagnosis_and_prescriptions(results):
         if key not in seen:
             seen.add(key)
             prescription_lines.append(
-                f"- {med['nome']}\nPreparation: {med['preparo']}\nApplication: {med['aplicacao']}\n"
+                f"- {med['nome']}\nPreparo: {med['preparo']}\nApplicação: {med['aplicacao']}\n"
             )
 
     return diagnosis_text.strip(), "\n".join(prescription_lines).strip()

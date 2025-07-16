@@ -6,6 +6,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, m
 from datetime import datetime, timedelta
 import os
 import json
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import secrets
 import weasyprint
 from prescription import analyze_pdf
@@ -13,14 +17,17 @@ from records import (
     add_consultation, add_patient, get_consults, get_patient, get_patients, update_patient,
     delete_patient_record, add_product, get_products, update_product_status, update_doctor,
     update_patient_status, save_products, get_doctors, add_doctor_if_not_exists, get_consults,
-    get_package_info, is_package_available, update_package_usage
+    get_package_info, is_package_available, update_package_usage, update_prescription_in_consult,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
 import jwt
 from typing import cast
-from whatsapp import send_pdf_whatsapp
+from whatsapp import send_pdf_whatsapp, send_quote_whatsapp
 from mercado_pago import generate_payment_link
+import uuid
+from email_utils import send_email_quote
+
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)
@@ -450,7 +457,8 @@ def edit_patient(patient_id):
             request.form.get('prescription', '').strip()
         )
         return redirect(url_for('catalog'))
-
+    
+    update_prescription_in_consult(patient_id, request.form.get('prescription', '').strip())
     return render_template('edit_patient.html', patient=patient, doctors=doctors)
 
 @app.route('/patient_result/<int:patient_id>')
@@ -881,6 +889,315 @@ def watch_video(playback_id):
         token=token,
         pdf_filename=pdf_filename
     )
+
+# ==============================================
+# QUOTE SYSTEM
+# ==============================================
+
+@app.route('/quotes/create', methods=['GET', 'POST'])
+def create_quote():
+    with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+        suppliers = json.load(f)
+
+    if request.method == 'POST':
+        title = request.form['title']
+        items_raw = request.form['items']
+        supplier_ids = request.form.getlist('supplier_ids')
+
+        quote_id = str(uuid.uuid4())[:8]
+        quote = {
+            "id": quote_id,
+            "title": title,
+            "created_at": datetime.now().strftime('%d/%m/%Y %H:%M'),
+            "items": [i.strip() for i in items_raw.split('\n') if i.strip()],
+            "suppliers": supplier_ids,
+            "responses": {}
+        }
+
+        try:
+            with open('json/quotes.json', 'r', encoding='utf-8') as f:
+                quotes = json.load(f)
+        except FileNotFoundError:
+            quotes = []
+
+        quotes.append(quote)
+
+        with open('json/quotes.json', 'w', encoding='utf-8') as f:
+            json.dump(quotes, f, indent=4, ensure_ascii=False)
+
+        # ================== WHATSAPP + EMAIL ===================
+        supplier_map = {str(s['id']): s for s in suppliers}
+        items_text = "\n".join([f"• {item}" for item in quote['items']])
+        base_message = f"📦 *Nova Cotação: {title}*\n\n{items_text}"
+
+        for sid in supplier_ids:
+            supplier = supplier_map.get(sid)
+            if supplier:
+                response_url = f"https://bioo3.com.br/quote/{quote_id}/supplier/{sid}"
+                message = f"{base_message}\n\nResponda aqui: {response_url}"
+                message = message.replace("\n", " ").replace("\t", " ").replace("  ", " ").strip()
+
+                # WhatsApp
+                if supplier.get("phone"):
+                    try:
+                        send_quote_whatsapp(
+                            supplier_name=supplier['name'],
+                            phone=supplier['phone'],
+                            quote_title=title,
+                            quote_items=quote['items'],
+                            response_url=response_url
+                        )
+                    except Exception as e:
+                        print(f"[Erro WhatsApp - {supplier['name']}] {e}")
+
+                # Email
+                if supplier.get("email"):
+                    try:
+                        email_subject = f"Cotação BioO3: {title}"
+                        email_body = f"""
+Olá {supplier['name']},
+
+Você recebeu uma nova cotação da plataforma BioO3.
+
+Título: {title}
+Itens:
+{items_text}
+
+Responda acessando o link abaixo:
+{response_url}
+
+Atenciosamente,
+Equipe BioO3
+"""
+                        send_email_quote(supplier['email'], email_subject, email_body)
+                    except Exception as e:
+                        print(f"Erro ao enviar e-mail para {supplier['email']}: {e}")
+
+        return redirect(url_for('quote_success', quote_id=quote_id))
+
+    return render_template('create_quote.html', suppliers=suppliers)
+
+
+@app.route('/quotes/success/<quote_id>')
+def quote_success(quote_id):
+    return f'Cotação criada com sucesso! ID: {quote_id}'
+
+@app.route('/quote/<quote_id>/supplier/<supplier_id>', methods=['GET', 'POST'])
+def respond_quote(quote_id, supplier_id):
+    try:
+        with open('json/quotes.json', 'r', encoding='utf-8') as f:
+            quotes = json.load(f)
+    except FileNotFoundError:
+        return "Nenhuma cotação encontrada."
+
+    quote = next((q for q in quotes if q['id'] == quote_id), None)
+    if not quote or supplier_id not in quote['suppliers']:
+        return "Cotação inválida ou fornecedor não autorizado."
+
+    if request.method == 'POST':
+        prices = []
+        for idx in range(len(quote['items'])):
+            price = request.form.get(f'price_{idx}')
+            deadline = request.form.get(f'deadline_{idx}')
+            prices.append({"price": price, "deadline": deadline})
+
+        if "responses" not in quote:
+            quote['responses'] = {}
+
+        quote['responses'][supplier_id] = {
+            "submitted_at": datetime.now().strftime('%d/%m/%Y %H:%M'),
+            "answers": prices
+        }
+
+        # Atualizar a lista com a nova resposta
+        for i, q in enumerate(quotes):
+            if q['id'] == quote_id:
+                quotes[i] = quote
+                break
+
+        with open('json/quotes.json', 'w', encoding='utf-8') as f:
+            json.dump(quotes, f, indent=4, ensure_ascii=False)
+
+        return "Cotação enviada com sucesso. Obrigado!"
+
+    return render_template('quote_response.html', quote=quote)
+
+@app.route('/quotes/<quote_id>/results')
+def quote_results(quote_id):
+    with open('json/quotes.json', 'r', encoding='utf-8') as f:
+        quotes = json.load(f)
+
+    quote = next((q for q in quotes if q['id'] == quote_id), None)
+    if not quote:
+        return "Cotação não encontrada."
+
+    # Mapear nomes dos fornecedores
+    with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+        suppliers = json.load(f)
+
+    supplier_names = []
+    supplier_map = {str(s["id"]): s["name"] for s in suppliers}
+    for sid in quote["suppliers"]:
+        supplier_names.append(supplier_map.get(sid, f"Fornecedor {sid}"))
+
+    # Melhor preço por item
+    best_per_item = {}
+    for idx in range(len(quote["items"])):
+        best_price = float('inf')
+        best_supplier = None
+        for sid, response in quote.get("responses", {}).items():
+            try:
+                price = float(response["answers"][idx]["price"])
+                if price < best_price:
+                    best_price = price
+                    best_supplier = sid
+            except (KeyError, ValueError, IndexError):
+                continue
+        best_per_item[idx] = best_supplier
+
+    quote_items = list(enumerate(quote["items"]))
+    
+    return render_template(
+        "quote_results.html",
+        quote=quote,
+        quote_items=quote_items,
+        supplier_names=supplier_names,
+        best_per_item=best_per_item
+    )
+
+@app.route('/quotes')
+def quote_index():
+    try:
+        with open('json/quotes.json', 'r', encoding='utf-8') as f:
+            quotes = json.load(f)
+    except FileNotFoundError:
+        quotes = []
+
+    return render_template('quote_index.html', quotes=quotes)
+
+@app.route('/add_supplier', methods=['POST'])
+def add_supplier():
+    name = request.form.get('name')
+    email = request.form.get('email')
+    phone = request.form.get('phone')
+
+    try:
+        with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+            suppliers = json.load(f)
+    except FileNotFoundError:
+        suppliers = []
+
+    new_id = max([s['id'] for s in suppliers], default=0) + 1
+    suppliers.append({
+        "id": new_id,
+        "name": name,
+        "email": email,
+        "phone": phone
+    })
+
+    with open('json/suppliers.json', 'w', encoding='utf-8') as f:
+        json.dump(suppliers, f, indent=4, ensure_ascii=False)
+
+    return redirect(url_for('suppliers'))
+
+@app.route('/quotes/delete/<quote_id>', methods=['POST'])
+def delete_quote(quote_id):
+    try:
+        with open('json/quotes.json', 'r', encoding='utf-8') as f:
+            quotes = json.load(f)
+    except FileNotFoundError:
+        quotes = []
+
+    updated_quotes = [q for q in quotes if q['id'] != quote_id]
+
+    with open('json/quotes.json', 'w', encoding='utf-8') as f:
+        json.dump(updated_quotes, f, indent=4, ensure_ascii=False)
+
+    return redirect(url_for('quote_index'))
+
+@app.route('/send_quote/<quote_id>', methods=['POST'])
+def send_quote(quote_id):
+    import requests
+
+    # Carregar cotação
+    try:
+        with open('json/quotes.json', 'r', encoding='utf-8') as f:
+            quotes = json.load(f)
+    except FileNotFoundError:
+        return "Erro: Nenhuma cotação encontrada."
+
+    quote = next((q for q in quotes if q['id'] == quote_id), None)
+    if not quote:
+        return "Erro: Cotação não encontrada."
+
+    # Carregar fornecedores
+    with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+        suppliers = json.load(f)
+
+    supplier_dict = {str(s['id']): s for s in suppliers}
+
+    # Mensagem base
+    item_list = "\n".join([f"• {item}" for item in quote['items']])
+    base_message = f"📦 *Nova Cotação: {quote['title']}*\n\n{item_list}\n\nResponda por aqui:"
+
+    # Enviar para cada fornecedor
+    for sid in quote['suppliers']:
+        supplier = supplier_dict.get(sid)
+        if supplier and supplier.get("phone"):
+            phone = supplier["phone"]
+            response_url = f"https://bioo3.com.br/quote/{quote_id}/supplier/{sid}"
+            message = f"{base_message}\n{response_url}"
+
+            # --- Envio WhatsApp (simulado) ---
+            # Substitua este bloco por sua API real
+            print(f"Enviando para {phone}:")
+            print(message)
+            # Exemplo usando Meta API:
+            # send_whatsapp_message(phone, message)
+            # -------------------------------
+
+    return redirect(url_for('quote_results', quote_id=quote_id))
+
+@app.route('/suppliers')
+def suppliers():
+    with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+        suppliers = json.load(f)
+    return render_template('suppliers.html', suppliers=suppliers)
+
+@app.route('/delete_supplier/<int:supplier_id>', methods=['POST'])
+def delete_supplier(supplier_id):
+    try:
+        with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+            suppliers = json.load(f)
+    except FileNotFoundError:
+        suppliers = []
+
+    updated = [s for s in suppliers if s['id'] != supplier_id]
+
+    with open('json/suppliers.json', 'w', encoding='utf-8') as f:
+        json.dump(updated, f, indent=4, ensure_ascii=False)
+
+    return redirect(url_for('suppliers'))
+
+@app.route('/update_supplier/<int:supplier_id>', methods=['POST'])
+def update_supplier(supplier_id):
+    with open('json/suppliers.json', 'r', encoding='utf-8') as f:
+        suppliers = json.load(f)
+
+    supplier = next((s for s in suppliers if s['id'] == supplier_id), None)
+    if not supplier:
+        return "Fornecedor não encontrado.", 404
+
+    supplier['name'] = request.form.get('name', supplier['name'])
+    supplier['phone'] = request.form.get('phone', supplier['phone'])
+    supplier['email'] = request.form.get('email', supplier['email'])
+
+    with open('json/suppliers.json', 'w', encoding='utf-8') as f:
+        json.dump(suppliers, f, indent=2, ensure_ascii=False)
+
+    return redirect(url_for('suppliers'))
+
+
 
 # ==============================================
 # APPLICATION EXECUTION

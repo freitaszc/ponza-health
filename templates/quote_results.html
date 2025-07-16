@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Vídeoaulas - BioO3</title>
+  <title>Responder Cotação - BioO3</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -12,6 +12,7 @@
       font-family: 'Montserrat', sans-serif;
       background-color: #f9f9f9;
     }
+
     .top-menu {
       background-color: white;
       padding: 10px 0;
@@ -20,6 +21,7 @@
       gap: 20px;
       border-bottom: 1px solid #eee;
     }
+
     .top-menu a {
       font-family: 'Montserrat', sans-serif;
       font-weight: 500;
@@ -30,50 +32,91 @@
       border-radius: 6px;
       transition: 0.3s;
     }
+
     .top-menu a:hover {
       background-color: #00c5d3;
       color: white;
     }
-    .container {
-      max-width: 800px;
+
+    .content {
+      max-width: 1000px;
       margin: 0 auto;
-      padding: 30px 20px;
+      padding: 20px;
       text-align: center;
     }
+
     .logo-img {
       width: 100px;
       display: block;
       margin: 0 auto 20px auto;
     }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
     h2 {
-      font-size: 26px;
+      font-size: 24px;
       color: #2c3e50;
       margin-bottom: 30px;
+      text-align: center;
     }
-    .video-list {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
     }
-    .video-button {
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ccc;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f0f0f0;
+      font-weight: 600;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+    }
+
+    .menu-button {
       font-family: 'Montserrat', sans-serif;
       font-size: 14px;
       font-weight: 500;
       color: #333;
+      border: 2px solid #00c5d3;
+      background-color: white;
       padding: 10px 16px;
+      border-radius: 6px;
       text-decoration: none;
       transition: 0.3s ease;
       cursor: pointer;
       width: 100%;
-      max-width: 400px;
     }
-    .video-button:hover {
-      color: #00c5d3;
+
+    .menu-button:hover {
+      background-color: #00c5d3;
+      color: white;
     }
   </style>
 </head>
 <body>
+
   <div class="top-menu">
     <a href="{{ url_for('index') }}">Início</a>
     <a href="{{ url_for('upload') }}">BioO3 Lab</a>
@@ -85,18 +128,37 @@
     <a href="{{ url_for('videos') }}">Vídeoaulas</a>
     <a href="{{ url_for('logout') }}">Sair</a>
   </div>
-  <div class="container">
+
+  <div class="content">
     <a href="{{ url_for('index') }}">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img" alt="Logo">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img">
     </a>
-    <h2>Vídeoaulas</h2>
-    <div class="video-list">
-      {% for video in videos %}
-        <a class="video-button" href="{{ url_for('watch_video', playback_id=video.playback_id) }}">{{ video.title }}</a>
-      {% else %}
-        <p style="color: #999;">Nenhum vídeo encontrado.</p>
-      {% endfor %}
+    <h2>{{ quote.title }}</h2>
+
+    <div class="container">
+      <form method="post">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Preço Unitário (R$)</th>
+              <th>Prazo (dias)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for idx, item in quote_items %}
+            <tr>
+              <td>{{ item }}</td>
+              <td><input type="number" name="price_{{ loop.index0 }}" step="0.01" min="0" required></td>
+              <td><input type="number" name="deadline_{{ loop.index0 }}" min="1" required></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <button type="submit" class="menu-button">Enviar Resposta</button>
+      </form>
     </div>
   </div>
+
 </body>
 </html>

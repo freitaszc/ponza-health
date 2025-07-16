@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Vídeoaulas - BioO3</title>
+  <title>Resultado da Cotação - BioO3</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -12,6 +12,7 @@
       font-family: 'Montserrat', sans-serif;
       background-color: #f9f9f9;
     }
+
     .top-menu {
       background-color: white;
       padding: 10px 0;
@@ -20,6 +21,7 @@
       gap: 20px;
       border-bottom: 1px solid #eee;
     }
+
     .top-menu a {
       font-family: 'Montserrat', sans-serif;
       font-weight: 500;
@@ -30,50 +32,60 @@
       border-radius: 6px;
       transition: 0.3s;
     }
+
     .top-menu a:hover {
       background-color: #00c5d3;
       color: white;
     }
-    .container {
-      max-width: 800px;
+
+    .content {
+      max-width: 1000px;
       margin: 0 auto;
-      padding: 30px 20px;
+      padding: 20px;
       text-align: center;
     }
+
     .logo-img {
       width: 100px;
       display: block;
       margin: 0 auto 20px auto;
     }
+
     h2 {
-      font-size: 26px;
+      font-size: 24px;
       color: #2c3e50;
       margin-bottom: 30px;
     }
-    .video-list {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-    }
-    .video-button {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
-      padding: 10px 16px;
-      text-decoration: none;
-      transition: 0.3s ease;
-      cursor: pointer;
+
+    table {
       width: 100%;
-      max-width: 400px;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 40px;
     }
-    .video-button:hover {
-      color: #00c5d3;
+
+    th, td {
+      padding: 14px;
+      border: 1px solid #ccc;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f0f0f0;
+      font-weight: 600;
+    }
+
+    .highlight {
+      background-color: #d9f7f9;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
+
   <div class="top-menu">
     <a href="{{ url_for('index') }}">Início</a>
     <a href="{{ url_for('upload') }}">BioO3 Lab</a>
@@ -85,18 +97,42 @@
     <a href="{{ url_for('videos') }}">Vídeoaulas</a>
     <a href="{{ url_for('logout') }}">Sair</a>
   </div>
-  <div class="container">
+
+  <div class="content">
     <a href="{{ url_for('index') }}">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img" alt="Logo">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img">
     </a>
-    <h2>Vídeoaulas</h2>
-    <div class="video-list">
-      {% for video in videos %}
-        <a class="video-button" href="{{ url_for('watch_video', playback_id=video.playback_id) }}">{{ video.title }}</a>
-      {% else %}
-        <p style="color: #999;">Nenhum vídeo encontrado.</p>
-      {% endfor %}
-    </div>
+    <h2>{{ quote.title }}</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          {% for name in supplier_names %}
+            <th>{{ name }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for idx_item in quote_items %}
+          <tr>
+            <td>{{ idx_item[1] }}</td>
+            {% for sid in quote.suppliers %}
+              {% set answer = quote.responses.get(sid, {}).get("answers", []) %}
+              {% if answer and answer[idx_item[0]] %}
+                <td class="{% if best_per_item[idx_item[0]] == sid %}highlight{% endif %}">
+                  R$ {{ answer[idx_item[0]]["price"] }}<br>
+                  {{ answer[idx_item[0]]["deadline"] }} dias
+                </td>
+              {% else %}
+                <td>-</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
+
 </body>
 </html>

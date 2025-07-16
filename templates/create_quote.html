@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>BioO3 Lab</title>
+  <title>Criar Cotação - BioO3</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -12,7 +12,6 @@
       margin: 0;
       font-family: 'Montserrat', sans-serif;
       background-color: #f9f9f9;
-      color: #333;
     }
 
     .top-menu {
@@ -40,56 +39,66 @@
       color: white;
     }
 
-    .container {
-      max-width: 600px;
-      margin: 40px auto;
+    .content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
       text-align: center;
     }
 
-    .container img {
+    .logo-img {
       width: 100px;
-      margin-bottom: 20px;
+      display: block;
+      margin: 0 auto 20px auto;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     h2 {
-      font-size: 26px;
-      margin-bottom: 30px;
+      font-size: 24px;
       color: #2c3e50;
+      margin-bottom: 20px;
+      text-align: center;
     }
 
-    .file-input-wrapper {
-      position: relative;
-      display: inline-block;
-      overflow: hidden;
+    input[type="checkbox"] {
+      accent-color: #00c5d3;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 96%;
+      padding: 12px;
+      margin: 10px 0 20px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+    }
+
+    label {
+      font-weight: 500;
+      font-size: 14px;
+      display: block;
+      margin-bottom: 6px;
+      color: #333;
+    }
+
+    .supplier-list {
+      text-align: left;
       margin-bottom: 20px;
     }
 
-    .file-input-wrapper input[type="file"] {
-      font-size: 100px;
-      position: absolute;
-      left: 0;
-      top: 0;
-      opacity: 0;
-      cursor: pointer;
-    }
-
-    .file-input-wrapper .menu-button {
-      display: inline-block;
-      padding: 10px 16px;
-      font-size: 14px;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 500;
-      color: #333;
-      border: 2px solid #00c5d3;
-      border-radius: 6px;
-      background-color: white;
-      cursor: pointer;
-      transition: 0.3s ease;
-    }
-
-    .file-input-wrapper .menu-button:hover {
-      background-color: #00c5d3;
-      color: white;
+    .supplier-list label {
+      display: block;
+      margin-bottom: 6px;
     }
 
     .menu-button {
@@ -104,7 +113,7 @@
       text-decoration: none;
       transition: 0.3s ease;
       cursor: pointer;
-      display: inline-block;
+      width: 100%;
     }
 
     .menu-button:hover {
@@ -115,6 +124,7 @@
 </head>
 
 <body>
+
   <div class="top-menu">
     <a href="{{ url_for('index') }}">Início</a>
     <a href="{{ url_for('upload') }}">BioO3 Lab</a>
@@ -126,23 +136,35 @@
     <a href="{{ url_for('videos') }}">Vídeoaulas</a>
     <a href="{{ url_for('logout') }}">Sair</a>
   </div>
-  <div class="container">
+
+  <div class="content">
     <a href="{{ url_for('index') }}">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img"
-      style="width: 100px; margin-bottom: 20px;">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img">
     </a>
-    <h2>Enviar PDF para Análise</h2>
-    {% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
-    <form method="post" enctype="multipart/form-data">
-      <div class="file-input-wrapper">
-        <label class="menu-button">
-          Escolher arquivo
-          <input type="file" name="pdf_file">
+    <h2>Criar Nova Cotação</h2>
+  </div>
+
+  <div class="container">
+    <form method="post">
+      <label for="title">Nome da Cotação</label>
+      <input type="text" name="title" id="title" placeholder="Ex: Reposição de Estoque de Suplementos" required>
+
+      <label for="items">Itens da Cotação</label>
+      <textarea name="items" id="items" rows="6"
+        placeholder="Um item por linha: ex:Vitamina D 2000UI - 10 un.
+        Magnésio Dimalato - 5 un." required></textarea>
+
+      <label>Fornecedores</label>
+      <div class="supplier-list">
+        {% for supplier in suppliers %}
+        <label>
+          <input type="checkbox" name="supplier_ids" value="{{ supplier.id }}">
+          {{ supplier.name }}
         </label>
+        {% endfor %}
       </div>
-      <div>
-        <button type="submit" class="menu-button">Enviar</button>
-      </div>
+
+      <button type="submit" class="menu-button">Criar Cotação</button>
     </form>
   </div>
 </body>

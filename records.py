@@ -292,6 +292,7 @@ def get_package_info(user_id):
         return user_data
     else:
         return {"total": 50, "used": 0}  # starts with 50 free analysis
+    
 def update_package_usage(user_id, new_used_value):
     if not os.path.exists(PACKAGES_FILE):
         data = {"users": []}
@@ -310,3 +311,25 @@ def update_package_usage(user_id, new_used_value):
 def is_package_available(user_id):
     data = get_package_info(user_id)
     return data['total'] - data['used'] > 0
+
+def update_prescription_in_consult(patient_id, new_prescription):
+    import re
+
+    if not os.path.exists(CONSULTS_FILE):
+        return
+
+    with open(CONSULTS_FILE, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    key = str(patient_id)
+    if key not in data or not data[key]:
+        return
+
+    original = data[key][-1]
+    updated = re.sub(r'Prescrição:(.|\n)*', f'Prescrição:\n{new_prescription.strip()}', original)
+
+    data[key][-1] = updated
+
+    with open(CONSULTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
