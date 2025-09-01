@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Responder Cotação - BioO3</title>
+  <title>Responder Cotação - Ponza Health</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -34,7 +34,7 @@
     }
 
     .top-menu a:hover {
-      background-color: #00c5d3;
+      background-color: #133a5c;
       color: white;
     }
 
@@ -99,7 +99,7 @@
       font-size: 14px;
       font-weight: 500;
       color: #333;
-      border: 2px solid #00c5d3;
+      border: 2px solid #133a5c;
       background-color: white;
       padding: 10px 16px;
       border-radius: 6px;
@@ -110,7 +110,7 @@
     }
 
     .menu-button:hover {
-      background-color: #00c5d3;
+      background-color: #133a5c;
       color: white;
     }
   </style>
@@ -118,21 +118,19 @@
 <body>
 
   <div class="top-menu">
+    <div style="position: absolute; left: 20px;">
+        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Logo" style="height: 40px;">
+    </div>
     <a href="{{ url_for('index') }}">Início</a>
-    <a href="{{ url_for('upload') }}">BioO3 Lab</a>
+    <a href="{{ url_for('upload') }}">Ponza Lab</a>
     <a href="{{ url_for('quote_index') }}">Cotações</a>
-    <a href="{{ url_for('doctors') }}">Cadastro de Prescritores</a>
-    <a href="{{ url_for('catalog') }}">Catálogo de Pacientes</a>
+    <a href="{{ url_for('catalog') }}">Pacientes</a>
     <a href="{{ url_for('products') }}">Estoque</a>
     <a href="{{ url_for('agenda') }}">Agenda</a>
-    <a href="{{ url_for('videos') }}">Vídeoaulas</a>
     <a href="{{ url_for('logout') }}">Sair</a>
   </div>
 
   <div class="content">
-    <a href="{{ url_for('index') }}">
-      <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img">
-    </a>
     <h2>{{ quote.title }}</h2>
 
     <div class="container">

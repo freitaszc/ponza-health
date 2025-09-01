@@ -1,91 +1,306 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 
 <head>
     <meta charset="UTF-8">
-    <title>Login - BioO3</title>
-    <link rel="stylesheet" href="/static/css/web.css">
-    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
+    <title>Login — Ponza Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+
+    <!-- Funnel Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+
     <style>
-        .login-container {
-            max-width: 400px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        :root {
+            /* Paleta Ponza (azul-escuro) */
+            --ink-1: #0b1220;
+            --ink-2: #0e152a;
+            --bg-elev: #111827;
+            --bg-elev-2: #0f172a;
+
+            --text: #e5e7eb;
+            --text-dim: #cbd5e1;
+
+            --blue: #1e40af;
+            /* azul escuro */
+            --blue-dark: #1e3a8a;
+            /* azul escuro mais claro */
+            --blue-glow: rgba(37, 99, 235, .35);
+            --stroke: #1f2937;
+
+            /* Tipografia (+2px) */
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --fs-base: 16px;
+            /* corpo */
+            --fs-title: 34px;
+            /* títulos uniformes */
+            --fs-input: 16px;
+            /* inputs */
+            --fs-btn: 16px;
+            /* botões */
+            --fs-small: 14px;
+
+            /* Botões padronizados */
+            --btn-height: 44px;
+            --btn-minw: 220px;
         }
 
-        .login-container form input {
-            display: block;
-            margin: 10px auto;
-            padding: 10px;
-            width: 300px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-family: 'Montserrat', sans-serif;
+        * {
+            box-sizing: border-box
         }
 
-        .login-container form .button-outline {
-            display: block;
-            margin: 20px auto 0 auto;
+        html,
+        body {
+            margin: 0
         }
 
-        .error-message {
-            color: red;
-            margin-top: 10px;
-            font-size: 14px;
-            text-align: center;
+        body {
+            font-family: var(--font-family);
+            font-size: var(--fs-base);
+            color: var(--text);
+            background:
+                radial-gradient(1100px 540px at 8% 8%, rgba(14, 165, 233, 0.16) 0%, transparent 54%),
+                radial-gradient(900px 500px at 92% 0%, rgba(30, 64, 175, 0.20) 0%, transparent 55%),
+                linear-gradient(135deg, var(--ink-1) 0%, var(--ink-2) 100%);
+            min-height: 100vh;
         }
 
-        .footer {
-            text-align: center;
-            padding: 20px;
-            font-size: 13px;
-            color: #555;
-            margin-top: 30px;
+        /* NAV (sem Tailwind, padronizado) */
+        .navbar {
+            position: fixed;
+            inset: 0 0 auto 0;
+            height: 64px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            background: rgba(11, 18, 32, .85);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            border-bottom: 1px solid rgba(255, 255, 255, .06);
+            padding: 0 24px;
         }
 
-        .footer a {
-            color: #00c5d3;
+        .nav-inner {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-actions a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 16px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: var(--fs-small);
+            color: var(--blue);
+            border: 1px solid var(--blue);
+            text-decoration: none;
+            transition: .22s;
+            margin-left: 10px;
+            background: transparent;
+        }
+
+        .nav-actions a:hover {
+            background: var(--blue);
+            color: #fff;
+        }
+
+        .nav-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             text-decoration: none;
         }
 
-        .footer a:hover {
-            text-decoration: underline;
+        .nav-logo img {
+            height: 48px;
+            width: auto;
+            display: block;
+        }
+
+        /* MAIN */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 112px 16px 32px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 420px;
+            border-radius: 16px;
+            padding: 28px;
+            margin: 0 12px;
+            background: linear-gradient(145deg, var(--bg-elev-2) 0%, var(--bg-elev) 100%);
+            border: 1px solid rgba(255, 255, 255, .06);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, .35)
+        }
+
+        h2 {
+            font-size: var(--fs-title);
+            margin: 0 0 18px
+        }
+
+        /* Flash badges */
+        .flash-wrap {
+            margin-bottom: 16px
+        }
+
+        .badge {
+            padding: .7rem .9rem;
+            border-radius: .8rem;
+            font-size: var(--fs-small);
+            border: 1px solid;
+            display: block;
+            margin-bottom: 8px
+        }
+
+        .flash-warning {
+            background: #fff4e5;
+            color: #9a5a00;
+            border-color: #f3c077
+        }
+
+        .flash-success {
+            background: #e6ffed;
+            color: #046c4e;
+            border-color: #9be5c1
+        }
+
+        .flash-info {
+            background: #e7f3ff;
+            color: #0b5cab;
+            border-color: #9ec5fe
+        }
+
+        /* Form */
+        .input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 2px solid var(--stroke);
+            background: #0f172a;
+            color: var(--text);
+            outline: none;
+            transition: .2s;
+            font-size: var(--fs-input);
+            font-family: var(--font-family);
+        }
+
+        .input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 4px rgba(30, 64, 175, .18)
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: var(--btn-height);
+            width: 100%;
+            min-width: var(--btn-minw);
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            color: #fff;
+            font-weight: 800;
+            font-size: var(--fs-btn);
+            box-shadow: 0 12px 30px rgba(30, 64, 175, .28);
+            transition: .25s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 18px 44px rgba(30, 64, 175, .38)
+        }
+
+        .muted {
+            color: var(--text-dim);
+            font-size: var(--fs-small)
+        }
+
+        .link {
+            color: var(--blue);
+            text-decoration: none;
+            font-weight: 800
+        }
+
+        .link:hover {
+            color: #93c5fd
         }
     </style>
 </head>
 
 <body>
-    <div style="text-align: center; margin: 20px 0;">
-        <img src="{{ url_for('static', filename='images/logo.svg') }}"
-            style="width:100px; display:block; margin:0 auto;">
-    </div>
-    <div class="login-container">
-        <h2>Login</h2>
-        <form method="post">
-            <input type="text" name="username" placeholder="Usuário" required>
-            <input type="password" name="password" placeholder="Senha" required>
-            <button type="submit" class="button-outline">Entrar</button>
-        </form>
-        {% if error %}
-        <p class="error-message">{{ error }}</p>
-        {% endif %}
-    </div>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="nav-inner">
+            <a href="{{ url_for('hero') }}" class="nav-logo">
+                <img src="{{ url_for('static', filename='images/ponza-photo.png') }}" alt="Ponza Health" />
+            </a>
+            <div class="nav-actions">
+                <a href="{{ url_for('register') }}">Cadastrar</a>
+                <a href="{{ url_for('login') }}">Entrar</a>
+            </div>
+        </div>
+    </header>
 
-    <div class="footer">
-        <p>Contato: contato@bioo3.com.br | Telefone: (31) 99557-3925</p>
-        <p>Endereço: Rua Siquem, 207 - Canaã, Ipatinga - MG</p>
-        <p><a href="{{ url_for('privacy_policy') }}" target="_blank">Política de Privacidade</a></p>
-        <p><a href="{{ url_for('about') }}" class="about-link">Quem Somos</a></p>
-        <p><a href="https://wa.me/12157343496?text=Olá!%20Gostaria%20de%20consultar%20os%20pacotes%20de%20análises%20e%20ativar%20minha%20conta."
-            class="about-link" target="_blank">
-            Consulte preços e ative sua conta
-        </a></p>
+    <!-- FORM LOGIN -->
+    <main>
+        <div class="container">
+            <div class="card">
+                <h2>Entrar</h2>
 
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-wrap">
+                    {% for category, msg in messages %}
+                    <div
+                        class="badge {% if category == 'warning' %}flash-warning{% elif category == 'success' %}flash-success{% else %}flash-info{% endif %}">
+                        {{ msg }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
 
-    </div>
+                {% if error %}
+                <div class="badge flash-warning" style="margin-bottom:12px">{{ error }}</div>
+                {% endif %}
+
+                <form method="post" action="{{ url_for('login') }}">
+                    <div style="margin-bottom:12px"><input type="text" name="login" placeholder="E-mail ou usuário"
+                            required class="input"></div>
+                    <div style="margin-bottom:18px"><input type="password" name="password" placeholder="Senha" required
+                            class="input"></div>
+                    <button type="submit" class="btn-primary">Entrar</button>
+                </form>
+
+                <div style="text-align:center; margin-top:16px">
+                    <span class="muted">Não tem conta?</span>
+                    <a href="{{ url_for('register') }}" class="link" style="margin-left:6px">Cadastre-se</a>
+                </div>
+            </div>
+        </div>
+    </main>
 </body>
 
 </html>

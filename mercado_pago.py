@@ -16,16 +16,16 @@ def generate_payment_link(package, amount):
     preference_data = {
         "items": [
             {
-                "title": f"Pacote de {package} análises - BioO3 Lab",
+                "title": f"Pacote de {package} análises - Ponza Lab",
                 "quantity": 1,
                 "currency_id": "BRL",
                 "unit_price": float(amount)
             }
         ],
         "back_urls": {
-            "success": "https://bioo3.com/payments/success",
-            "failure": "https://bioo3.com/payments/failure",
-            "pending": "https://bioo3.com/payments/pending"
+            "success": "https://BioO3.com/payments/success",
+            "failure": "https://BioO3.com/payments/failure",
+            "pending": "https://BioO3.com/payments/pending"
         },
         "auto_return": "approved"
     }

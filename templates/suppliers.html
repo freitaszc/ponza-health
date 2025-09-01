@@ -2,95 +2,299 @@
 <html lang="pt-br">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Cadastro de Fornecedores - BioO3</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
+    <meta charset="UTF-8" />
+    <title>Fornecedores - Ponza Health</title>
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Funnel Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
     <style>
+        :root {
+            --bg-deep: #080b12;
+            --bg-dark: #0b1220;
+            --bg-elev: #111827;
+            --bg-elev-2: #0f172a;
+            --text: #e5e7eb;
+            --text-dim: #cbd5e1;
+            --blue: #1e40af;
+            /* azul escuro */
+            --blue-dark: #1e3a8a;
+            /* azul escuro mais claro */
+            --blue-glow: rgba(37, 99, 235, .35);
+            --stroke: #1f2937;
+            --line: #1f2937;
+            --radius: 12px;
+            --gap: 16px;
+
+            /* Tipografia ( +2px ) */
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --fs-base: 16px;
+            --fs-small: 14px;
+            --fs-input: 16px;
+            --fs-btn: 16px;
+            --fs-title: 34px;
+            /* títulos uniformes */
+
+            /* Botões padronizados */
+            --btn-height: 44px;
+            --btn-minw: 220px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
         body {
-            margin: 0;
-            font-family: 'Montserrat', sans-serif;
-            background-color: #f9f9f9;
+            margin: 0
         }
 
-        .top-menu {
-            background-color: white;
-            padding: 10px 0;
+        body {
+            font-family: var(--font-family);
+            font-size: var(--fs-base);
+            color: var(--text);
+            background:
+                radial-gradient(1000px 600px at 10% 0%, #0b1428 0%, transparent 50%),
+                radial-gradient(900px 600px at 90% 10%, #0a0f1f 0%, transparent 50%),
+                linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-dark) 100%);
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            border-bottom: 1px solid #eee;
         }
 
-        .top-menu a {
-            font-weight: 500;
-            font-size: 14px;
-            color: #333;
+        /* SIDEBAR (padrão) */
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #0b111c 0%, #0a0f1a 100%);
+            padding: 28px 18px;
+            border-right: 1px solid var(--line);
+            box-shadow: 2px 0 14px rgba(0, 0, 0, .35);
+            display: flex;
+            flex-direction: column;
+            transition: width 180ms ease;
+            position: sticky;
+            top: 0;
+        }
+
+        .sidebar-logo {
+            width: 200px;
+            display: block;
+            margin: 0 auto 18px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35));
+            transition: width 180ms ease, margin 180ms ease;
+        }
+
+        .sidebar a.menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: var(--fs-small);
+            padding: 14px 16px;
+            border-radius: 10px;
+            color: var(--text-dim);
             text-decoration: none;
-            padding: 8px 12px;
-            border-radius: 6px;
-            transition: 0.3s;
+            margin-bottom: 18px;
+            font-weight: 600;
+            transition: background .2s, color .2s, transform .12s;
         }
 
-        .top-menu a:hover {
-            background-color: #00c5d3;
-            color: white;
-        }
-
-        .content {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+        .sidebar a.menu-item i {
+            width: 21px;
             text-align: center;
+            flex: 0 0 21px;
+        }
+
+        .sidebar a.menu-item:hover {
+            background: rgba(30, 64, 175, .12);
+            color: #fff;
+            transform: translateX(4px);
+        }
+
+        .sidebar a.menu-item.active {
+            color: #fff;
+            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+            box-shadow: 0 10px 26px var(--blue-glow);
+        }
+
+        .sidebar-spacer {
+            flex: 1 1 auto;
+        }
+
+        .sidebar a.menu-item.logout {
+            color: #e5e7eb;
+        }
+
+        .sidebar-toggle {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: #e5e7eb;
+            padding: 6px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: background .2s, border-color .2s, transform .12s;
+            font-size: var(--fs-small);
+        }
+
+        .sidebar-toggle:hover {
+            background: rgba(30, 64, 175, .10);
+            border-color: rgba(30, 64, 175, .35);
+            transform: translateY(-1px);
+        }
+
+        .sidebar.is-collapsed {
+            width: 76px;
+        }
+
+        .sidebar.is-collapsed .sidebar-logo {
+            width: 44px;
+            margin: 0 auto 22px;
+        }
+
+        .sidebar.is-collapsed .menu-item {
+            justify-content: center;
+            gap: 0;
+            padding: 12px 0;
+            margin-bottom: 18px;
+        }
+
+        .sidebar.is-collapsed .menu-item .label {
+            display: none;
+        }
+
+        .sidebar.is-collapsed .sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+
+        /* CONTEÚDO */
+        .content {
+            flex-grow: 1;
+            padding: 36px;
+            min-width: 0;
+            position: relative;
         }
 
         h2 {
-            font-size: 26px;
-            color: #2c3e50;
-            margin-bottom: 20px;
+            font-size: var(--fs-title);
+            text-align: center;
+            color: #fff;
+            margin: 0 0 18px;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+            font-weight: 800;
         }
 
-        .menu-button {
-            font-size: 14px;
-            font-weight: 500;
-            color: #333;
-            border: 2px solid #00c5d3;
-            background-color: white;
-            padding: 10px 16px;
-            border-radius: 6px;
-            text-decoration: none;
-            transition: 0.3s ease;
+        /* Barra de ações centralizada */
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 10px 0 18px;
+        }
+
+        /* Botões padronizados */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: var(--btn-height);
+            min-width: var(--btn-minw);
+            padding: 0 18px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: var(--fs-btn);
+            border: none;
             cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            box-shadow: 0 8px 24px var(--blue-glow);
+            transition: .22s;
+            font-family: var(--font-family);
         }
 
-        .menu-button:hover {
-            background-color: #00c5d3;
-            color: white;
+        .btn:hover {
+            transform: translateY(-2px) scale(1.02);
         }
 
-        .catalog-table {
+        .btn-ghost {
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid rgba(255, 255, 255, .08);
+            color: #e5e7eb;
+            padding: 0 14px;
+            height: var(--btn-height);
+            min-width: var(--btn-minw);
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: var(--fs-btn);
+            transition: background .2s, border-color .2s, transform .12s;
+            font-family: var(--font-family);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(30, 64, 175, .10);
+            border-color: rgba(30, 64, 175, .35);
+            transform: translateY(-1px);
+        }
+
+        /* Card + tabela */
+        .card {
+            background: linear-gradient(145deg, var(--bg-elev) 0%, var(--bg-elev-2) 100%);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, .40), 0 0 0 1px rgba(255, 255, 255, .04) inset;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card h3 {
+            margin: 0 0 14px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            border-radius: 14px;
+            box-shadow: 0 1px 0 1px rgba(255, 255, 255, .04) inset;
+        }
+
+        table.catalog {
             width: 100%;
             border-collapse: collapse;
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-            margin-top: 20px;
+            min-width: 720px;
+            background: linear-gradient(145deg, var(--bg-elev) 0%, var(--bg-elev-2) 100%);
         }
 
-        .catalog-table th,
-        .catalog-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #ddd;
+        table.catalog th,
+        table.catalog td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--stroke);
             text-align: center;
+            color: var(--text);
+            font-size: var(--fs-base);
         }
 
-        .catalog-table th {
-            background-color: #f5f5f5;
-            font-weight: 600;
-            color: #2c3e50;
+        table.catalog th {
+            background: #0e1627;
+            color: #dbeafe;
+            font-weight: 800;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
 
+        table.catalog tr:hover td {
+            background: rgba(30, 64, 175, .08);
+        }
+
+        /* Menus de opções */
         .options-container {
             position: relative;
             display: inline-block;
@@ -101,214 +305,286 @@
             border: none;
             cursor: pointer;
             font-size: 18px;
+            color: #9aa7b7;
+            transition: color .2s;
+        }
+
+        .options-button:hover {
+            color: #cbd5e1;
         }
 
         .options-menu {
             display: none;
             position: absolute;
             right: 0;
-            top: 30px;
-            background-color: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            min-width: 160px;
+            top: 28px;
+            min-width: 180px;
             z-index: 100;
+            background: linear-gradient(145deg, #0f172a 0%, #0b1222 100%);
+            border: 1px solid rgba(255, 255, 255, .06);
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+            overflow: hidden;
         }
 
-        .options-menu a {
+        .options-menu a,
+        .options-menu button {
             display: block;
-            padding: 10px 12px;
-            text-decoration: none;
-            color: #333;
-            font-size: 14px;
-        }
-
-        .options-menu a:hover {
-            background-color: #00c5d3;
-            color: white;
-        }
-
-        .delete-button {
+            width: 100%;
+            text-align: left;
             background: none;
             border: none;
             padding: 10px 12px;
-            width: 100%;
-            text-align: left;
-            font-size: 14px;
-            color: #333;
-            font-family: 'Montserrat', sans-serif;
+            color: #e5e7eb;
+            font-size: var(--fs-base);
             cursor: pointer;
-            transition: background 0.3s ease;
+            text-decoration: none;
+            transition: background .2s, color .2s;
+            font-family: var(--font-family);
         }
 
-        .delete-button:hover {
-            background-color: #00c5d3;
-            color: white;
+        .options-menu a:hover,
+        .options-menu button:hover {
+            background: rgba(30, 64, 175, .14);
+            color: #fff;
+        }
+
+        /* Inputs + Modais */
+        .input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 2px solid var(--stroke);
+            outline: none;
+            background: #0f172a;
+            color: var(--text);
+            font-size: var(--fs-input);
+            font-family: var(--font-family);
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 4px rgba(30, 64, 175, .18);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(8px);
+            padding: 20px;
+        }
+
+        .modal-card {
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(145deg, #0f172a 0%, #0b1222 100%);
+            border: 1px solid rgba(255, 255, 255, .06);
+            border-radius: 20px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, .55);
+            color: var(--text);
+            padding: 26px;
+            position: relative;
+            text-align: left;
+        }
+
+        .modal-card h3 {
+            margin: 0 0 14px;
+            font-size: 20px;
+            font-weight: 800;
+            color: #fff;
+            text-align: center;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: var(--blue);
+            transform: scale(1.1);
+        }
+
+        /* Avatar */
+        .user-menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 5;
+        }
+
+        .user-menu img {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid var(--blue);
+            background: #0b1222;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, .15);
         }
     </style>
 </head>
 
 <body>
-    <div class="top-menu">
-        <a href="{{ url_for('index') }}">Início</a>
-        <a href="{{ url_for('upload') }}">BioO3 Lab</a>
-        <a href="{{ url_for('quote_index') }}">Cotações</a>
-        <a href="{{ url_for('doctors') }}">Cadastro de Prescritores</a>
-        <a href="{{ url_for('catalog') }}">Catálogo de Pacientes</a>
-        <a href="{{ url_for('products') }}">Estoque</a>
-        <a href="{{ url_for('agenda') }}">Agenda</a>
-        <a href="{{ url_for('videos') }}">Vídeoaulas</a>
-        <a href="{{ url_for('logout') }}">Sair</a>
+    <!-- Avatar topo direito -->
+    {% set pfp = 'images/user-icon.png' %}
+    {% if user is defined and user %}
+    {% if user.profile_image is defined and user.profile_image %}
+    {% set pfp = user.profile_image %}
+    {% elif user.get is defined and user.get('profile_image') %}
+    {% set pfp = user.get('profile_image') %}
+    {% endif %}
+    {% elif current_user is defined and current_user.is_authenticated and current_user.profile_image %}
+    {% set pfp = current_user.profile_image %}
+    {% endif %}
+    <div class="user-menu">
+        <a href="{{ url_for('account') }}"><img src="{{ url_for('static', filename=pfp) }}" alt="Minha Conta"></a>
     </div>
 
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
+                class="fa fa-angle-double-left"></i></button>
+        <img src="{{ url_for('static', filename='images/logo-index.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+
+        <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span
+                class="label">Início</span></a>
+        <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
+                Lab</span></a>
+        <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
+                class="label">Cotações</span></a>
+        <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
+                class="label">Pacientes</span></a>
+        <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
+                class="label">Estoque</span></a>
+        <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
+                class="label">Agenda</span></a>
+        <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+                class="label">Pagamentos</span></a>
+
+        <div class="sidebar-spacer"></div>
+        <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
+                class="label">Sair</span></a>
+    </div>
+
+    <!-- Conteúdo -->
     <div class="content">
-        <a href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo-img"
-                style="width: 100px; margin-bottom: 20px;">
-        </a>
         <h2>Cadastro de Fornecedores</h2>
-        <a href="#" class="menu-button" onclick="openModal()">Cadastrar Fornecedor</a>
 
-        <table class="catalog-table">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Telefone</th>
-                    <th>Email</th>
-                    <th>Opções</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for supplier in suppliers %}
-                <tr>
-                    <td>{{ supplier.name }}</td>
-                    <td>{{ supplier.phone }}</td>
-                    <td>{{ supplier.email }}</td>
-                    <td>
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                            <div class="options-container">
-                                <button class="options-button" onclick="toggleMenu(this)">⋮</button>
-                                <div class="options-menu">
-                                    <a href="#"
-                                        onclick="openEditModal('{{ supplier.id }}', '{{ supplier.name }}', '{{ supplier.phone }}', '{{ supplier.email }}')">Editar</a>
+        <!-- Ações centralizadas -->
+        <div class="actions">
+            <button class="btn" onclick="openAddModal()"><i class="fa fa-plus" aria-hidden="true"></i>&nbsp;Cadastrar
+                Fornecedor</button>
+        </div>
+
+        <div class="card">
+            <div class="table-wrap">
+                <table class="catalog">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Telefone</th>
+                            <th>Email</th>
+                            <th style="width:160px;">Opções</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in suppliers %}
+                        <tr>
+                            <td>{{ supplier.name }}</td>
+                            <td>{{ supplier.phone }}</td>
+                            <td>{{ supplier.email }}</td>
+                            <td>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+                                    <div class="options-container">
+                                        <button class="options-button" onclick="toggleMenu(this)" aria-haspopup="true"
+                                            aria-expanded="false">⋮</button>
+                                        <div class="options-menu" role="menu">
+                                            <a href="#" role="menuitem"
+                                                onclick="openEditModal('{{ supplier.id }}','{{ supplier.name }}','{{ supplier.phone }}','{{ supplier.email }}')">
+                                                <i class="fa fa-pencil" style="margin-right:6px;"></i> Editar
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <form method="post"
+                                        action="{{ url_for('delete_supplier', supplier_id=supplier.id) }}"
+                                        onsubmit="return confirm('Deseja realmente excluir este fornecedor?')"
+                                        style="margin:0;">
+                                        <button type="submit" class="btn-ghost" title="Excluir"><i
+                                                class="fa fa-trash"></i>&nbsp;Excluir</button>
+                                    </form>
                                 </div>
-                            </div>
-                            <form method="post" action="{{ url_for('delete_supplier', supplier_id=supplier.id) }}"
-                                onsubmit="return confirm('Deseja realmente excluir este fornecedor?')"
-                                style="margin: 0;">
-                                <button type="submit" title="Excluir"
-                                    style="background: none; border: none; font-size: 18px; font-weight: bold; color: #999; cursor: pointer;">×</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <!-- MODAL para cadastrar fornecedor -->
-    <div id="addSupplierModal"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
-        <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:300px; position:relative;">
-            <!-- Botão X no topo -->
-            <button onclick="closeModal()" style="
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      font-size: 22px;
-      font-weight: bold;
-      color: #333;
-      cursor: pointer;
-      transition: color 0.3s ease;
-    " onmouseover="this.style.color='#00c5d3';" onmouseout="this.style.color='#333';">×</button>
-
-            <h2 style="text-align:center; margin-top: 10px;">Cadastrar Fornecedor</h2>
-            <form method="post" action="{{ url_for('add_supplier') }}">
-                <input type="text" name="name" placeholder="Nome do Fornecedor" required
-                    style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size:14px; font-family:'Montserrat', sans-serif;">
-                <input type="text" name="phone" placeholder="Telefone" required
-                    style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size:14px; font-family:'Montserrat', sans-serif;">
-                <input type="email" name="email" placeholder="E-mail" required
-                    style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size:14px; font-family:'Montserrat', sans-serif;">
-                <div style="display:flex; justify-content:center;">
-                    <button type="submit" class="menu-button" style="width: 100%;">Salvar</button>
+    <!-- MODAL: Adicionar Fornecedor -->
+    <div id="addSupplierModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-card">
+            <button class="close-btn" onclick="closeAddModal()" aria-label="Fechar">×</button>
+            <h3>Novo Fornecedor</h3>
+            <form method="post" action="{{ url_for('add_supplier') }}" style="display:grid; gap:12px;">
+                <input class="input" type="text" name="name" placeholder="Nome do Fornecedor" required>
+                <input class="input" type="text" name="phone" placeholder="Telefone" required>
+                <input class="input" type="email" name="email" placeholder="E-mail" required>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" class="btn-ghost" onclick="closeAddModal()">Cancelar</button>
+                    <button type="submit" class="btn">Salvar</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL para editar fornecedor -->
-    <div id="editSupplierModal"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:1000;">
-        <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:300px; position:relative;">
-            <!-- Botão X no topo -->
-            <button onclick="closeEditModal()" style="
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: none;
-      border: none;
-      font-size: 22px;
-      font-weight: bold;
-      color: #333;
-      cursor: pointer;
-      transition: color 0.3s ease;
-    " onmouseover="this.style.color='#00c5d3';" onmouseout="this.style.color='#333';">×</button>
-
-            <h2 style="text-align:center; margin-top: 10px;">Editar Fornecedor</h2>
-            <form method="post" id="editSupplierForm">
-                <input type="text" name="name" id="editSupplierName" required
-                    style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size:14px; font-family:'Montserrat', sans-serif;">
-                <input type="text" name="phone" id="editSupplierPhone" required
-                    style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size:14px; font-family:'Montserrat', sans-serif;">
-                <input type="email" name="email" id="editSupplierEmail" required
-                    style="width:93%; padding:10px; border:1px solid #ccc; border-radius:6px; margin-bottom:10px; font-size:14px; font-family:'Montserrat', sans-serif;">
-                <div style="display:flex; justify-content:center;">
-                    <button type="submit" class="menu-button" style="width: 100%;">Salvar</button>
+    <!-- MODAL: Editar Fornecedor -->
+    <div id="editSupplierModal" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="modal-card">
+            <button class="close-btn" onclick="closeEditModal()" aria-label="Fechar">×</button>
+            <h3>Editar Fornecedor</h3>
+            <form method="post" id="editSupplierForm" style="display:grid; gap:12px;">
+                <input class="input" type="text" name="name" id="editSupplierName" required>
+                <input class="input" type="text" name="phone" id="editSupplierPhone" required>
+                <input class="input" type="email" name="email" id="editSupplierEmail" required>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" class="btn-ghost" onclick="closeEditModal()">Cancelar</button>
+                    <button type="submit" class="btn">Salvar</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-        function openModal() {
-            document.getElementById('addSupplierModal').style.display = 'flex';
-        }
+        // Sidebar persistência
+        function toggleSidebar() { const s = document.getElementById('sidebar'); s.classList.toggle('is-collapsed'); localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0'); }
+        document.addEventListener('DOMContentLoaded', () => { if (localStorage.getItem('sidebarCollapsed') === '1') { document.getElementById('sidebar')?.classList.add('is-collapsed'); } });
 
-        function closeModal() {
-            document.getElementById('addSupplierModal').style.display = 'none';
-        }
+        // Kebab menus
+        function toggleMenu(button) { const menu = button.nextElementSibling; document.querySelectorAll('.options-menu').forEach(m => { if (m !== menu) m.style.display = 'none'; }); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
+        window.addEventListener('click', (e) => { document.querySelectorAll('.options-container').forEach(ct => { if (!ct.contains(e.target)) { const m = ct.querySelector('.options-menu'); if (m) m.style.display = 'none'; } }); });
 
-        function toggleMenu(button) {
-            const menu = button.nextElementSibling;
-            document.querySelectorAll('.options-menu').forEach(m => m.style.display = 'none');
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-        }
-
-        function openEditModal(id, name, phone, email) {
-            document.getElementById('editSupplierName').value = name;
-            document.getElementById('editSupplierPhone').value = phone;
-            document.getElementById('editSupplierEmail').value = email;
-            document.getElementById('editSupplierForm').action = `/update_supplier/${id}`;
-            document.getElementById('editSupplierModal').style.display = 'flex';
-        }
-
-        function closeEditModal() {
-            document.getElementById('editSupplierModal').style.display = 'none';
-        }
-
-        window.onclick = function (event) {
-            document.querySelectorAll('.options-container').forEach(container => {
-                if (!container.contains(event.target)) {
-                    const menu = container.querySelector('.options-menu');
-                    if (menu) menu.style.display = 'none';
-                }
-            });
-        };
+        // Modais
+        function openAddModal() { const m = document.getElementById('addSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false'); }
+        function closeAddModal() { const m = document.getElementById('addSupplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
+        function openEditModal(id, name, phone, email) { document.getElementById('editSupplierName').value = name; document.getElementById('editSupplierPhone').value = phone; document.getElementById('editSupplierEmail').value = email; document.getElementById('editSupplierForm').action = `/update_supplier/${id}`; const m = document.getElementById('editSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false'); }
+        function closeEditModal() { const m = document.getElementById('editSupplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeAddModal(); closeEditModal(); } });
     </script>
 </body>
 

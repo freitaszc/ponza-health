@@ -26,7 +26,7 @@ h2 {
   color: #333;
   text-decoration: none;
   padding: 10px 16px;
-  border: 2px solid #00c5d3;
+  border: 2px solid #133a5c;
   border-radius: 6px;
   background-color: white;
   transition: 0.3s ease;
@@ -35,7 +35,7 @@ h2 {
 }
 
 .menu-button:hover, .button-outline:hover, .filter-form button:hover, #addPatientModal .button-outline:hover, #addProductModal .button-outline:hover {
-  background-color: #00c5d3;
+  background-color: #133a5c;
   color: white;
 }
 
@@ -80,7 +80,7 @@ h2 {
   margin: 0 6px;
   width: auto;
   font-family: 'Montserrat', sans-serif;
-  border: 2px solid #00c5d3;
+  border: 2px solid #133a5c;
   border-radius: 6px;
   background-color: white;
   color: #333;
@@ -93,8 +93,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border: 2px solid #00c5d3;
-  box-shadow: 0 0 4px #00c5d3;
+  border: 2px solid #133a5c;
+  box-shadow: 0 0 4px #133a5c;
 }
 
 /* Badges de status */
@@ -152,7 +152,7 @@ textarea:focus {
 }
 
 .options-menu a:hover {
-  background-color: #00c5d3;
+  background-color: #133a5c;
   color: white;
 }
 
