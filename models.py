@@ -5,15 +5,11 @@ from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
-from sqlalchemy import UniqueConstraint, Index
+from sqlalchemy import UniqueConstraint, Index, ForeignKey
 
 db = SQLAlchemy()
 
-# ----------------------------
-# Helpers
-# ----------------------------
 class BaseModel:
-    """Fornece um __init__ flexível baseado em kwargs (compatível com SQLAlchemy)."""
     def __init__(self, **kwargs):
         super().__init__()
         for k, v in kwargs.items():
@@ -25,9 +21,6 @@ class BaseModel:
             return f"<{cls} id={getattr(self, 'id', None)}>"
         return f"<{cls}>"
 
-# ----------------------------
-# Core
-# ----------------------------
 class User(db.Model, BaseModel):
     __tablename__ = "users"
 
@@ -40,17 +33,17 @@ class User(db.Model, BaseModel):
     birthdate     = db.Column(db.Date)
     profile_image = db.Column(db.String(200), default="images/user-icon.png")
 
-    # plano / assinatura (se quiser usar no futuro)
     plan            = db.Column(db.String(20), default="standard")
     plan_status     = db.Column(db.String(20), default="inactive")
     plan_expires_at = db.Column(db.DateTime)
     trial_until     = db.Column(db.DateTime)
 
-    # Relacionamentos
     suppliers      = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
     products       = relationship("Product",  back_populates="user", cascade="all, delete-orphan")
     agenda_events  = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
     package_usage  = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    # Pacientes de propriedade deste usuário
+    patients       = relationship("Patient", back_populates="owner_user", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("username", name="uq_users_username"),
@@ -105,27 +98,48 @@ class Doctor(db.Model, BaseModel):
 class Patient(db.Model, BaseModel):
     __tablename__ = "patients"
 
-    id           = db.Column(db.Integer, primary_key=True)
-    name         = db.Column(db.String(120), nullable=False)
-    age          = db.Column(db.Integer)
-    cpf          = db.Column(db.String(20))
-    gender       = db.Column(db.String(20))
-    phone        = db.Column(db.String(20))
+    id              = db.Column(db.Integer, primary_key=True)
+    # Obrigatórios
+    name            = db.Column(db.String(120), nullable=False)
+    birthdate       = db.Column(db.Date, nullable=False)
+    sex             = db.Column(db.String(20), nullable=False)  # Feminino | Masculino | Outro | Prefiro não informar
 
-    doctor_id    = db.Column(db.Integer, db.ForeignKey("doctors.id"), index=True)
-    doctor       = relationship("Doctor", back_populates="patients")
+    # Opcionais
+    email           = db.Column(db.String(120))
+    cpf             = db.Column(db.String(20))
+    notes           = db.Column(db.Text)
 
-    prescription = db.Column(db.Text)
-    status       = db.Column(db.String(20), default="Ativo", nullable=False)
-    created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    phone_primary   = db.Column(db.String(20), nullable=False)
+    phone_secondary = db.Column(db.String(20))
 
-    consults     = relationship("Consult", back_populates="patient", cascade="all, delete-orphan")
+    # Endereço
+    address_cep        = db.Column(db.String(12))
+    address_street     = db.Column(db.String(200))
+    address_number     = db.Column(db.String(20))
+    address_complement = db.Column(db.String(100))
+    address_district   = db.Column(db.String(120))  # bairro
+    address_city       = db.Column(db.String(120))
+    address_state      = db.Column(db.String(2))
+
+    # Relacionamentos
+    owner_user_id   = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=False)  # dono (usuário logado)
+    owner_user      = relationship("User", back_populates="patients")
+
+    doctor_id       = db.Column(db.Integer, db.ForeignKey("doctors.id"), index=True, nullable=True)
+    doctor          = relationship("Doctor", back_populates="patients")
+
+    status          = db.Column(db.String(20), default="Ativo", nullable=False)
+    created_at      = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    consults        = relationship("Consult", back_populates="patient", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_patients_status", "status"),
         Index("ix_patients_created_at", "created_at"),
-        Index("ix_patients_phone", "phone"),
+        Index("ix_patients_phone_primary", "phone_primary"),
         Index("ix_patients_cpf", "cpf"),
+        Index("ix_patients_owner", "owner_user_id"),
+        Index("ix_patients_email", "email"),
     )
 
 class Consult(db.Model, BaseModel):
@@ -143,9 +157,6 @@ class Consult(db.Model, BaseModel):
     patient    = relationship("Patient", back_populates="consults")
     doctor     = relationship("Doctor",  back_populates="consults")
 
-# ----------------------------
-# Pacotes / Créditos de Análise
-# ----------------------------
 class PackageUsage(db.Model, BaseModel):
     __tablename__ = "package_usage"
 
@@ -163,35 +174,36 @@ class PackageUsage(db.Model, BaseModel):
         except Exception:
             return 0
 
-# ----------------------------
-# Agenda simples (para o calendário)
-# ----------------------------
 class AgendaEvent(db.Model, BaseModel):
     __tablename__ = "agenda_events"
 
-    id      = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)  # pode ser global (None)
-    title   = db.Column(db.String(200), nullable=False)
-    start   = db.Column(db.DateTime, nullable=False)
-    end     = db.Column(db.DateTime, nullable=True)
+    id       = db.Column(db.Integer, primary_key=True)
+    user_id  = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)
+    title    = db.Column(db.String(200), nullable=False)
+    start    = db.Column(db.DateTime, nullable=False)
+    end      = db.Column(db.DateTime, nullable=True)
 
-    user    = relationship("User", back_populates="agenda_events")
+    # Novos campos para compatibilidade com a agenda
+    notes    = db.Column(db.Text)
+    type     = db.Column(db.String(20))     # consulta|retorno|procedimento|bloqueio
+    billing  = db.Column(db.String(20))     # particular|convenio
+    insurer  = db.Column(db.String(120))    # nome do convênio
+
+    user     = relationship("User", back_populates="agenda_events")
 
     __table_args__ = (
         Index("ix_agenda_events_start", "start"),
         Index("ix_agenda_events_end", "end"),
+        Index("ix_agenda_events_type", "type"),
     )
 
-# ----------------------------
-# Cotações
-# ----------------------------
 class Quote(db.Model, BaseModel):
     __tablename__ = "quotes"
 
     id         = db.Column(db.Integer, primary_key=True)
     title      = db.Column(db.String(200), nullable=False)
-    items      = db.Column(db.Text, nullable=False)   # exemplo: itens por linha ou JSON string
-    suppliers  = db.Column(db.Text, nullable=False)   # ids separados por vírgula (ou JSON string)
+    items      = db.Column(db.Text, nullable=False)
+    suppliers  = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     __table_args__ = (

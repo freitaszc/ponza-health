@@ -31,7 +31,7 @@
       --radius: 12px;
 
       --btn-h: 44px;
-      --btn-minw: 220px;
+      --btn-minw: 160px;
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 
@@ -220,7 +220,7 @@
     /* Conteúdo */
     .content {
       flex-grow: 1;
-      padding: 36px;
+      padding: 24px 36px;
       min-width: 0;
       position: relative;
       background: var(--bg)
@@ -248,27 +248,77 @@
       box-shadow: 0 0 8px rgba(0, 0, 0, .12);
     }
 
-    /* Ações / Botões */
+    /* Header da agenda */
+    .agenda-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow)
+    }
+
+    /* Busca */
+    .search-container {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .search-input {
+      width: 100%;
+      max-width: 400px;
+      padding: 12px 16px 12px 44px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 14px;
+      font-family: var(--font-family);
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--brand-solid);
+      box-shadow: 0 0 0 3px rgba(19, 29, 53, .1)
+    }
+
+    .search-input::placeholder {
+      color: var(--ink-dim)
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--ink-dim);
+      font-size: 16px
+    }
+
+    /* Ações */
     .actions {
       display: flex;
       align-items: center;
-      justify-content: center;
       gap: 12px;
-      margin-bottom: 12px;
+      flex-wrap: wrap;
     }
 
     .btn {
-      display: inline-block;
-      padding: 12px 18px;
-      border-radius: 999px;
-      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
       font-size: 14px;
-      border: 1px solid var(--brand-solid);
+      border: 1px solid var(--border);
       cursor: pointer;
-      transition: .22s;
+      transition: .2s;
       text-decoration: none;
-      color: #fff;
-      background: var(--brand-grad);
+      color: var(--ink);
+      background: var(--surface);
       box-shadow: var(--shadow);
       height: var(--btn-h);
       min-width: var(--btn-minw);
@@ -276,48 +326,188 @@
     }
 
     .btn:hover {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
+      border-color: var(--brand-solid)
     }
 
-    /* Calendário (card branco) */
-    #calendar {
-      margin-top: 16px;
+    .btn.primary {
+      background: var(--brand-grad);
+      color: #fff;
+      border-color: var(--brand-solid)
+    }
+
+    .btn.primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 28px rgba(19, 29, 53, .2)
+    }
+
+    .btn i {
+      font-size: 16px
+    }
+
+    /* Calendário */
+    .calendar-wrapper {
       background: var(--surface);
-      padding: 16px;
+      border: 1px solid var(--border);
       border-radius: 16px;
       box-shadow: var(--shadow);
+      overflow: hidden
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .date-navigation {
+      display: flex;
+      align-items: center;
+      gap: 16px
+    }
+
+    .nav-btn {
+      width: 36px;
+      height: 36px;
       border: 1px solid var(--border);
-    }
-
-    .fc .fc-toolbar-title {
+      background: var(--surface);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
       color: var(--ink);
-      font-size: 20px
-    }
-
-    .fc .fc-button {
-      background: #fff !important;
-      color: var(--brand-solid) !important;
-      border: 1px solid var(--border) !important;
-      border-radius: 10px !important;
-      font-size: 13px !important;
-      font-weight: 800 !important;
       transition: .2s;
-      height: 36px !important;
     }
 
-    .fc .fc-button:hover {
-      box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
-      border-color: var(--brand-solid) !important
+    .nav-btn:hover {
+      background: var(--brand-solid);
+      color: #fff;
+      border-color: var(--brand-solid)
+    }
+
+    .current-period {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--ink)
+    }
+
+    .view-controls {
+      display: flex;
+      gap: 8px
+    }
+
+    .view-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--ink);
+      transition: .2s;
+    }
+
+    .view-btn.active {
+      background: var(--brand-solid);
+      color: #fff;
+      border-color: var(--brand-solid)
+    }
+
+    .view-btn:hover:not(.active) {
+      background: var(--surface-alt)
+    }
+
+    /* FullCalendar overrides */
+    #calendar {
+      padding: 0;
+      background: transparent
+    }
+
+    .fc .fc-toolbar {
+      display: none
+    }
+
+    .fc .fc-view-harness {
+      background: var(--surface)
     }
 
     .fc .fc-daygrid-event,
     .fc .fc-timegrid-event {
       background: var(--brand-solid) !important;
-      border: none !important
+      border: none !important;
+      border-radius: 6px !important;
+      padding: 4px 8px !important;
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: #fff !important;
+      cursor: pointer !important;
     }
 
-    /* Modal (tema claro) */
+    .fc .fc-event-main {
+      padding: 0 !important
+    }
+
+    .fc .fc-event-title {
+      font-weight: 600 !important
+    }
+
+    .fc .fc-event.holiday-event {
+      background: #10b981 !important;
+      color: #fff !important
+    }
+
+    .fc .fc-event.patient-event {
+      background: #60a5fa !important;
+      color: #fff !important
+    }
+
+    .fc .fc-col-header-cell {
+      padding: 12px 8px !important;
+      background: var(--surface-alt) !important;
+      border-color: var(--border) !important
+    }
+
+    .fc .fc-col-header-cell-cushion {
+      color: var(--ink) !important;
+      font-weight: 700 !important;
+      font-size: 14px !important
+    }
+
+    .fc .fc-timegrid-slot {
+      border-color: var(--border) !important;
+      height: 40px !important
+    }
+
+    .fc .fc-timegrid-slot-label {
+      color: var(--ink-dim) !important;
+      font-size: 13px !important;
+      font-weight: 600 !important
+    }
+
+    .fc .fc-timegrid-axis {
+      width: 60px !important
+    }
+
+    .fc .fc-highlight {
+      background: rgba(19, 29, 53, .08) !important
+    }
+
+    .fc .fc-day-today {
+      background-color: rgba(19, 29, 53, .02) !important
+    }
+
+    .fc .fc-scrollgrid,
+    .fc .fc-scrollgrid-section>* {
+      border-color: var(--border) !important
+    }
+
+    /* Modal */
     .modal {
       display: none;
       position: fixed;
@@ -327,6 +517,7 @@
       align-items: center;
       z-index: 1000;
       padding: 16px;
+      backdrop-filter: blur(4px);
     }
 
     .modal-card {
@@ -337,13 +528,13 @@
       border-radius: 16px;
       color: var(--ink);
       box-shadow: 0 25px 60px rgba(0, 0, 0, .20);
-      padding: 24px;
+      padding: 32px;
       position: relative;
       font-family: var(--font-family);
     }
 
     .modal-card h3 {
-      margin: 0 0 14px;
+      margin: 0 0 24px;
       text-align: center;
       font-size: 20px;
       font-weight: 800;
@@ -352,31 +543,48 @@
 
     .modal-close {
       position: absolute;
-      top: 10px;
-      right: 12px;
+      top: 16px;
+      right: 20px;
       background: none;
       border: none;
-      color: #64748b;
+      color: var(--ink-dim);
       font-size: 22px;
       font-weight: 800;
       cursor: pointer;
       transition: transform .2s, color .2s;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .modal-close:hover {
       color: var(--brand-solid);
-      transform: scale(1.08)
+      transform: scale(1.08);
+      background: var(--surface-alt)
+    }
+
+    .form-group {
+      margin-bottom: 20px
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--ink);
+      font-size: 14px
     }
 
     .input,
     .textarea {
-      width: 96%;
-      margin: 0 auto 12px;
-      display: block;
-      padding: 12px 14px;
+      width: 100%;
+      padding: 12px 16px;
       border-radius: 10px;
       border: 1px solid var(--border);
-      background: #fff;
+      background: var(--surface);
       color: var(--ink);
       font-size: 14px;
       outline: none;
@@ -387,7 +595,13 @@
     .input:focus,
     .textarea:focus {
       border-color: var(--brand-solid);
-      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
+      box-shadow: 0 0 0 3px rgba(19, 29, 53, .1)
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px
     }
 
     @media (max-width:720px) {
@@ -398,6 +612,43 @@
       .btn {
         min-width: 100%
       }
+
+      .actions {
+        flex-direction: column;
+        align-items: stretch
+      }
+
+      .form-row {
+        grid-template-columns: 1fr
+      }
+
+      .calendar-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch
+      }
+
+      .date-navigation {
+        justify-content: center
+      }
+    }
+
+    /* Drag and drop styles */
+    .fc .fc-event.fc-event-draggable {
+      cursor: grab
+    }
+
+    .fc .fc-event.fc-event-dragging {
+      cursor: grabbing;
+      opacity: 0.8
+    }
+
+    .fc .fc-event.fc-event-resizable {
+      cursor: ns-resize
+    }
+
+    .fc .fc-event:hover {
+      filter: brightness(1.1)
     }
   </style>
 </head>
@@ -452,22 +703,179 @@
   <!-- Conteúdo -->
   <div class="content">
     <h2>Agenda</h2>
-    <div class="actions">
-      <button class="btn" onclick="openModal()">Adicionar Consulta</button>
+
+    <!-- Header da agenda -->
+    <div class="agenda-header">
+      <!-- Barra de busca -->
+      <div class="search-container">
+        <div style="position: relative; display: inline-block;">
+          <i class="fa fa-search search-icon"></i>
+          <input type="text" class="search-input" placeholder="Busque um paciente">
+        </div>
+      </div>
+
+      <!-- Ações -->
+      <div class="actions">
+        <button class="btn primary" id="newEventBtn">
+          <i class="fa fa-plus"></i>
+          Novo Agendamento
+        </button>
+        <button class="btn"><i class="fa fa-list"></i>Lista de Espera</button>
+        <button class="btn"><i class="fa fa-eye"></i>Observações</button>
+        <button class="btn"><i class="fa fa-print"></i>Imprimir Agenda</button>
+        <button class="btn"><i class="fa fa-cogs"></i>Agendamento online</button>
+      </div>
     </div>
-    <div id="calendar"></div>
+
+    <!-- Calendar Wrapper -->
+    <div class="calendar-wrapper">
+      <!-- Calendar Header -->
+      <div class="calendar-header">
+        <div class="date-navigation">
+          <button class="nav-btn" id="prevBtn"><i class="fa fa-chevron-left"></i></button>
+          <div class="current-period" id="currentPeriod">07/09 a 13/09</div>
+          <button class="nav-btn" id="nextBtn"><i class="fa fa-chevron-right"></i></button>
+          <button class="nav-btn" id="todayBtn">HOJE</button>
+        </div>
+
+        <div class="view-controls">
+          <button class="view-btn" onclick="changeView('dayGridMonth')">DIA</button>
+          <button class="view-btn active" onclick="changeView('timeGridWeek')">SEMANA</button>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div id="calendar"></div>
+    </div>
   </div>
 
-  <!-- Modal Nova Consulta -->
-  <div id="eventModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <!-- Modal ADICIONAR Consulta -->
+  <div id="addModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
     <div class="modal-card">
-      <button class="modal-close" onclick="closeModal()" aria-label="Fechar">×</button>
-      <h3 id="modalTitle">Nova Consulta</h3>
-      <input type="text" id="title" placeholder="Título da Consulta" class="input" required>
-      <input type="date" id="date" class="input" required>
-      <input type="time" id="time" class="input">
-      <textarea id="notes" placeholder="Observações" rows="4" class="textarea"></textarea>
-      <button class="btn" onclick="submitEvent()" style="width:100%;">Salvar</button>
+      <button class="modal-close" onclick="closeModal('addModal')" aria-label="Fechar">×</button>
+      <h3 id="addTitle">Nova Consulta</h3>
+
+      <div class="form-group">
+        <label for="add_title">Paciente</label>
+        <input type="text" id="add_title" placeholder="Nome do paciente" class="input" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="add_date">Data</label>
+          <input type="date" id="add_date" class="input" required>
+        </div>
+        <div class="form-group">
+          <label for="add_time">Horário</label>
+          <input type="time" id="add_time" class="input" placeholder="Horário de início">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="add_end">Término</label>
+          <input type="time" id="add_end" class="input" placeholder="Horário de término">
+        </div>
+        <div class="form-group">
+          <label for="add_type">Tipo</label>
+          <select id="add_type" class="input">
+            <option value="consulta">Consulta</option>
+            <option value="retorno">Retorno</option>
+            <option value="procedimento">Procedimento</option>
+            <option value="bloqueio">Bloqueio</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="add_billing">Pagamento</label>
+          <select id="add_billing" class="input" data-insurer-wrap="add_insurerWrap">
+            <option value="particular">Particular</option>
+            <option value="convenio">Convênio</option>
+          </select>
+        </div>
+        <div class="form-group" id="add_insurerWrap" style="display:none;">
+          <label for="add_insurer">Convênio</label>
+          <input type="text" id="add_insurer" class="input" placeholder="Nome do convênio">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="add_notes">Observações</label>
+        <textarea id="add_notes" placeholder="Observações adicionais" rows="3" class="textarea"></textarea>
+      </div>
+
+      <button class="btn primary" onclick="submitAddEvent()" style="width:100%;">
+        <i class="fa fa-save"></i>
+        Salvar Agendamento
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal EDITAR Consulta -->
+  <div id="editModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeModal('editModal')" aria-label="Fechar">×</button>
+      <h3 id="editTitle">Editar Consulta</h3>
+
+      <input type="hidden" id="edit_id" />
+
+      <div class="form-group">
+        <label for="edit_title">Paciente</label>
+        <input type="text" id="edit_title" class="input" required>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit_date">Data</label>
+          <input type="date" id="edit_date" class="input" required>
+        </div>
+        <div class="form-group">
+          <label for="edit_time">Horário</label>
+          <input type="time" id="edit_time" class="input" placeholder="Horário de início">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit_end">Término</label>
+          <input type="time" id="edit_end" class="input" placeholder="Horário de término">
+        </div>
+        <div class="form-group">
+          <label for="edit_type">Tipo</label>
+          <select id="edit_type" class="input">
+            <option value="consulta">Consulta</option>
+            <option value="retorno">Retorno</option>
+            <option value="procedimento">Procedimento</option>
+            <option value="bloqueio">Bloqueio</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit_billing">Pagamento</label>
+          <select id="edit_billing" class="input" data-insurer-wrap="edit_insurerWrap">
+            <option value="particular">Particular</option>
+            <option value="convenio">Convênio</option>
+          </select>
+        </div>
+        <div class="form-group" id="edit_insurerWrap" style="display:none;">
+          <label for="edit_insurer">Convênio</label>
+          <input type="text" id="edit_insurer" class="input" placeholder="Nome do convênio">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="edit_notes">Observações</label>
+        <textarea id="edit_notes" rows="3" class="textarea"></textarea>
+      </div>
+
+      <button class="btn primary" onclick="submitEditEvent()" style="width:100%;">
+        <i class="fa fa-save"></i>
+        Salvar Alterações
+      </button>
     </div>
   </div>
 
@@ -484,40 +892,286 @@
       }
     });
 
-    function openModal() { document.getElementById('eventModal').style.display = 'flex' }
-    function closeModal() { document.getElementById('eventModal').style.display = 'none' }
+    // Abrir/fechar modais
+    function openModal(id) { document.getElementById(id).style.display = 'flex' }
+    function closeModal(id) { document.getElementById(id).style.display = 'none' }
 
-    function submitEvent() {
-      const title = document.getElementById('title').value.trim();
-      const date = document.getElementById('date').value;
-      const time = document.getElementById('time').value;
-      const notes = document.getElementById('notes').value;
-      if (!title || !date) { alert('Preencha título e data.'); return; }
-      const datetime = time ? `${date}T${time}` : `${date}T00:00`;
-      fetch('/api/add_event', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, start: datetime, notes })
-      }).then(r => r.json()).then(result => {
-        if (result.success) { alert('Consulta adicionada com sucesso!'); closeModal(); location.reload(); }
-        else { alert('Erro: ' + (result.error || 'Erro desconhecido')); }
-      });
+    // Helper: local date+time -> ISO em UTC
+    function buildISO(dateStr, timeStr) {
+      if (!dateStr) return null;
+      const t = (timeStr && timeStr.length) ? timeStr : '00:00';
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const [hh, mm] = t.split(':').map(Number);
+      const dt = new Date(y, m - 1, d, hh, mm, 0);
+      return dt.toISOString();
+    }
+
+    // Toggle do campo Convênio (para ambos modais)
+    function setupBillingToggle(selectEl) {
+      const wrapId = selectEl.getAttribute('data-insurer-wrap');
+      const wrap = document.getElementById(wrapId);
+      const update = () => { if (wrap) wrap.style.display = (selectEl.value === 'convenio') ? 'block' : 'none'; };
+      selectEl.addEventListener('change', update);
+      update();
+    }
+
+    // Preenche e abre o modal de ADIÇÃO
+    function openAddModal(prefill) {
+      document.getElementById('add_title').value = prefill?.title || '';
+      document.getElementById('add_date').value = prefill?.date || '';
+      document.getElementById('add_time').value = prefill?.time || '';
+      document.getElementById('add_end').value = prefill?.endTime || '';
+      document.getElementById('add_notes').value = prefill?.notes || '';
+      document.getElementById('add_type').value = prefill?.type || 'consulta';
+      document.getElementById('add_billing').value = prefill?.billing || 'particular';
+      document.getElementById('add_insurer').value = prefill?.insurer || '';
+
+      setupBillingToggle(document.getElementById('add_billing'));
+      openModal('addModal');
+    }
+
+    // Preenche e abre o modal de EDIÇÃO
+    function openEditModal(prefill) {
+      document.getElementById('edit_id').value = prefill?.id || '';
+      document.getElementById('edit_title').value = prefill?.title || '';
+      document.getElementById('edit_date').value = prefill?.date || '';
+      document.getElementById('edit_time').value = prefill?.time || '';
+      document.getElementById('edit_end').value = prefill?.endTime || '';
+      document.getElementById('edit_notes').value = prefill?.notes || '';
+      document.getElementById('edit_type').value = prefill?.type || 'consulta';
+      document.getElementById('edit_billing').value = prefill?.billing || 'particular';
+      document.getElementById('edit_insurer').value = prefill?.insurer || '';
+
+      setupBillingToggle(document.getElementById('edit_billing'));
+      openModal('editModal');
+    }
+
+    // Submeter ADIÇÃO
+    async function submitAddEvent() {
+      const title = document.getElementById('add_title').value.trim();
+      const date = document.getElementById('add_date').value;
+      const time = document.getElementById('add_time').value;
+      const endTime = document.getElementById('add_end').value;
+      const notes = document.getElementById('add_notes').value;
+      const type = document.getElementById('add_type').value;
+      const billing = document.getElementById('add_billing').value;
+      const insurer = document.getElementById('add_insurer').value.trim();
+
+      if (!title || !date) { alert('Preencha o nome do paciente e a data.'); return; }
+
+      const startISO = buildISO(date, time);
+      const endISO = endTime ? buildISO(date, endTime) : null;
+      const payload = { title, start: startISO, end: endISO, notes, type, billing, insurer };
+
+      try {
+        const res = await fetch('/api/add_event', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+          closeModal('addModal');
+          calendar.refetchEvents();
+        } else {
+          alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+      } catch (e) {
+        alert('Falha de rede ao salvar. Tente novamente.');
+      }
+    }
+
+    // Submeter EDIÇÃO
+    async function submitEditEvent() {
+      const id = document.getElementById('edit_id').value || null;
+      const title = document.getElementById('edit_title').value.trim();
+      const date = document.getElementById('edit_date').value;
+      const time = document.getElementById('edit_time').value;
+      const endTime = document.getElementById('edit_end').value;
+      const notes = document.getElementById('edit_notes').value;
+      const type = document.getElementById('edit_type').value;
+      const billing = document.getElementById('edit_billing').value;
+      const insurer = document.getElementById('edit_insurer').value.trim();
+
+      if (!id) { alert('Evento inválido.'); return; }
+      if (!title || !date) { alert('Preencha o nome do paciente e a data.'); return; }
+
+      const startISO = buildISO(date, time);
+      const endISO = endTime ? buildISO(date, endTime) : null;
+      const payload = { title, start: startISO, end: endISO, notes, type, billing, insurer };
+
+      try {
+        const res = await fetch(`/api/events/${encodeURIComponent(id)}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+          closeModal('editModal');
+          calendar.refetchEvents();
+        } else {
+          alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+      } catch (e) {
+        alert('Falha de rede ao salvar. Tente novamente.');
+      }
+    }
+
+    function changeView(viewName) {
+      calendar.changeView(viewName);
+      document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+      const idx = (viewName === 'dayGridMonth') ? 0 : 1;
+      const btns = document.querySelectorAll('.view-btn');
+      if (btns[idx]) btns[idx].classList.add('active');
+    }
+
+    function updatePeriodDisplay() {
+      const view = calendar.view;
+      const start = view.currentStart;
+      const end = new Date(view.currentEnd.getTime() - 24 * 60 * 60 * 1000);
+      if (view.type === 'timeGridWeek') {
+        const startStr = start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const endStr = end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        document.getElementById('currentPeriod').textContent = `${startStr} a ${endStr}`;
+      } else if (view.type === 'dayGridMonth') {
+        const monthStr = start.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        document.getElementById('currentPeriod').textContent = monthStr;
+      }
     }
   </script>
+
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script>
+    // Config avançado com drag/drop/resize/criação por seleção
+    let calendar;
     document.addEventListener('DOMContentLoaded', function () {
       const calendarEl = document.getElementById('calendar');
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
+
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
         locale: 'pt-br',
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' },
+        headerToolbar: false,
+
+        // UX
+        nowIndicator: true,
+        slotMinTime: '08:00:00',
+        slotMaxTime: '18:00:00',
+        slotDuration: '00:15:00',
+        expandRows: true,
+        dayMaxEventRows: 3,
+        stickyHeaderDates: true,
+        height: 'auto',
+
+        // Interação
+        selectable: true,
+        selectMirror: true,
+        editable: true,
+        eventStartEditable: true,
+        eventDurationEditable: true,
+        dragScroll: true,
+
+        // Fonte
         events: '/api/events',
+
+        // Formatação
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
-        dayHeaderFormat: { weekday: 'short' }
+        dayHeaderFormat: { weekday: 'short', day: '2-digit', month: '2-digit' },
+
+        // Criar evento ao selecionar um intervalo
+        select: (info) => {
+          const y = info.start.getFullYear();
+          const m = String(info.start.getMonth() + 1).padStart(2, '0');
+          const d = String(info.start.getDate()).padStart(2, '0');
+          const dateStr = `${y}-${m}-${d}`;
+
+          const timeStr = info.start.getHours().toString().padStart(2, '0') + ':' + info.start.getMinutes().toString().padStart(2, '0');
+          const endTimeStr = info.end
+            ? info.end.getHours().toString().padStart(2, '0') + ':' + info.end.getMinutes().toString().padStart(2, '0')
+            : '';
+
+          openAddModal({ date: dateStr, time: timeStr, endTime: endTimeStr });
+          calendar.unselect();
+        },
+
+        // Editar ao clicar
+        eventClick: (info) => {
+          const ev = info.event;
+          if (ev.classNames.includes('holiday-event')) return;
+
+          const start = ev.start;
+          const end = ev.end || null;
+
+          const y = start.getFullYear();
+          const m = String(start.getMonth() + 1).padStart(2, '0');
+          const d = String(start.getDate()).padStart(2, '0');
+          const dateStr = `${y}-${m}-${d}`;
+          const t = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+          const tEnd = end ? `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` : '';
+
+          openEditModal({
+            id: ev.id,
+            title: ev.title || '',
+            date: dateStr,
+            time: t,
+            endTime: tEnd,
+            notes: ev.extendedProps?.notes || '',
+            type: ev.extendedProps?.type || 'consulta',
+            billing: ev.extendedProps?.billing || 'particular',
+            insurer: ev.extendedProps?.insurer || ''
+          });
+        },
+
+        // Drag & drop
+        eventDrop: async (info) => {
+          const ev = info.event;
+          if (ev.classNames.includes('holiday-event')) { info.revert(); return; }
+
+          try {
+            const payload = {
+              start: ev.start ? ev.start.toISOString() : null,
+              end: ev.end ? ev.end.toISOString() : null
+            };
+            const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (!result.success) { info.revert(); alert('Não foi possível atualizar o evento.'); }
+          } catch (e) {
+            info.revert(); alert('Falha de rede ao atualizar o evento.');
+          }
+        },
+
+        // Resize
+        eventResize: async (info) => {
+          const ev = info.event;
+          if (ev.classNames.includes('holiday-event')) { info.revert(); return; }
+
+          try {
+            const payload = {
+              start: ev.start ? ev.start.toISOString() : null,
+              end: ev.end ? ev.end.toISOString() : null
+            };
+            const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (!result.success) { info.revert(); alert('Não foi possível redimensionar o evento.'); }
+          } catch (e) {
+            info.revert(); alert('Falha de rede ao redimensionar o evento.');
+          }
+        },
+
+        datesSet: function () { updatePeriodDisplay(); }
       });
+
       calendar.render();
+      updatePeriodDisplay();
+
+      // Navegação
+      document.getElementById('prevBtn').addEventListener('click', () => { calendar.prev(); });
+      document.getElementById('nextBtn').addEventListener('click', () => { calendar.next(); });
+      document.getElementById('todayBtn').addEventListener('click', () => { calendar.today(); });
+
+      // Botão "Novo Agendamento"
+      document.getElementById('newEventBtn').addEventListener('click', () => openAddModal());
     });
   </script>
-</body>
 
 </html>

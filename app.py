@@ -3,7 +3,7 @@ import re
 import secrets
 from io import BytesIO
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional, Callable, cast, Tuple
 
 from dotenv import load_dotenv
@@ -92,8 +92,107 @@ with app.app_context():
             print("[DB] create_all fallback error:", e2)
 
 # ------------------------------------------------------------------------------
+# Migration
+# ------------------------------------------------------------------------------
+
+from flask_migrate import Migrate
+migrate = Migrate(app, db)
+
+def apply_minimal_migrations():
+    """
+    Migração mínima e segura: adiciona colunas novas se não existirem.
+    Funciona para SQLite e Postgres. Não remove/renomeia nada.
+    """
+    from sqlalchemy import text
+
+    with app.app_context():
+        engine = db.engine
+        dialect = engine.dialect.name  # 'sqlite' ou 'postgresql'
+
+        def get_existing_columns(table: str):
+            if dialect == "sqlite":
+                q = text(f"PRAGMA table_info({table})")
+                with engine.connect() as connection:
+                    rows = connection.execute(q).fetchall()
+                return {r[1] for r in rows}  # nome da coluna
+            else:
+                q = text("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = :tname
+                """)
+                with engine.connect() as connection:
+                    rows = connection.execute(q, {"tname": table}).fetchall()
+                return {r[0] for r in rows}
+
+        def add_column_if_missing(table: str, coldef_sql: str, colname: str):
+            existing = get_existing_columns(table)
+            if colname not in existing:
+                # SQLite não suporta IF NOT EXISTS no ADD COLUMN
+                sql = f"ALTER TABLE {table} ADD COLUMN {coldef_sql}"
+                try:
+                    with engine.connect() as connection:
+                        connection.execute(text(sql))
+                    print(f"[MIGRATION] {table}: coluna '{colname}' criada.")
+                except Exception as e:
+                    print(f"[MIGRATION] Falhou ao adicionar {table}.{colname}: {e}")
+
+        # ---- patients: novas colunas do cadastro ----
+        # OBS: adicionamos como NULLABLE para não quebrar bases antigas.
+        add_column_if_missing("patients", "birthdate DATE", "birthdate")
+        add_column_if_missing("patients", "sex VARCHAR(20)", "sex")
+        add_column_if_missing("patients", "email VARCHAR(120)", "email")
+        add_column_if_missing("patients", "notes TEXT", "notes")
+        add_column_if_missing("patients", "phone_primary VARCHAR(20)", "phone_primary")
+        add_column_if_missing("patients", "phone_secondary VARCHAR(20)", "phone_secondary")
+
+        add_column_if_missing("patients", "address_cep VARCHAR(12)", "address_cep")
+        add_column_if_missing("patients", "address_street VARCHAR(200)", "address_street")
+        add_column_if_missing("patients", "address_number VARCHAR(20)", "address_number")
+        add_column_if_missing("patients", "address_complement VARCHAR(100)", "address_complement")
+        add_column_if_missing("patients", "address_district VARCHAR(120)", "address_district")
+        add_column_if_missing("patients", "address_city VARCHAR(120)", "address_city")
+        add_column_if_missing("patients", "address_state VARCHAR(2)", "address_state")
+
+        add_column_if_missing("patients", "owner_user_id INTEGER", "owner_user_id")
+        # se quiser tentar criar FK em Postgres:
+        if dialect != "sqlite":
+            try:
+                # cria FK se não existir (tolerante a erro)
+                with engine.connect() as connection:
+                    connection.execute(text("""
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                          SELECT 1 FROM information_schema.table_constraints
+                          WHERE table_name='patients' AND constraint_name='patients_owner_user_id_fkey'
+                        ) THEN
+                            ALTER TABLE patients
+                            ADD CONSTRAINT patients_owner_user_id_fkey
+                            FOREIGN KEY (owner_user_id) REFERENCES users(id);
+                        END IF;
+                    END$$;
+                """))
+            except Exception as e:
+                print("[MIGRATION] FK patients.owner_user_id -> users.id (ignorado):", e)
+
+        # ---- agenda_events: campos extras da agenda ----
+        add_column_if_missing("agenda_events", "notes TEXT", "notes")
+        add_column_if_missing("agenda_events", "type VARCHAR(20)", "type")
+        add_column_if_missing("agenda_events", "billing VARCHAR(20)", "billing")
+        add_column_if_missing("agenda_events", "insurer VARCHAR(120)", "insurer")
+
+# chame depois do create_all()
+with app.app_context():
+    try:
+        apply_minimal_migrations()
+    except Exception as e:
+        print("[MIGRATION] erro geral:", e)
+
+# ------------------------------------------------------------------------------
 # Helpers / Auth
 # ------------------------------------------------------------------------------
+
 def get_logged_user() -> Optional[User]:
     uid = session.get('user_id')
     return User.query.get(uid) if uid else None
@@ -104,7 +203,7 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
         u = get_logged_user()
         if not u:
             return redirect(url_for('login'))
-        g.user = u 
+        g.user = u
         return f(*args, **kwargs)
     return wrapper
 
@@ -129,7 +228,6 @@ def user_exists(sess, username: Optional[str] = None, email: Optional[str] = Non
 def allowed_file(filename: str) -> bool:
     return bool(filename) and '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# injeta user (como dict compatível com user.get(...)) em TODOS os templates
 @app.context_processor
 def inject_user_context():
     u = getattr(g, "user", None) or get_logged_user()
@@ -147,7 +245,7 @@ def inject_user_context():
 # ------------------------------------------------------------------------------
 # Páginas Públicas / Auth
 # ------------------------------------------------------------------------------
-@app.route('/hero')
+@app.route('/')
 def hero():
     return render_template("hero.html")
 
@@ -188,7 +286,6 @@ def login():
         login_input = request.form.get('login', '').strip()
         pwd         = request.form.get('password', '')
 
-        # aceita e-mail OU username (inclui admin)
         if '@' in login_input:
             user = User.query.filter(User.email == login_input.lower()).first()
         else:
@@ -224,18 +321,19 @@ def about():
     return render_template("about.html")
 
 # ------------------------------------------------------------------------------
-# Rotas principais / Dashboard
+# Dashboard
 # ------------------------------------------------------------------------------
-@app.route('/')
+@app.route('/index')
 @login_required
 def index():
     u = current_user()
 
-    total_patients = Patient.query.filter_by(doctor_id=u.id).count()
+    # Agora conta por owner_user_id (dono é o usuário logado)
+    total_patients = Patient.query.filter_by(owner_user_id=u.id).count()
     total_consults = (
         Consult.query
         .join(Patient, Patient.id == Consult.patient_id)
-        .filter(Patient.doctor_id == u.id)
+        .filter(Patient.owner_user_id == u.id)
         .count()
     )
 
@@ -268,12 +366,11 @@ def purchase():
             flash('Selecione um pacote válido.', 'warning')
             return redirect(url_for('purchase'))
         try:
-            from mercado_pago import generate_payment_link  # opcional/local
+            from mercado_pago import generate_payment_link
             link = generate_payment_link(pacote, valor)
         except Exception:
             link = None
         return redirect(link or url_for('purchase'))
-    # se você tiver purchase.html, ele é usado; senão um fallback simples
     try:
         return render_template('purchase.html')
     except TemplateNotFound:
@@ -303,15 +400,10 @@ def account():
 def remove_profile_image():
     u = current_user()
     default_rel = "images/user-icon.png"
-
-    # caminho relativo salvo no banco (ex.: "uploads/profiles/xxx.jpg" ou "images/user-icon.png")
     rel = (u.profile_image or "").replace("\\", "/")
 
     if rel and rel != default_rel:
-        # monta caminho absoluto dentro de /static
         abs_path = os.path.join(STATIC_DIR, rel)
-
-        # só apaga se estiver dentro de /static/uploads/profiles por segurança
         try:
             allowed_root = os.path.realpath(os.path.join(STATIC_DIR, "uploads", "profiles"))
             abs_norm = os.path.realpath(abs_path)
@@ -320,7 +412,6 @@ def remove_profile_image():
         except Exception as e:
             print("[profile_image] remove error:", e)
 
-    # volta para a imagem padrão
     u.profile_image = default_rel
     db.session.commit()
     flash("Foto de perfil removida.", "info")
@@ -329,32 +420,27 @@ def remove_profile_image():
 @app.route('/update_personal_info', methods=['POST'], endpoint='update_personal_info')
 @login_required
 def update_personal_info():
-    from datetime import datetime
+    from datetime import datetime as _dt
     import time as _time
 
     u = current_user()
-
-    # Campos de texto (opcionais)
     name = (request.form.get("name") or "").strip()
-    birthdate_str = (request.form.get("birthdate") or "").strip()  # esperado "YYYY-MM-DD"
+    birthdate_str = (request.form.get("birthdate") or "").strip()
 
     if name:
         u.name = name
-
     if birthdate_str:
         try:
-            u.birthdate = datetime.strptime(birthdate_str, "%Y-%m-%d").date()
+            u.birthdate = _dt.strptime(birthdate_str, "%Y-%m-%d").date()
         except ValueError:
             flash("Data de nascimento inválida. Use o formato AAAA-MM-DD.", "warning")
 
-    # Upload da imagem de perfil (opcional)
     file = request.files.get("profile_image")
     if file and file.filename:
         if not allowed_file(file.filename):
             flash("Tipo de arquivo não permitido. Use png, jpg ou jpeg.", "warning")
             return redirect(url_for("account"))
 
-        # salva dentro de static/uploads/profiles/
         filename = secure_filename(file.filename)
         ext = filename.rsplit(".", 1)[1].lower()
 
@@ -365,14 +451,12 @@ def update_personal_info():
         dest_path = os.path.join(dest_dir, new_name)
         file.save(dest_path)
 
-        # caminho relativo ao /static para usar com url_for('static', filename=...)
-        rel_path = os.path.relpath(dest_path, STATIC_DIR).replace("\\", "/")  # "uploads/profiles/xxx.jpg"
+        rel_path = os.path.relpath(dest_path, STATIC_DIR).replace("\\", "/")
         u.profile_image = rel_path
 
     db.session.commit()
     flash("Dados pessoais atualizados com sucesso!", "success")
     return redirect(url_for("account"))
-
 
 @app.route('/update_password', methods=['POST'])
 @login_required
@@ -397,14 +481,13 @@ def update_password():
     return redirect(url_for("account"))
 
 # ------------------------------------------------------------------------------
-# Uploads & PDF (placeholder básico)
+# Uploads & PDF
 # ------------------------------------------------------------------------------
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
     if request.method == 'POST':
         file = request.files.get('file')
-
         if not file:
             flash('Nenhum arquivo selecionado.', 'warning')
             return redirect(url_for('upload'))
@@ -428,7 +511,6 @@ def upload():
 
         flash('Arquivo enviado com sucesso.', 'success')
         return redirect(url_for('upload'))
-
     return render_template('upload.html')
 
 @app.route('/download_pdf/<int:patient_id>')
@@ -436,7 +518,7 @@ def upload():
 def download_pdf(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.doctor_id != u.id:
+    if patient.owner_user_id != u.id:
         abort(403)
 
     consults = Consult.query.filter_by(patient_id=patient_id).order_by(Consult.id.asc()).all()
@@ -446,155 +528,95 @@ def download_pdf(patient_id):
     else:
         flash("Nenhuma consulta encontrada para este paciente.", "info")
         return redirect(url_for('patients'))
-    
+
 # ------------------------------------------------------------------------------
 # Agenda (tela)
 # ------------------------------------------------------------------------------
-from jinja2 import TemplateNotFound  # se ainda não importou no topo
-
 @app.route('/agenda', methods=['GET'], endpoint='agenda')
 @login_required
 def agenda_view():
     try:
         return render_template('agenda.html')
     except TemplateNotFound:
-        # fallback simples (só pra não quebrar se o template sumir)
         return """
         <!doctype html><meta charset="utf-8">
         <h1>Agenda</h1>
         <p>Crie o template <code>templates/agenda.html</code>.</p>
         <p><a href="{0}">Voltar</a></p>
         """.format(url_for('index'))
-    
-# ------------------------------------------------------------------------------
-# Agenda (API para criar evento a partir do modal)
-# ------------------------------------------------------------------------------
-from datetime import timedelta
 
+# ------------------------------------------------------------------------------
+# Agenda (API) — criar, listar e atualizar eventos
+# ------------------------------------------------------------------------------
 @app.route('/api/add_event', methods=['POST'])
 @login_required
 def api_add_event():
-    """
-    Espera JSON do modal:
-      { "title": "...", "start": "YYYY-MM-DDTHH:MM" ou "YYYY-MM-DDT00:00", "notes": "..." }
-    Salva como AgendaEvent (ligado ao usuário logado).
-    """
     u = current_user()
     data = request.get_json(silent=True) or {}
 
-    title = (data.get('title') or '').strip()
-    start_str = (data.get('start') or '').strip()
-    # notes é opcional no modelo; se quiser, concatena ao título:
-    notes = (data.get('notes') or '').strip()
-    if notes:
-        title = f"{title} — {notes}" if title else notes
+    title   = (data.get('title') or '').strip()
+    start_s = (data.get('start') or '').strip()
+    end_s   = (data.get('end') or '').strip() or None
+    notes   = (data.get('notes') or '').strip()
+    type_   = (data.get('type') or 'consulta').strip().lower()
+    billing = (data.get('billing') or 'particular').strip().lower()
+    insurer = (data.get('insurer') or '').strip()
 
-    if not title or not start_str:
+    if not title or not start_s:
         return jsonify(success=False, error="Título e data/hora são obrigatórios."), 400
 
-    # tenta parsear "YYYY-MM-DDTHH:MM" ou "YYYY-MM-DD"
     try:
-        # FullCalendar envia "YYYY-MM-DDTHH:MM"
-        start_dt = datetime.fromisoformat(start_str)
-    except ValueError:
+        start_dt = datetime.fromisoformat(start_s)
+    except Exception:
+        return jsonify(success=False, error="Formato de data/hora inválido."), 400
+
+    end_dt = None
+    if end_s:
         try:
-            # fallback: só data -> assume 00:00
-            start_dt = datetime.fromisoformat(start_str + "T00:00")
+            end_dt = datetime.fromisoformat(end_s)
         except Exception:
-            return jsonify(success=False, error="Formato de data/hora inválido."), 400
+            return jsonify(success=False, error="Formato de término inválido."), 400
+    else:
+        end_dt = start_dt + timedelta(hours=1)
 
-    # define um fim padrão (1 hora depois) para eventos com hora
-    end_dt = start_dt + timedelta(hours=1)
-
-    ev = AgendaEvent(user_id=u.id, title=title, start=start_dt, end=end_dt)
+    ev = AgendaEvent(
+        user_id=u.id, title=title, start=start_dt, end=end_dt,
+        notes=notes or None, type=type_ or None, billing=billing or None, insurer=insurer or None
+    )
     db.session.add(ev)
     db.session.commit()
 
     return jsonify(success=True, event_id=ev.id), 201
 
-
-# ------------------------------------------------------------------------------
-# Pacientes / Médicos
-# ------------------------------------------------------------------------------
-@app.route('/patients')
+@app.route('/api/events/<int:event_id>', methods=['PUT'])
 @login_required
-def patients():
+def api_update_event(event_id):
     u = current_user()
-    items = Patient.query.filter_by(doctor_id=u.id).order_by(Patient.id.desc()).all()
-    return render_template('patients.html', patients=items)
+    ev = AgendaEvent.query.get_or_404(event_id)
+    if getattr(ev, 'user_id', None) != u.id:
+        abort(403)
 
-@app.route('/patients/new', methods=['GET', 'POST'])
-@login_required
-def new_patient():
-    u = current_user()
-    if request.method == 'POST':
-        name = request.form.get('name', '').strip()
-        age  = request.form.get('age', '').strip()
-        if not name:
-            flash('Nome é obrigatório.', 'warning')
-            return redirect(url_for('new_patient'))
+    data = request.get_json(silent=True) or {}
+    start_s = (data.get('start') or '').strip()
+    end_s   = (data.get('end') or '').strip()
 
-        p = Patient(name=name, doctor_id=u.id)
-        if age.isdigit():
-            p.age = int(age)
-        db.session.add(p)
-        db.session.commit()
-        flash('Paciente cadastrado com sucesso.', 'success')
-        return redirect(url_for('patients'))
-
-    return render_template('new_patient.html')
-
-@app.route('/doctors')
-@login_required
-def doctors():
-    items = Doctor.query.order_by(Doctor.id.desc()).all()
-    return render_template('doctors.html', doctors=items)
-
-# APIs auxiliares
-@app.route('/api_doctors')
-def api_doctors():
-    docs = Doctor.query.order_by(Doctor.name).all()
-    return jsonify([{"id": d.id, "name": d.name} for d in docs])
-
-# ------------------------------------------------------------------------------
-# Médicos — criar via formulário do doctors.html
-# ------------------------------------------------------------------------------
-@app.route('/doctors/add', methods=['POST'], endpoint='add_doctor_route')
-@login_required
-def add_doctor_route():
-    """
-    Recebe POST do formulário em doctors.html e cria um novo médico.
-    Campos esperados no form: name, email, phone, specialty (opcionais).
-    Só 'name' é obrigatório.
-    """
-    name      = (request.form.get('name') or '').strip()
-    email     = (request.form.get('email') or '').strip().lower()
-    phone     = (request.form.get('phone') or '').strip()
-    specialty = (request.form.get('specialty') or '').strip()
-
-    if not name:
-        flash('Informe o nome do médico.', 'warning')
-        return redirect(url_for('doctors'))
-
-    d = Doctor(name=name)
-
-    # Preenche campos caso existam no modelo
-    for attr, val in {
-        'email': email or None,
-        'phone': phone or None,
-        'specialty': specialty or None,
-    }.items():
+    if start_s:
         try:
-            setattr(d, attr, val)
+            ev.start = datetime.fromisoformat(start_s)
         except Exception:
-            # Ignora se o atributo não existir no modelo
-            pass
+            return jsonify(success=False, error="Formato de data/hora inválido para 'start'."), 400
+    if end_s:
+        try:
+            ev.end = datetime.fromisoformat(end_s)
+        except Exception:
+            return jsonify(success=False, error="Formato de data/hora inválido para 'end'."), 400
 
-    db.session.add(d)
+    for key in ('title', 'notes', 'type', 'billing', 'insurer'):
+        if key in data:
+            setattr(ev, key, (data.get(key) or '').strip() or None)
+
     db.session.commit()
-    flash('Médico cadastrado com sucesso!', 'success')
-    return redirect(url_for('doctors'))
-
+    return jsonify(success=True)
 
 @app.route('/api/events')
 @login_required
@@ -606,10 +628,18 @@ def api_events():
     ag = AgendaEvent.query.filter_by(user_id=u.id).all()
     for e in ag:
         events.append({
+            "id": getattr(e, "id", None),
             "title": e.title or "Evento",
             "start": e.start.isoformat() if e.start else None,
-            "end":   e.end.isoformat() if e.end else None,
+            "end":   e.end.isoformat()   if e.end   else None,
             "allDay": False,
+            "extendedProps": {
+                "notes": getattr(e, "notes", None),
+                "type": getattr(e, "type", None),
+                "billing": getattr(e, "billing", None),
+                "insurer": getattr(e, "insurer", None),
+            },
+            "className": "holiday-event" if (getattr(e, "type", "") == "bloqueio") else "patient-event"
         })
 
     q = Consult.query
@@ -619,15 +649,140 @@ def api_events():
     for c in consults:
         if c.time:
             start = datetime.combine(c.date, c.time).isoformat()
-            events.append({"title": c.notes or "Consulta", "start": start})
+            events.append({
+                "title": c.notes or "Consulta",
+                "start": start,
+                "allDay": False,
+                "className": "patient-event",
+                "extendedProps": {"type": "consulta"}
+            })
         else:
-            events.append({"title": c.notes or "Consulta", "start": c.date.isoformat(), "allDay": True})
+            events.append({
+                "title": c.notes or "Consulta",
+                "start": c.date.isoformat(),
+                "allDay": True,
+                "className": "patient-event",
+                "extendedProps": {"type": "consulta"}
+            })
 
     return jsonify(events)
 
 # ------------------------------------------------------------------------------
-# Catálogo (lista/edita pacientes) — caso seu template use
+# Pacientes
 # ------------------------------------------------------------------------------
+@app.route('/patients')
+@login_required
+def patients():
+    u = current_user()
+    items = Patient.query.filter_by(owner_user_id=u.id).order_by(Patient.id.desc()).all()
+    return render_template('patients.html', patients=items)
+
+# NOVA ROTA: formulário + persistência
+@app.route('/patients/register', methods=['GET', 'POST'])
+@login_required
+def register_patient():
+    u = current_user()
+    if request.method == 'POST':
+        name        = (request.form.get('name') or '').strip()
+        birthdate_s = (request.form.get('birthdate') or '').strip()
+        sex         = (request.form.get('sex') or '').strip()
+
+        email       = (request.form.get('email') or '').strip().lower()
+        cpf         = (request.form.get('cpf') or '').strip().replace('.', '').replace('-', '')
+        notes       = (request.form.get('notes') or '').strip()
+
+        phone_pri   = (request.form.get('phone_primary') or '').strip()
+        phone_sec   = (request.form.get('phone_secondary') or '').strip()
+
+        cep         = (request.form.get('cep') or '').strip()
+        street      = (request.form.get('street') or '').strip()
+        number      = (request.form.get('number') or '').strip()
+        complement  = (request.form.get('complement') or '').strip()
+        district    = (request.form.get('district') or '').strip()
+        city        = (request.form.get('city') or '').strip()
+        state       = (request.form.get('state') or '').strip().upper()
+
+        # Validações obrigatórias
+        errs = []
+        if not name: errs.append("Nome é obrigatório.")
+        if not birthdate_s: errs.append("Data de nascimento é obrigatória.")
+        if not sex: errs.append("Sexo é obrigatório.")
+        if not phone_pri: errs.append("Celular é obrigatório.")
+        try:
+            birthdate = datetime.fromisoformat(birthdate_s).date()
+        except Exception:
+            errs.append("Data de nascimento inválida.")
+            birthdate = None
+
+        if email and not basic_email(email):
+            errs.append("E-mail inválido.")
+        if state and len(state) not in (0, 2):
+            errs.append("Estado deve ser a sigla (UF).")
+
+        if errs:
+            for e in errs: flash(e, "warning")
+            return redirect(url_for('register_patient'))
+
+        p = Patient(
+            owner_user_id = u.id,
+            name          = name,
+            birthdate     = birthdate,
+            sex           = sex,
+            email         = email or None,
+            cpf           = cpf or None,
+            notes         = notes or None,
+            phone_primary = phone_pri,
+            phone_secondary = phone_sec or None,
+            address_cep        = cep or None,
+            address_street     = street or None,
+            address_number     = number or None,
+            address_complement = complement or None,
+            address_district   = district or None,
+            address_city       = city or None,
+            address_state      = state or None,
+        )
+        db.session.add(p)
+        db.session.commit()
+        flash('Paciente cadastrado com sucesso.', 'success')
+        return redirect(url_for('patients'))
+
+    # GET
+    return render_template('register_patient.html')
+
+@app.route('/doctors')
+@login_required
+def doctors():
+    items = Doctor.query.order_by(Doctor.id.desc()).all()
+    return render_template('doctors.html', doctors=items)
+
+@app.route('/api_doctors')
+def api_doctors():
+    docs = Doctor.query.order_by(Doctor.name).all()
+    return jsonify([{"id": d.id, "name": d.name} for d in docs])
+
+@app.route('/doctors/add', methods=['POST'], endpoint='add_doctor_route')
+@login_required
+def add_doctor_route():
+    name      = (request.form.get('name') or '').strip()
+    email     = (request.form.get('email') or '').strip().lower()
+    phone     = (request.form.get('phone') or '').strip()
+    specialty = (request.form.get('specialty') or '').strip()
+
+    if not name:
+        flash('Informe o nome do médico.', 'warning')
+        return redirect(url_for('doctors'))
+
+    d = Doctor(name=name)
+    for attr, val in {'email': email or None, 'phone': phone or None, 'specialty': specialty or None}.items():
+        try: setattr(d, attr, val)
+        except Exception: pass
+
+    db.session.add(d)
+    db.session.commit()
+    flash('Médico cadastrado com sucesso!', 'success')
+    return redirect(url_for('doctors'))
+
+# Catálogo / edição
 @app.route('/catalog')
 @login_required
 def catalog():
@@ -635,7 +790,7 @@ def catalog():
     search = request.args.get('search', '').strip().lower()
     status = request.args.get('status', '').strip()
 
-    patients = Patient.query.filter_by(doctor_id=u.id).all()
+    patients = Patient.query.filter_by(owner_user_id=u.id).all()
     if search:
         patients = [p for p in patients if search in (p.name or '').lower()]
     if status:
@@ -649,18 +804,69 @@ def catalog():
 def edit_patient(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.doctor_id != u.id:
+    if patient.owner_user_id != u.id:
         abort(403)
 
     if request.method == 'POST':
-        patient.name         = request.form['name'].strip()
-        patient.age          = int(request.form['age']) if request.form.get('age') else None
-        patient.cpf          = request.form['cpf'].strip()
-        patient.gender       = request.form['gender'].strip()
-        patient.phone        = request.form['phone'].strip()
-        patient.prescription = request.form.get('prescription', '').strip()
-        patient.status       = request.form.get('status', patient.status).strip()
+        name        = (request.form.get('name') or '').strip()
+        birthdate_s = (request.form.get('birthdate') or '').strip()
+        sex         = (request.form.get('sex') or '').strip()
+
+        email       = (request.form.get('email') or '').strip().lower()
+        cpf         = (request.form.get('cpf') or '').strip().replace('.', '').replace('-', '')
+        notes       = (request.form.get('notes') or '').strip()
+
+        phone_pri   = (request.form.get('phone_primary') or '').strip()
+        phone_sec   = (request.form.get('phone_secondary') or '').strip()
+
+        cep         = (request.form.get('cep') or '').strip()
+        street      = (request.form.get('street') or '').strip()
+        number      = (request.form.get('number') or '').strip()
+        complement  = (request.form.get('complement') or '').strip()
+        district    = (request.form.get('district') or '').strip()
+        city        = (request.form.get('city') or '').strip()
+        state       = (request.form.get('state') or '').strip().upper()
+
+        # Validar obrigatórios
+        errs = []
+        if not name: errs.append("Nome é obrigatório.")
+        if not birthdate_s: errs.append("Data de nascimento é obrigatória.")
+        if not sex: errs.append("Sexo é obrigatório.")
+        if not phone_pri: errs.append("Celular é obrigatório.")
+        try:
+            birthdate = datetime.fromisoformat(birthdate_s).date()
+        except Exception:
+            errs.append("Data de nascimento inválida.")
+            birthdate = None
+
+        if email and not basic_email(email):
+            errs.append("E-mail inválido.")
+        if state and len(state) not in (0, 2):
+            errs.append("Estado deve ser a sigla (UF).")
+
+        if errs:
+            for e in errs: flash(e, "warning")
+            return redirect(url_for('edit_patient', patient_id=patient.id))
+
+        # Persistir
+        patient.name            = name
+        patient.birthdate       = birthdate
+        patient.sex             = sex
+        patient.email           = email or None
+        patient.cpf             = cpf or None
+        patient.notes           = notes or None
+        patient.phone_primary   = phone_pri
+        patient.phone_secondary = phone_sec or None
+        patient.address_cep        = cep or None
+        patient.address_street     = street or None
+        patient.address_number     = number or None
+        patient.address_complement = complement or None
+        patient.address_district   = district or None
+        patient.address_city       = city or None
+        patient.address_state      = state or None
+
         db.session.commit()
+        flash("Paciente atualizado com sucesso.", "success")
         return redirect(url_for('catalog'))
 
     return render_template('edit_patient.html', patient=patient)
@@ -670,7 +876,7 @@ def edit_patient(patient_id):
 def patient_result(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.doctor_id != u.id:
+    if patient.owner_user_id != u.id:
         abort(403)
 
     consults = Consult.query.filter_by(patient_id=patient_id).order_by(Consult.id.asc()).all()
@@ -678,10 +884,10 @@ def patient_result(patient_id):
         latest = consults[-1].notes or ""
         parts = latest.split("Prescrição:\n", 1)
         diagnostic_text  = parts[0].strip()
-        prescription_text = parts[1].strip() if len(parts) > 1 else patient.prescription or ""
+        prescription_text = parts[1].strip() if len(parts) > 1 else ""
     else:
         diagnostic_text  = "Nenhuma consulta registrada."
-        prescription_text = patient.prescription or ""
+        prescription_text = ""
 
     return render_template('result.html',
                            patient=patient,
@@ -694,31 +900,65 @@ def patient_result(patient_id):
 def patient_info(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.doctor_id != u.id:
+    if patient.owner_user_id != u.id:
         abort(403)
     return render_template('patient_info.html', patient=patient)
 
+# API JSON opcional (compatível com app antigo, porém com novos campos)
 @app.route('/api/add_patient', methods=['POST'])
 @login_required
 def api_add_patient():
     u = current_user()
     data = request.get_json() or {}
-    name  = (data.get("name") or "").strip()
-    age_s = data.get("age", "")
-    cpf   = (data.get("cpf") or "").strip()
-    gender= (data.get("gender") or "").strip()
-    phone = (data.get("phone") or "").strip()
-    prescription = (data.get("prescription") or "").strip()
 
-    if not (name and age_s):
-        return jsonify(success=False, error='Preencha todos os campos obrigatórios'), 400
+    # nomes antigos continuam aceitos (age/gender/phone), mas preferimos os novos:
+    name        = (data.get("name") or "").strip()
+    birthdate_s = (data.get("birthdate") or "").strip()
+    sex         = (data.get("sex") or data.get("gender") or "").strip()
+    email       = (data.get("email") or "").strip().lower()
+    cpf         = (data.get("cpf") or "").strip()
+    notes       = (data.get("notes") or data.get("prescription") or "").strip()
+
+    phone_pri   = (data.get("phone_primary") or data.get("phone") or "").strip()
+    phone_sec   = (data.get("phone_secondary") or "").strip()
+
+    cep         = (data.get("cep") or "").strip()
+    street      = (data.get("street") or "").strip()
+    number      = (data.get("number") or "").strip()
+    complement  = (data.get("complement") or "").strip()
+    district    = (data.get("district") or "").strip()
+    city        = (data.get("city") or "").strip()
+    state       = (data.get("state") or "").strip().upper()
+
+    if not (name and birthdate_s and sex and phone_pri):
+        return jsonify(success=False, error='Campos obrigatórios: nome, data de nascimento, sexo, celular.'), 400
+
     try:
-        age = int(age_s)
-    except ValueError:
-        return jsonify(success=False, error='Idade inválida'), 400
+        birthdate = datetime.fromisoformat(birthdate_s).date()
+    except Exception:
+        return jsonify(success=False, error='Data de nascimento inválida'), 400
 
-    p = Patient(name=name, age=age, cpf=cpf or None, gender=gender or None,
-                phone=phone or None, doctor_id=u.id, prescription=prescription)
+    if email and not basic_email(email):
+        return jsonify(success=False, error='E-mail inválido'), 400
+
+    p = Patient(
+        owner_user_id = u.id,
+        name          = name,
+        birthdate     = birthdate,
+        sex           = sex,
+        email         = email or None,
+        cpf           = cpf or None,
+        notes         = notes or None,
+        phone_primary = phone_pri,
+        phone_secondary = phone_sec or None,
+        address_cep        = cep or None,
+        address_street     = street or None,
+        address_number     = number or None,
+        address_complement = complement or None,
+        address_district   = district or None,
+        address_city       = city or None,
+        address_state      = state or None,
+    )
     db.session.add(p)
     db.session.commit()
     return jsonify(success=True, patient_id=p.id), 201
@@ -728,7 +968,7 @@ def api_add_patient():
 def delete_patient(patient_id):
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
-    if p.doctor_id != u.id:
+    if p.owner_user_id != u.id:
         abort(403)
     Consult.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
     db.session.delete(p)
@@ -741,20 +981,19 @@ def delete_patient(patient_id):
 def toggle_patient_status(patient_id, new_status):
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
-    if p.doctor_id != u.id:
+    if p.owner_user_id != u.id:
         abort(403)
     p.status = new_status
     db.session.commit()
     return redirect(url_for('catalog'))
 
 # ------------------------------------------------------------------------------
-# Quotes (Cotações) — endpoints usados por templates
+# Cotações / Fornecedores / Produtos (inalterados no escopo)
 # ------------------------------------------------------------------------------
 @app.route('/quotes', methods=['GET'], endpoint='quote_index')
 @login_required
 def quotes_index():
     quotes = Quote.query.order_by(Quote.created_at.desc()).all()
-    # usa quotes.html se existir; senão, um fallback simples
     try:
         return render_template('quote_index.html', quotes=quotes)
     except TemplateNotFound:
@@ -773,29 +1012,26 @@ def quotes_index():
 @login_required
 def create_quote():
     from json import loads, dumps
-
     if request.method == 'POST':
         title = (request.form.get('title') or '').strip()
         items_raw = (request.form.get('items') or '').strip()
-        supplier_ids = request.form.getlist('supplier_ids')  # checkboxes do HTML
+        supplier_ids = request.form.getlist('supplier_ids')
 
         if not title or not items_raw or not supplier_ids:
             flash('Preencha título, itens e fornecedores.', 'warning')
             return redirect(url_for('create_quote'))
 
-        # Normaliza itens: tenta JSON; se falhar, usa linhas
         try:
             parsed = loads(items_raw)
             if isinstance(parsed, list):
                 items_norm = [str(x).strip() for x in parsed if str(x).strip()]
             elif isinstance(parsed, dict):
-                items_norm = parsed  # mantém estrutura se for dict
+                items_norm = parsed
             else:
                 items_norm = [str(parsed).strip()]
         except Exception:
             items_norm = [ln.strip() for ln in items_raw.splitlines() if ln.strip()]
 
-        # Normaliza suppliers para JSON (mantém como strings/ids)
         suppliers_norm = []
         for sid in supplier_ids:
             sid = sid.strip()
@@ -812,16 +1048,10 @@ def create_quote():
         flash('Cotação criada.', 'success')
         return redirect(url_for('quote_index'))
 
-    # GET: envia fornecedores para o template usado pelo seu HTML
     suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
     try:
         return render_template('quote_new.html', suppliers=suppliers)
     except TemplateNotFound:
-        # fallback simples (mantém compatível com os nomes do seu HTML)
-        supplier_opts = ''.join(
-            f'<label><input type="checkbox" name="supplier_ids" value="{s.id}"> {s.name}</label><br>'
-            for s in suppliers
-        )
         return render_template('create_quote.html')
 
 @app.route('/quotes/<int:quote_id>', methods=['GET'], endpoint='quote_view')
@@ -839,7 +1069,6 @@ def quotes_view(quote_id):
         <p><a href="{{ url_for('quote_index') }}">Voltar</a></p>
         """, q=q)
 
-# alias comum em templates: quote_show
 app.add_url_rule('/quotes/<int:quote_id>/show', endpoint='quote_show', view_func=quotes_view, methods=['GET'])
 
 @app.route('/quotes/<int:quote_id>/delete', methods=['POST'], endpoint='quote_delete')
@@ -851,9 +1080,6 @@ def quotes_delete(quote_id):
     flash('Cotação removida.', 'info')
     return redirect(url_for('quote_index'))
 
-# ------------------------------------------------------------------------------
-# Suppliers
-# ------------------------------------------------------------------------------
 @app.route('/suppliers/add', methods=['POST'], endpoint='add_supplier')
 @login_required
 def add_supplier():
@@ -864,14 +1090,14 @@ def add_supplier():
 
     if not name:
         flash("Nome é obrigatório.", "warning")
-        return redirect(url_for('suppliers_index'))
+        return redirect(url_for('suppliers'))
 
     s = Supplier(user_id=u.id, name=name, phone=phone or None, email=email or None)
     db.session.add(s)
     db.session.commit()
 
     flash("Fornecedor cadastrado com sucesso!", "success")
-    return redirect(url_for('suppliers_index'))
+    return redirect(url_for('suppliers'))
 
 @app.route('/suppliers')
 @login_required
@@ -894,20 +1120,15 @@ def products():
     except TemplateNotFound:
         lis = "".join(f"<li>{p.name} — R$ {p.sale_price:.2f} (qtde: {p.quantity})</li>" for p in prods)
         return f"<h1>Produtos</h1><ul>{lis or '<li>(vazio)</li>'}</ul>"
-    
+
 @app.route('/products/add', methods=['POST'])
 @login_required
 def add_product_route():
-    # pegue os campos do form (ajuste nomes conforme seu <input name="...">)
     name = request.form.get('name', '').strip()
     sku = request.form.get('sku', '').strip()
     unit = request.form.get('unit', '').strip()
     price = request.form.get('price', '').strip()
     stock = request.form.get('stock', '').strip()
-
-    # TODO: valide e salve no seu repositório/banco
-    # ex: db.add_product(name=name, sku=sku, unit=unit, price=Decimal(price), stock=int(stock))
-
     flash('Produto cadastrado com sucesso!', 'success')
     return redirect(url_for('products'))
 

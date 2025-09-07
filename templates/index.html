@@ -16,30 +16,20 @@
 
   <style>
     :root {
-      /* Duas cores: azul escuro (sidebar) e branco */
       --bg: #ffffff;
-      /* fundo principal */
       --surface: #ffffff;
-      /* cartões/brancos */
       --surface-alt: #f8fafc;
-      /* cinza bem claro para contraste leve */
       --border: #e5e7eb;
-      /* borda clara */
       --ink: #0b1220;
-      /* texto principal */
       --ink-dim: #475569;
-      /* texto secundário */
 
-      /* === GRADIENTE DO SIDEBAR (PEDIDO) === */
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-blue-solid: #0f182b;
-      /* cor sólida para gráficos/bordas quando necessário */
 
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --shadow-strong: 0 14px 36px rgba(2, 6, 23, .12);
     }
 
-    /* Tooltip HTML do Google Charts — claro com borda azul escuro */
     .gtooltip {
       padding: 8px 10px;
       background: #fff;
@@ -88,7 +78,7 @@
       overflow: hidden
     }
 
-    /* =================== SIDEBAR =================== */
+    /* ========== SIDEBAR ========== */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -131,9 +121,8 @@
       flex: 0 0 21px;
     }
 
-    /* Hover BRANCO, texto azul escuro */
     .sidebar a.menu-item:hover {
-      background: #ffffff;
+      background: #fff;
       color: var(--brand-blue-solid);
       transform: translateX(4px);
     }
@@ -170,43 +159,72 @@
     }
 
     .sidebar-toggle:hover {
-      background: #ffffff;
+      background: #fff;
       color: var(--brand-blue-solid);
-      border-color: #ffffff;
-      transform: translateY(-1px);
+      border-color: #fff;
+      transform: translateY(-1px)
     }
 
     .sidebar.is-collapsed {
-      width: 76px;
+      width: 76px
     }
 
     .sidebar.is-collapsed .sidebar-logo {
       width: 44px;
-      margin: 0 auto 22px;
+      margin: 0 auto 22px
     }
 
     .sidebar.is-collapsed .menu-item {
       justify-content: center;
       gap: 0;
       padding: 12px 0;
-      margin-bottom: 18px;
+      margin-bottom: 18px
     }
 
     .sidebar.is-collapsed .menu-item .label {
-      display: none;
+      display: none
     }
 
     .sidebar.is-collapsed .sidebar-toggle i {
-      transform: rotate(180deg);
+      transform: rotate(180deg)
     }
 
-    /* =================== CONTEÚDO =================== */
+    .compact-card {
+      min-width: 260px;
+      padding: 14px;
+    }
+
+    .mini-donut {
+      width: 64px;
+      height: 64px;
+    }
+
+    .compact-card .metric-value {
+      font-size: 24px;
+    }
+
+    body.sidebar-collapsed .compact-card {
+      min-width: 280px;
+      padding: 16px;
+    }
+
+    body.sidebar-collapsed .mini-donut {
+      width: 72px;
+      height: 72px;
+    }
+
+    body.sidebar-collapsed .compact-card .metric-value {
+      font-size: 26px;
+    }
+
+    /* ========== CONTEÚDO ========== */
     .content {
       flex-grow: 1;
       padding: 40px;
       position: relative;
       min-width: 0;
       background: var(--bg);
+      transition: padding 180ms ease;
     }
 
     h2 {
@@ -231,8 +249,122 @@
       box-shadow: 0 0 8px rgba(0, 0, 0, .12);
     }
 
-    .chart-container,
-    .donut-container {
+    /* Linha ÚNICA (não quebra) para os 4 cards */
+    .dashboard-row {
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      flex-wrap: nowrap;
+      /* nunca quebra linha */
+      margin: 32px 0;
+      overflow-x: auto;
+      /* só aparece scroll se muito estreito */
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Cards compactos */
+    .compact-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 14px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      min-width: 260px;
+      /* alvo para caber 4 */
+      max-width: 280px;
+      transition: transform .2s ease, box-shadow .2s ease;
+      animation: chartSlideIn .6s ease-out;
+    }
+
+    .compact-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(2, 6, 23, .10);
+    }
+
+    .compact-card h3 {
+      color: var(--brand-blue-solid);
+      font-weight: 700;
+      font-size: 15px;
+      margin: 0 0 12px;
+      text-align: left
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .mini-donut {
+      width: 64px;
+      height: 64px
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--ink);
+      margin: 2px 0
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: var(--ink-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--brand-blue-solid)
+    }
+
+    .status-indicator.new {
+      background: #10b981
+    }
+
+    .status-indicator.return {
+      background: #f59e0b
+    }
+
+    .status-indicator.particular {
+      background: #3b82f6
+    }
+
+    .status-indicator.convenio {
+      background: #8b5cf6
+    }
+
+    /* Botão enxuto nos cards */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-grad);
+      color: #fff;
+      border: 1px solid var(--brand-blue-solid);
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
+      transition: transform .2s, box-shadow .2s, filter .2s;
+      min-width: 0;
+      font-family: 'Funnel Sans', sans-serif;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, .20);
+      filter: saturate(1.04)
+    }
+
+    /* Gráfico grande */
+    .chart-container {
       background: var(--surface);
       border: 1px solid var(--border);
       padding: 28px;
@@ -243,16 +375,16 @@
       overflow: hidden;
       animation: chartSlideIn .6s ease-out;
       color: var(--ink);
+      flex: 1;
+      min-width: 520px;
     }
 
-    .chart-container:hover,
-    .donut-container:hover {
+    .chart-container:hover {
       transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(2, 6, 23, .10);
+      box-shadow: 0 12px 28px rgba(2, 6, 23, .10)
     }
 
-    .chart-container h3,
-    .donut-container h3 {
+    .chart-container h3 {
       color: var(--ink);
       font-weight: 800;
       font-size: 20px;
@@ -261,8 +393,7 @@
       position: relative;
     }
 
-    .chart-container h3::after,
-    .donut-container h3::after {
+    .chart-container h3::after {
       content: '';
       position: absolute;
       bottom: -8px;
@@ -272,11 +403,6 @@
       height: 3px;
       background: var(--brand-grad);
       border-radius: 2px;
-    }
-
-    .chart-container {
-      flex: 1;
-      min-width: 520px;
     }
 
     @media (max-width:1100px) {
@@ -291,62 +417,7 @@
       }
     }
 
-    .donut-container {
-      width: 320px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 8px;
-    }
-
-    .donut-chart-wrapper {
-      position: relative;
-      width: 180px;
-      height: 180px;
-      margin: 0 auto 10px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(11, 17, 28, .08) 0%, transparent 70%);
-    }
-
-    #donut_label {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2.6em;
-      font-weight: 900;
-      color: var(--brand-blue-solid);
-      pointer-events: none;
-    }
-
-    /* Botão padrão — usa a MESMA cor do sidebar */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--brand-grad);
-      color: #fff;
-      border: 1px solid var(--brand-blue-solid);
-      padding: 12px 24px;
-      border-radius: 999px;
-      cursor: pointer;
-      font-weight: 800;
-      font-size: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
-      transition: transform .2s, box-shadow .2s, filter .2s;
-      min-width: 220px;
-      font-family: 'Funnel Sans', sans-serif;
-    }
-
-    .btn:hover {
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 14px 36px rgba(0, 0, 0, .20);
-      filter: saturate(1.04);
-    }
-
-    /* =================== TOPO DIREITO (ícones no mesmo formato) =================== */
+    /* ========== TOP RIGHT ICONS ========== */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -377,12 +448,12 @@
     .icon-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
-      border-color: var(--brand-blue-solid);
+      border-color: var(--brand-blue-solid)
     }
 
     .icon-btn i {
       color: var(--brand-blue-solid);
-      font-size: 18px;
+      font-size: 18px
     }
 
     .icon-btn .badge {
@@ -399,10 +470,10 @@
       font-weight: 800;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center
     }
 
-    /* =================== MODAL =================== */
+    /* ========== MODAL ========== */
     #detailsModal {
       display: none;
       position: fixed;
@@ -432,7 +503,7 @@
       margin: 0 0 12px;
       font-size: 20px;
       font-weight: 800;
-      color: var(--ink);
+      color: var(--ink)
     }
 
     #detailsModal .stats {
@@ -441,17 +512,17 @@
       padding: 18px;
       border-radius: 14px;
       margin: 18px 0;
-      text-align: left;
+      text-align: left
     }
 
     #detailsModal .stats p {
       margin: 8px 0;
       color: var(--ink-dim);
-      font-weight: 700;
+      font-weight: 700
     }
 
     #detailsModal .stats strong {
-      color: var(--ink);
+      color: var(--ink)
     }
 
     #detailsModal .close-btn {
@@ -469,7 +540,7 @@
 
     #detailsModal .close-btn:hover {
       color: var(--brand-blue-solid);
-      transform: scale(1.1);
+      transform: scale(1.1)
     }
 
     @media (max-width:700px) {
@@ -485,18 +556,21 @@
       .sidebar {
         width: 72px
       }
+
+      /* mesmo no mobile os cards ficam numa linha rolável */
     }
   </style>
 
   <script>
-    // ===== Valores vindos do servidor =====
+    // ===== Dados do servidor =====
     const pacotes_usados = {{ used or 0 }};
     const pacotes_comprados = {{ (used or 0) + (remaining or 0) }};
 
-    // Cores sólidas para os gráficos (Google Charts não aceita gradiente)
     const BRAND = '#0f182b';
 
-    let comboChart, donutChart, comboData, donutData;
+    let comboChart, packagesChart, patientsChart, proceduresChart, insuranceChart;
+    let comboData, packagesData, patientsData, proceduresData, insuranceData;
+
     google.charts.load('current', { packages: ['corechart'] });
     google.charts.setOnLoadCallback(initCharts);
 
@@ -507,9 +581,29 @@
     {% endfor %}
       ];
 
+    // Donuts dos cards (64x64)
+    patientsData = google.visualization.arrayToDataTable([
+      ['Tipo', 'Quantidade'], ['Novos', 100], ['Recorrentes', 0]
+    ]);
+    proceduresData = google.visualization.arrayToDataTable([
+      ['Tipo', 'Quantidade'], ['Retorno', 2], ['Primeira Consulta', 0]
+    ]);
+    insuranceData = google.visualization.arrayToDataTable([
+      ['Tipo', 'Quantidade'], ['Particular', 2], ['Convênio', 0]
+    ]);
+
+    // Pacotes de Análise no mesmo formato dos demais donuts
+    const total = Math.max(pacotes_comprados, 1);
+    const usados = Math.min(pacotes_usados, total);
+    const disponivel = Math.max(total - usados, 0);
+    packagesData = google.visualization.arrayToDataTable([
+      ['Status', 'Qtd'], ['Usado', usados], ['Disponível', disponivel]
+    ]);
+
+    // Combo principal (7 dias)
     comboData = new google.visualization.DataTable();
     comboData.addColumn('string', 'Data');
-    comboData.addColumn('number', 'Autoavaliações');
+    comboData.addColumn('number', 'Análises');
     comboData.addColumn({ type: 'string', role: 'annotation' });
     comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
     comboData.addColumn('number', 'Média');
@@ -522,106 +616,141 @@
         d,
         cFmt,
         cFmt ? String(cFmt) : null,
-        `<div class="gtooltip"><div><b>${d}</b></div><div>Autoavaliações: <b>${cFmt}</b></div></div>`,
+        `<div class="gtooltip"><div><b>${d}</b></div><div>Análises: <b>${cFmt}</b></div></div>`,
         mFmt,
         `<div class="gtooltip"><div><b>${d}</b></div><div>Média: <b>${mFmt}</b></div></div>`
       ]);
     });
 
-    const total = Math.max(pacotes_comprados, 1);
-    const usados = Math.min(pacotes_usados, total);
-    donutData = google.visualization.arrayToDataTable([
-      ['Pacote', 'Análises'],
-      ['Usado', usados],
-      ['Disponível', total - usados]
-    ]);
-
+    // Instância dos gráficos
     comboChart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
-    donutChart = new google.visualization.PieChart(document.getElementById('donut_chart'));
+    packagesChart = new google.visualization.PieChart(document.getElementById('packages_chart'));
+    patientsChart = new google.visualization.PieChart(document.getElementById('patients_chart'));
+    proceduresChart = new google.visualization.PieChart(document.getElementById('procedures_chart'));
+    insuranceChart = new google.visualization.PieChart(document.getElementById('insurance_chart'));
+
     redrawCharts();
 
+    // Observa redimensionamentos + transição da sidebar
     window.addEventListener('resize', debounce(redrawCharts, 120));
     const ro = new ResizeObserver(debounce(redrawCharts, 80));
-    document.querySelectorAll('.content, #curve_chart, #donut_chart').forEach(el => el && ro.observe(el));
+    ['.content', '#curve_chart', '#packages_chart', '#patients_chart', '#procedures_chart', '#insurance_chart']
+      .forEach(sel => { const el = document.querySelector(sel); if (el) ro.observe(el); });
     }
 
     function getComboOptions() {
       const w = (document.getElementById('curve_chart')?.clientWidth) || 800;
       const small = w < 700;
       const tiny = w < 500;
-
       return {
         backgroundColor: 'transparent',
         chartArea: { left: small ? 48 : 60, top: 20, width: '85%', height: '75%' },
-        legend: { position: tiny ? 'none' : 'bottom', textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: small ? 13 : 14, bold: true } },
+        legend: {
+          position: tiny ? 'none' : 'bottom',
+          textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: small ? 13 : 14, bold: true }
+        },
         seriesType: 'bars',
         series: {
           0: { color: BRAND, type: 'bars', targetAxisIndex: 0, dataOpacity: 0.95 },
           1: { type: 'line', color: BRAND, lineWidth: small ? 3 : 4, pointSize: 0, curveType: 'function' }
         },
         bar: { groupWidth: small ? '52%' : '60%' },
-        vAxis: { minValue: 0, textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13 }, gridlines: { color: '#e2e8f0', count: 5 }, baselineColor: '#94a3b8' },
-        hAxis: { textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true }, slantedText: small, slantedTextAngle: small ? 30 : 0 },
+        vAxis: {
+          minValue: 0, textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13 },
+          gridlines: { color: '#e2e8f0', count: 5 }, baselineColor: '#94a3b8'
+        },
+        hAxis: {
+          textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true },
+          slantedText: small, slantedTextAngle: small ? 30 : 0
+        },
         annotations: { textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: 13 }, alwaysOutside: true },
         tooltip: { isHtml: true, ignoreBounds: true },
         animation: { duration: 600, easing: 'out', startup: true }
       };
     }
 
-    function getDonutOptions() {
-      const w = (document.getElementById('donut_chart')?.clientWidth) || 180;
-      const tiny = w < 160;
+    // Opções dos donuts pequenos (todos iguais)
+    function getSmallDonutOptions(colors) {
       return {
         backgroundColor: 'transparent',
         pieHole: 0.65,
         pieSliceText: 'none',
         legend: 'none',
-        chartArea: { width: '95%', height: '95%', top: 5, left: 5 },
-        colors: [BRAND, '#ffffff'],
-        pieSliceBorderColor: BRAND,
-        slices: { 0: { offset: 0.02 }, 1: { offset: 0 } },
-        tooltip: { isHtml: true, textStyle: { fontName: 'Funnel Sans', fontSize: tiny ? 11 : 13 }, showColorCode: true },
+        chartArea: { width: '100%', height: '100%', top: 0, left: 0 },
+        colors: colors,
+        pieSliceBorderColor: 'transparent',
+        tooltip: { trigger: 'none' },
         animation: { duration: 600, easing: 'out', startup: true }
       };
     }
 
     function redrawCharts() {
-      if (!comboChart || !donutChart) return;
-      comboChart.draw(comboData, getComboOptions());
-      donutChart.draw(donutData, getDonutOptions());
+      if (comboChart) comboChart.draw(comboData, getComboOptions());
 
+      const gray = '#e5e7eb';
+      if (packagesChart) packagesChart.draw(packagesData, getSmallDonutOptions([BRAND, gray]));
+      if (patientsChart) patientsChart.draw(patientsData, getSmallDonutOptions(['#10b981', gray]));
+      if (proceduresChart) proceduresChart.draw(proceduresData, getSmallDonutOptions(['#f59e0b', gray]));
+      if (insuranceChart) insuranceChart.draw(insuranceData, getSmallDonutOptions(['#3b82f6', gray]));
+
+      // sombra sutil nos SVGs
       setTimeout(() => {
-        const svg = document.getElementById('donut_chart')?.querySelector('svg');
-        if (svg) { svg.style.filter = 'drop-shadow(0 0 12px rgba(0,0,0,.12))'; svg.style.borderRadius = '50%' }
-        const total = pacotes_comprados > 0 ? pacotes_comprados : 1;
-        const percentage = Math.round((pacotes_usados / total) * 100);
-        const label = document.getElementById('donut_label');
-        if (label) label.innerText = percentage + '%';
+        ['packages_chart', 'patients_chart', 'procedures_chart', 'insurance_chart'].forEach(id => {
+          const svg = document.getElementById(id)?.querySelector('svg');
+          if (svg) { svg.style.filter = 'drop-shadow(0 0 8px rgba(0,0,0,.10))'; svg.style.borderRadius = '50%'; }
+        });
       }, 0);
     }
 
-    function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms) } }
+    function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); } }
 
-    function openModal() { const m = document.getElementById('detailsModal'); m.style.display = 'flex'; document.body.classList.add('modal-open'); m.setAttribute('aria-hidden', 'false'); m.querySelector('[data-close]')?.focus(); }
-    function closeModal() { const m = document.getElementById('detailsModal'); m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true'); }
+    function openModal() {
+      const m = document.getElementById('detailsModal');
+      m.style.display = 'flex'; document.body.classList.add('modal-open');
+      m.setAttribute('aria-hidden', 'false'); m.querySelector('[data-close]')?.focus();
+    }
+    function closeModal() {
+      const m = document.getElementById('detailsModal');
+      m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true');
+    }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
 
     function toggleSidebar() {
       const sidebar = document.querySelector('.sidebar');
+      const body = document.body;
+
       sidebar.classList.toggle('is-collapsed');
-      localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('is-collapsed') ? '1' : '0');
-      const onEnd = (ev) => { if (ev.propertyName === 'width') { redrawCharts(); sidebar.removeEventListener('transitionend', onEnd) } };
+      const collapsed = sidebar.classList.contains('is-collapsed');
+
+      // reflete o estado no <body>
+      body.classList.toggle('sidebar-collapsed', collapsed);
+
+      // persiste
+      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+
+      // redesenha gráficos quando a largura terminar de animar
+      const onEnd = (ev) => {
+        if (ev.propertyName === 'width') {
+          redrawCharts();
+          sidebar.removeEventListener('transitionend', onEnd);
+        }
+      };
       sidebar.addEventListener('transitionend', onEnd);
       setTimeout(redrawCharts, 220);
     }
+
     document.addEventListener('DOMContentLoaded', () => {
-      if (localStorage.getItem('sidebarCollapsed') === '1') { document.querySelector('.sidebar')?.classList.add('is-collapsed'); }
+      const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+      if (collapsed) {
+        document.querySelector('.sidebar')?.classList.add('is-collapsed');
+        document.body.classList.add('sidebar-collapsed'); // <- aplica no load
+      }
     });
   </script>
 </head>
 
 <body>
-  <!-- Topo direito: Perfil + Notificações (mesmo formato) -->
+  <!-- Topo direito -->
   <div class="top-profile" aria-label="Ações do usuário">
     <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
       <i class="fa fa-user"></i>
@@ -632,7 +761,7 @@
     </button>
   </div>
 
-  <!-- Modal -->
+  <!-- Modal Detalhes -->
   <div id="detailsModal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <button class="close-btn" data-close onclick="closeModal()" aria-label="Fechar">×</button>
@@ -687,23 +816,76 @@
 
   <!-- Conteúdo -->
   <div class="content">
-    <h2>Bem-vindo(a), dr. Ricardo</h2>
+    <h2>Bem-vindo(a), {{ username }}</h2>
 
-    <div
-      style="display:flex; justify-content:center; align-items:flex-start; flex-wrap:wrap; gap:40px; margin-top:20px;">
-      <div class="chart-container" style="flex:1; min-width:600px;">
-        <h3>Autoavaliações Preenchidas nos Últimos 7 Dias</h3>
-        <div id="curve_chart" style="width:100%; height:450px;"></div>
-      </div>
-
-      <div class="donut-container">
-        <h3>Pacotes de Análise Usados</h3>
-        <div class="donut-chart-wrapper">
-          <div id="donut_chart" style="width:180px; height:180px; margin:0 auto;"></div>
-          <div id="donut_label"></div>
+    <!-- LINHA ÚNICA: quatro donuts compactos -->
+    <div class="dashboard-row">
+      <!-- Pacotes de Análise -->
+      <div class="compact-card">
+        <h3>Pacotes de Análise</h3>
+        <div class="metric-row">
+          <div id="packages_chart" class="mini-donut"></div>
+          <div>
+            <div class="metric-value">
+              {{ ((used or 0) + (remaining or 0)) and ((used or 0) * 100 // ((used or 0) + (remaining or 0))) or 0 }}%
+            </div>
+            <div class="metric-label"><span class="status-indicator"
+                style="background: var(--brand-blue-solid);"></span> Usado</div>
+            <div class="metric-label"><span class="status-indicator" style="background: #e5e7eb;"></span> Disponível
+            </div>
+          </div>
         </div>
-        <button onclick="openModal()" class="btn">Ver Detalhes Completos</button>
+        <div style="margin-top: 10px; justify-content: center;">
+          <button class="btn" onclick="openModal()">Ver Detalhes</button>
+        </div>
       </div>
+
+      <!-- Pacientes -->
+      <div class="compact-card">
+        <h3>Pacientes</h3>
+        <div class="metric-row">
+          <div id="patients_chart" class="mini-donut"></div>
+          <div>
+            <div class="metric-value">100%</div>
+            <div class="metric-label"><span class="status-indicator new"></span> Novos</div>
+            <div class="metric-label"><span class="status-indicator" style="background:#e5e7eb;"></span> Recorrentes
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px; color:var(--ink-dim); font-size:13px;">
+          <strong>Homens:</strong> 1<br><strong>Mulheres:</strong> 0
+        </div>
+      </div>
+
+      <!-- Procedimentos realizados -->
+      <div class="compact-card">
+        <h3>Procedimentos realizados</h3>
+        <div class="metric-row">
+          <div id="procedures_chart" class="mini-donut"></div>
+          <div>
+            <div class="metric-value">2</div>
+            <div class="metric-label"><span class="status-indicator return"></span> Retorno</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pacientes x Convênio -->
+      <div class="compact-card">
+        <h3>Pacientes x Convênio</h3>
+        <div class="metric-row">
+          <div id="insurance_chart" class="mini-donut"></div>
+          <div>
+            <div class="metric-value">2</div>
+            <div class="metric-label"><span class="status-indicator particular"></span> Particular</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico grande embaixo -->
+    <div class="chart-container" style="margin-top: 16px;">
+      <h3>Análises de PDFs — últimos 7 dias</h3>
+      <div id="curve_chart" style="width:100%; height:350px;"></div>
     </div>
   </div>
 </body>

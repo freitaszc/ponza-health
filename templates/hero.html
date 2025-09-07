@@ -21,7 +21,7 @@
       --text-secondary: #475569;
       --text-muted: #64748b;
       --text-light: #94a3b8;
-      
+
       /* Cores principais */
       --primary: #ffffff;
       --primary-contrast: #000b30;
@@ -30,7 +30,11 @@
       --secondary-light: #000b30;
       --secondary-glow: rgba(11, 30, 91, .15);
       --secondary-glow-strong: rgba(11, 30, 91, .25);
-      
+
+      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-base: #131d35;
+      --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+
       /* Bordas e sombras */
       --border-light: #e2e8f0;
       --border-medium: #cbd5e1;
@@ -76,9 +80,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--secondary);
-      box-shadow: 0 4px 20px var(--shadow-medium);
-      border-bottom: 1px solid var(--secondary-dark);
+      background: var(--brand-grad);
+      border-bottom: 1px solid #0f182b;
+      box-shadow: 0 4px 18px var(--shadow);
       padding: 0 24px;
     }
 
@@ -203,9 +207,8 @@
     .hero {
       min-height: auto;
       padding: calc(var(--nav-h) + 48px) 16px 32px;
-      background: 
-        linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%),
-        url("{{ url_for('static', filename='images/hero.svg') }}") center center / cover no-repeat;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%),
+      url("{{ url_for('static', filename='images/hero.svg') }}") center center / cover no-repeat;
       position: relative;
     }
 
@@ -299,9 +302,16 @@
       background: var(--bg-secondary);
     }
 
-    .grid-5 {
+    .features-content {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: 1fr 1.2fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    .features-list {
+      display: grid;
+      grid-template-columns: 1fr;
       gap: 16px;
     }
 
@@ -433,11 +443,14 @@
       line-height: 1.5;
     }
 
-    /* MEDIA DO HERO */
+    /* MEDIA DO HERO COM FADE */
     .hero-media {
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
     }
 
     .hero-img {
@@ -446,15 +459,48 @@
       height: auto;
       background: transparent;
       border: none;
-      border-radius: 0;
-      box-shadow: none;
-      filter: drop-shadow(0 10px 25px var(--shadow-light));
+      border-radius: 20px;
+      box-shadow: 0 20px 50px var(--shadow-strong);
+      animation: fadeInScale 1.2s ease-out;
+      position: relative;
+    }
+
+    .hero-img::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(45deg, rgba(0, 11, 48, 0.1) 0%, transparent 50%, rgba(0, 11, 48, 0.05) 100%);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+
+    /* Imagem do MacBook na seção de recursos */
+    .features-media {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .features-img {
+      display: block;
+      max-width: 135%;
+      height: auto;
+      border-radius: 16px;
+      transition: transform 0.3s ease;
+    }
+
+    .features-img:hover {
+      transform: translateY(-5px) scale(1.02);
     }
 
     /* CONTATOS */
     .contacts {
       padding: 56px 16px 32px;
-      background: var(--secondary);
+      background: var(--brand-grad);
       color: var(--primary);
     }
 
@@ -487,6 +533,9 @@
       width: auto;
       display: block;
       margin-bottom: .6rem;
+    }
+
+    .brand>img {
       filter: brightness(0) invert(1);
     }
 
@@ -537,15 +586,10 @@
       object-fit: contain;
     }
 
-    .icon-btn.wa {
-      border-color: rgba(37, 211, 102, .6);
-      background: rgba(37, 211, 102, .2);
-    }
-
     .icon-btn.wa .icon-img {
-      width: 60%;
-      height: 60%;
-      transform: translateY(2px);
+      width: 100%;
+      height: 100%;
+      transform: translateY(0px);
     }
 
     .col h4 {
@@ -618,10 +662,42 @@
       color: var(--primary);
     }
 
+    /* Animações */
+    @keyframes fadeInScale {
+      0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     /* Responsivo */
     @media (max-width:1100px) {
       .hero-grid {
         grid-template-columns: 1fr;
+      }
+
+      .features-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .features-media {
+        order: -1;
       }
     }
 
@@ -632,7 +708,7 @@
     }
 
     @media (max-width:560px) {
-      .grid-5 {
+      .features-list {
         grid-template-columns: 1fr;
       }
 
@@ -682,7 +758,7 @@
   <main class="hero">
     <div class="section-inner hero-grid">
       <section>
-        <h1 class="title">Automatize sua clínica em dias, não meses</h1>
+        <h1 class="title">Automatize sua clínica em dias</h1>
         <p class="subtitle">O <strong>BioO3</strong> centraliza cadastros, estoque, cotações, leitura de PDFs e agenda
           em um fluxo único — reduzindo retrabalho e acelerando decisões.</p>
 
@@ -707,10 +783,10 @@
         </div>
       </section>
 
-      <!-- Imagem sem moldura/box -->
-      <aside class="hero-media" aria-label="visual do produto">
-        <img src="{{ url_for('static', filename='images/macponza.svg') }}"
-          alt="Dashboard do BioO3 com agenda e indicadores" class="hero-img" />
+      <!-- Nova imagem do ponzahero com fade -->
+      <aside class="hero-media" aria-label="profissional de saúde">
+        <img src="static/images/ponzahero.jpg"
+          alt="Profissional de saúde em ambiente clínico moderno" class="hero-img" />
       </aside>
     </div>
   </main>
@@ -719,77 +795,85 @@
   <section id="recursos" class="features">
     <div class="section-inner">
       <h2 class="title" style="text-align:center">Recursos principais</h2>
-      <p class="subtitle" style="text-align:center; max-width:820px; margin:0 auto 22px">Os módulos que fazem o BioO3
+      <p class="subtitle" style="text-align:center; max-width:820px; margin:0 auto 32px">Os módulos que fazem o BioO3
         cuidar da sua operação, de ponta a ponta.</p>
 
-      <div class="grid-5">
-        <!-- Cadastros -->
-        <div class="feature">
-          <div class="ico-pill" aria-hidden="true">
-            <svg class="ico" viewBox="0 0 24 24">
-              <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
-              <circle cx="12" cy="8" r="4" />
-            </svg>
+      <div class="features-content">
+        <div class="features-list">
+          <!-- Cadastros -->
+          <div class="feature">
+            <div class="ico-pill" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 24 24">
+                <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+                <circle cx="12" cy="8" r="4" />
+              </svg>
+            </div>
+            <div>
+              <h3>Cadastros</h3>
+              <p>Pacientes, médicos e empresas com dados essenciais e vínculo entre eles. Busca por nome, CPF/CRM e
+                telefone.</p>
+            </div>
           </div>
-          <div>
-            <h3>Cadastros</h3>
-            <p>Pacientes, médicos e empresas com dados essenciais e vínculo entre eles. Busca por nome, CPF/CRM e
-              telefone.</p>
+          <!-- Estoque -->
+          <div class="feature">
+            <div class="ico-pill" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 24 24">
+                <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+                <path d="M3 7l9 4 9-4" />
+              </svg>
+            </div>
+            <div>
+              <h3>Estoque</h3>
+              <p>Controle de itens, categorias e níveis mínimos, com alertas de reposição e catálogo organizado.</p>
+            </div>
+          </div>
+          <!-- Cotações -->
+          <div class="feature">
+            <div class="ico-pill" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 24 24">
+                <path d="M7 8h10M7 12h7" />
+                <path d="M4 4h16v12H7l-3 3V4z" />
+              </svg>
+            </div>
+            <div>
+              <h3>Cotações</h3>
+              <p>Envie solicitações a fornecedores e acompanhe respostas em um painel unificado.</p>
+            </div>
+          </div>
+          <!-- Análise de PDFs -->
+          <div class="feature">
+            <div class="ico-pill" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16l4-4h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
+                <path d="M21 21l-4-4" />
+              </svg>
+            </div>
+            <div>
+              <h3>Análise de PDFs</h3>
+              <p>Leitura de exames, comparação com referências e geração de prescrições/condutas.</p>
+            </div>
+          </div>
+          <!-- Agenda -->
+          <div class="feature">
+            <div class="ico-pill" aria-hidden="true">
+              <svg class="ico" viewBox="0 0 24 24">
+                <path d="M7 3v4M17 3v4" />
+                <rect x="3" y="7" width="18" height="14" rx="2" />
+                <path d="M3 11h18" />
+              </svg>
+            </div>
+            <div>
+              <h3>Agenda</h3>
+              <p>Crie consultas, envie lembretes e sincronize com seu calendário.</p>
+            </div>
           </div>
         </div>
-        <!-- Estoque -->
-        <div class="feature">
-          <div class="ico-pill" aria-hidden="true">
-            <svg class="ico" viewBox="0 0 24 24">
-              <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
-              <path d="M3 7l9 4 9-4" />
-            </svg>
-          </div>
-          <div>
-            <h3>Estoque</h3>
-            <p>Controle de itens, categorias e níveis mínimos, com alertas de reposição e catálogo organizado.</p>
-          </div>
-        </div>
-        <!-- Cotações -->
-        <div class="feature">
-          <div class="ico-pill" aria-hidden="true">
-            <svg class="ico" viewBox="0 0 24 24">
-              <path d="M7 8h10M7 12h7" />
-              <path d="M4 4h16v12H7l-3 3V4z" />
-            </svg>
-          </div>
-          <div>
-            <h3>Cotações</h3>
-            <p>Envie solicitações a fornecedores e acompanhe respostas em um painel unificado.</p>
-          </div>
-        </div>
-        <!-- Análise de PDFs -->
-        <div class="feature">
-          <div class="ico-pill" aria-hidden="true">
-            <svg class="ico" viewBox="0 0 24 24">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16l4-4h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
-              <path d="M21 21l-4-4" />
-            </svg>
-          </div>
-          <div>
-            <h3>Análise de PDFs</h3>
-            <p>Leitura de exames, comparação com referências e geração de prescrições/condutas.</p>
-          </div>
-        </div>
-        <!-- Agenda -->
-        <div class="feature">
-          <div class="ico-pill" aria-hidden="true">
-            <svg class="ico" viewBox="0 0 24 24">
-              <path d="M7 3v4M17 3v4" />
-              <rect x="3" y="7" width="18" height="14" rx="2" />
-              <path d="M3 11h18" />
-            </svg>
-          </div>
-          <div>
-            <h3>Agenda</h3>
-            <p>Crie consultas, envie lembretes e sincronize com seu calendário.</p>
-          </div>
-        </div>
+
+        <!-- MacBook movido para cá e maior -->
+        <aside class="features-media" aria-label="dashboard do sistema">
+          <img src="static/images/macponza.svg"
+            alt="MacBook Pro exibindo Ponza" class="features-img" />
+        </aside>
       </div>
     </div>
   </section>
@@ -891,7 +975,7 @@
       <div class="contacts-grid">
         <!-- BRAND -->
         <div class="brand">
-          <img src="{{ url_for('static', filename='images/5.svg') }}" alt="BioO3" />
+          <img src="{{ url_for('static', filename='images/8.svg') }}" alt="PonzaHealth" />
           <h3>BioO3 — Automação para Clínicas</h3>
           <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais, mais
             eficiência.</p>
@@ -907,7 +991,7 @@
             <a class="icon-btn wa"
               href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20gostaria%20de%20falar%20com%20a%20BioO3"
               target="_blank" aria-label="WhatsApp">
-              <img src="{{ url_for('static', filename='images/whatsapp.png') }}" alt="WhatsApp" class="icon-img"
+              <img src="{{ url_for('static', filename='images/whatsapp.svg') }}" alt="WhatsApp" class="icon-img"
                 loading="lazy" />
             </a>
           </div>
@@ -944,24 +1028,15 @@
             <li><a href="#brand">Guia da marca</a></li>
             <li><a href="#sitemap">Mapa do site</a></li>
           </ul>
+          <div class="col">
+            <h4 style="margin-top: 18px">Suporte & Produtos</h4>
+            <ul class="navlist">
+              <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20BioO3"
+                  target="_blank">Fale com um consultor</a></li>
+              <li><a href="#ajuda">Central de ajuda</a></li>
+            </ul>
+          </div>
 
-          <h4 style="margin-top:14px">Conteúdo</h4>
-          <ul class="navlist">
-            <li><a href="#conteudo">Artigos</a></li>
-            <li><a href="#ebooks">Ebooks</a></li>
-            <li><a href="#recursos">Recursos</a></li>
-            <li><a href="#videos">Vídeos</a></li>
-          </ul>
-        </div>
-
-        <!-- COLUNA 4 -->
-        <div class="col">
-          <h4>Suporte & Produtos</h4>
-          <ul class="navlist">
-            <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20BioO3"
-                target="_blank">Fale com um consultor</a></li>
-            <li><a href="#ajuda">Central de ajuda</a></li>
-          </ul>
         </div>
       </div>
 
@@ -969,7 +1044,6 @@
       <div class="bottom">
         <div>© <span id="year"></span> BioO3. Todos os direitos reservados.</div>
         <div class="navlist" style="display:flex; gap:16px; list-style:none">
-          <span>CNPJ: 00.000.000/0001-00</span>
           <a href="#privacidade" style="color:rgba(255,255,255,0.8); text-decoration:none">Política de privacidade</a>
           <a href="#termos" style="color:rgba(255,255,255,0.8); text-decoration:none">Termos de uso</a>
         </div>

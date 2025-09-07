@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Cadastrar Paciente - Ponza Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
+
+    <!-- Funnel Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        :root {
+            --bg: #ffffff;
+            --ink: #0b1220;
+            --ink-dim: #475569;
+            --border: #e5e7eb;
+            --surface: #ffffff;
+            --surface-alt: #f8fafc;
+            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+            --brand-solid: #131d35;
+            --shadow: 0 8px 20px rgba(2, 6, 23, .06);
+            --radius: 12px;
+            --btn-h: 44px;
+            --btn-minw: 160px;
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            display: flex
+        }
+
+        .top-profile {
+            position: fixed;
+            top: 18px;
+            right: 28px;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .icon-btn {
+            position: relative;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            box-shadow: var(--shadow);
+            transition: .15s;
+            text-decoration: none
+        }
+
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+            border-color: var(--brand-solid)
+        }
+
+        .icon-btn i {
+            color: var(--brand-solid);
+            font-size: 18px
+        }
+
+        .icon-btn .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background: var(--brand-solid);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background: var(--brand-grad);
+            padding: 28px 18px;
+            border-right: 1px solid #1f2937;
+            box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
+            display: flex;
+            flex-direction: column;
+            transition: width 180ms ease;
+            position: sticky;
+            top: 0
+        }
+
+        .sidebar-logo {
+            width: 200px;
+            display: block;
+            margin: 0 auto 18px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+            transition: width 180ms ease, margin 180ms ease
+        }
+
+        .sidebar a.menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 16px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            color: #e5e7eb;
+            text-decoration: none;
+            margin-bottom: 18px;
+            font-weight: 600;
+            transition: .12s
+        }
+
+        .sidebar a.menu-item i {
+            width: 21px;
+            text-align: center;
+            flex: 0 0 21px
+        }
+
+        .sidebar a.menu-item:hover {
+            background: #ffffff;
+            color: var(--brand-solid);
+            transform: translateX(4px)
+        }
+
+        .menu-item.active {
+            color: #fff;
+            background: var(--brand-grad);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
+        }
+
+        .sidebar-spacer {
+            flex: 1 1 auto
+        }
+
+        .sidebar a.menu-item.logout {
+            color: #e5e7eb
+        }
+
+        .sidebar-toggle {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .10);
+            border: 1px solid rgba(255, 255, 255, .25);
+            color: #e5e7eb;
+            padding: 6px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            font-size: 12px
+        }
+
+        .sidebar-toggle:hover {
+            background: #ffffff;
+            color: var(--brand-solid);
+            border-color: #ffffff;
+            transform: translateY(-1px)
+        }
+
+        .sidebar.is-collapsed {
+            width: 76px
+        }
+
+        .sidebar.is-collapsed .sidebar-logo {
+            width: 44px;
+            margin: 0 auto 22px
+        }
+
+        .sidebar.is-collapsed .menu-item {
+            justify-content: center;
+            gap: 0;
+            padding: 12px 0;
+            margin-bottom: 14px
+        }
+
+        .sidebar.is-collapsed .menu-item .label {
+            display: none
+        }
+
+        .content {
+            flex-grow: 1;
+            padding: 24px 36px;
+            min-width: 0;
+            position: relative;
+            background: var(--bg)
+        }
+
+        h2 {
+            font-size: 32px;
+            text-align: center;
+            color: var(--ink);
+            margin: 0 0 28px;
+            position: relative;
+            font-weight: 800
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: var(--brand-grad);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, .12)
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 24px
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 8px 0 18px
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 16px
+        }
+
+        .form-group {
+            margin-bottom: 16px
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+            font-size: 14px
+        }
+
+        .input,
+        .textarea,
+        select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--ink);
+            font-family: var(--font-family);
+            font-size: 14px;
+            outline: none;
+            transition: .2s
+        }
+
+        .input:focus,
+        .textarea:focus,
+        select:focus {
+            border-color: var(--brand-solid);
+            box-shadow: 0 0 0 3px rgba(19, 29, 53, .1)
+        }
+
+        .help {
+            font-size: 12px;
+            color: var(--ink-dim);
+            margin-top: 6px
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: .2s;
+            text-decoration: none;
+            color: var(--ink);
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            height: 44px;
+            min-width: 160px
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
+            border-color: var(--brand-solid)
+        }
+
+        .btn.primary {
+            background: var(--brand-grad);
+            color: #fff;
+            border-color: var(--brand-solid)
+        }
+
+        .required::after {
+            content: " *";
+            color: #dc2626;
+            font-weight: 800
+        }
+
+        @media (max-width:900px) {
+
+            .grid-2,
+            .grid-3,
+            .grid-4 {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Topo direito -->
+    <div class="top-profile" aria-label="Ações do usuário">
+        <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
+            <i class="fa fa-user"></i>
+        </a>
+        <a href="{{ url_for('agenda') }}" class="icon-btn" title="Agenda" aria-label="Agenda">
+            <i class="fa fa-calendar"></i>
+        </a>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('is-collapsed')"
+            aria-label="Minimizar/Maximizar menu">
+            <i class="fa fa-angle-double-left"></i>
+        </button>
+        <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+        <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span
+                class="label">Início</span></a>
+        <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
+                class="label">Pacientes</span></a>
+        <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
+                class="label">Agenda</span></a>
+        <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
+                class="label">Estoque</span></a>
+        <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+                class="label">Pagamentos</span></a>
+        <div class="sidebar-spacer"></div>
+        <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
+                class="label">Sair</span></a>
+    </div>
+
+    <div class="content">
+        <h2>Cadastrar Paciente</h2>
+
+        <form class="card" method="post" action="{{ url_for('register_patient') }}" novalidate>
+            <!-- Informações pessoais -->
+            <div class="section-title">Informações Pessoais</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="required" for="name">Nome completo</label>
+                    <input class="input" id="name" name="name" required placeholder="Ex.: Maria Silva" />
+                </div>
+                <div class="form-group">
+                    <label class="required" for="birthdate">Data de nascimento</label>
+                    <input class="input" id="birthdate" name="birthdate" type="date" required />
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <div class="form-group">
+                    <label class="required" for="sex">Sexo</label>
+                    <select class="input" id="sex" name="sex" required>
+                        <option value="">Selecione...</option>
+                        <option value="Feminino">Feminino</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Outro">Outro</option>
+                        <option value="Prefiro não informar">Prefiro não informar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <input class="input" id="email" name="email" type="email" placeholder="exemplo@email.com" />
+                </div>
+                <div class="form-group">
+                    <label for="cpf">CPF</label>
+                    <input class="input" id="cpf" name="cpf" placeholder="Somente números" maxlength="14" />
+                    <div class="help">Deixe em branco se não souber agora.</div>
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <div class="form-group">
+                    <label class="required" for="phone_primary">Celular</label>
+                    <input class="input" id="phone_primary" name="phone_primary" placeholder="(00) 90000-0000"
+                        required />
+                </div>
+                <div class="form-group">
+                    <label for="phone_secondary">Celular secundário</label>
+                    <input class="input" id="phone_secondary" name="phone_secondary" placeholder="(00) 90000-0000" />
+                </div>
+                <div class="form-group">
+                    <label for="notes">Observações</label>
+                    <input class="input" id="notes" name="notes" placeholder="Alergias, preferências, etc." />
+                </div>
+            </div>
+
+            <!-- Endereço -->
+            <div class="section-title">Endereço</div>
+            <div class="grid-4">
+                <div class="form-group">
+                    <label for="cep">CEP</label>
+                    <input class="input" id="cep" name="cep" placeholder="00000-000" />
+                </div>
+                <div class="form-group">
+                    <label for="street">Rua</label>
+                    <input class="input" id="street" name="street" placeholder="Rua Exemplo" />
+                </div>
+                <div class="form-group">
+                    <label for="number">Número</label>
+                    <input class="input" id="number" name="number" placeholder="123" />
+                </div>
+                <div class="form-group">
+                    <label for="complement">Complemento</label>
+                    <input class="input" id="complement" name="complement" placeholder="Apto, bloco..." />
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <div class="form-group">
+                    <label for="district">Bairro</label>
+                    <input class="input" id="district" name="district" placeholder="Bairro" />
+                </div>
+                <div class="form-group">
+                    <label for="city">Cidade</label>
+                    <input class="input" id="city" name="city" placeholder="Cidade" />
+                </div>
+                <div class="form-group">
+                    <label for="state">Estado</label>
+                    <input class="input" id="state" name="state" placeholder="UF" maxlength="2" />
+                </div>
+            </div>
+
+            <div class="actions">
+                <a class="btn" href="{{ url_for('catalog') }}"><i class="fa fa-arrow-left"></i> Voltar</a>
+                <button class="btn primary" type="submit"><i class="fa fa-save"></i> Salvar paciente</button>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>

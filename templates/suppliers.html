@@ -335,6 +335,44 @@
             text-align: center;
         }
 
+        .btn-ghost {
+            background: transparent;
+            color: var(--brand-solid);
+            border: 1px solid var(--brand-solid);
+            height: var(--btn-h);
+            min-width: var(--btn-minw);
+            padding: 0 18px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 14px;
+            cursor: pointer;
+            transition: .22s;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            font-family: var(--font-family);
+        }
+
+        .btn-ghost:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
+        }
+
+        /* Deixa Cancelar e Salvar com o MESMO tamanho dentro do modal */
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: stretch;
+            /* ocupa toda a linha */
+        }
+
+        .modal-actions .btn,
+        .modal-actions .btn-ghost {
+            flex: 1;
+            /* mesmas larguras */
+            min-width: unset;
+            /* ignora min-width global pra igualar */
+        }
+
         table.catalog tbody td {
             padding: 12px 14px;
             border-top: 1px solid var(--border);
@@ -604,10 +642,11 @@
                 <input class="input" type="text" name="name" placeholder="Nome do Fornecedor" required>
                 <input class="input" type="text" name="phone" placeholder="Telefone" required>
                 <input class="input" type="email" name="email" placeholder="E-mail" required>
-                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <div class="modal-actions">
                     <button type="button" class="btn-ghost" onclick="closeAddModal()">Cancelar</button>
                     <button type="submit" class="btn">Salvar</button>
                 </div>
+
             </form>
         </div>
     </div>
@@ -621,7 +660,7 @@
                 <input class="input" type="text" name="name" id="editSupplierName" required>
                 <input class="input" type="text" name="phone" id="editSupplierPhone" required>
                 <input class="input" type="email" name="email" id="editSupplierEmail" required>
-                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <div class="modal-actions">
                     <button type="button" class="btn-ghost" onclick="closeEditModal()">Cancelar</button>
                     <button type="submit" class="btn">Salvar</button>
                 </div>
