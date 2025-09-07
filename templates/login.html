@@ -13,37 +13,29 @@
 
     <style>
         :root {
-            /* Paleta Ponza (azul-escuro) */
-            --ink-1: #0b1220;
-            --ink-2: #0e152a;
-            --bg-elev: #111827;
-            --bg-elev-2: #0f172a;
+            /* Base clara para combinar com a hero */
+            --bg-primary: #ffffff;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: rgba(2, 6, 23, .12);
 
-            --text: #e5e7eb;
-            --text-dim: #cbd5e1;
+            /* Azul padrão em gradiente */
+            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+            --brand-base: #131d35;
+            --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
 
-            --blue: #1e40af;
-            /* azul escuro */
-            --blue-dark: #1e3a8a;
-            /* azul escuro mais claro */
-            --blue-glow: rgba(37, 99, 235, .35);
-            --stroke: #1f2937;
-
-            /* Tipografia (+2px) */
             --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
             --fs-base: 16px;
-            /* corpo */
             --fs-title: 34px;
-            /* títulos uniformes */
             --fs-input: 16px;
-            /* inputs */
             --fs-btn: 16px;
-            /* botões */
             --fs-small: 14px;
-
-            /* Botões padronizados */
             --btn-height: 44px;
             --btn-minw: 220px;
+            --nav-h: 72px;
+            /* igual à hero */
         }
 
         * {
@@ -58,27 +50,23 @@
         body {
             font-family: var(--font-family);
             font-size: var(--fs-base);
-            color: var(--text);
-            background:
-                radial-gradient(1100px 540px at 8% 8%, rgba(14, 165, 233, 0.16) 0%, transparent 54%),
-                radial-gradient(900px 500px at 92% 0%, rgba(30, 64, 175, 0.20) 0%, transparent 55%),
-                linear-gradient(135deg, var(--ink-1) 0%, var(--ink-2) 100%);
+            color: var(--text-primary);
+            background: var(--bg-primary);
             min-height: 100vh;
         }
 
-        /* NAV (sem Tailwind, padronizado) */
+        /* NAVBAR (gradiente padrão) */
         .navbar {
             position: fixed;
             inset: 0 0 auto 0;
-            height: 64px;
+            height: var(--nav-h);
             z-index: 50;
             display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(10px);
-            background: rgba(11, 18, 32, .85);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-            border-bottom: 1px solid rgba(255, 255, 255, .06);
+            background: var(--brand-grad);
+            border-bottom: 1px solid #0f182b;
+            box-shadow: 0 4px 18px var(--shadow);
             padding: 0 24px;
         }
 
@@ -90,6 +78,20 @@
             justify-content: space-between;
         }
 
+        .nav-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 20px;
+            text-decoration: none;
+        }
+
+        .nav-logo img {
+            height: 75px;
+            width: auto;
+            display: block;
+            filter: brightness(0) invert(1);
+        }
+
         .nav-actions a {
             display: inline-flex;
             align-items: center;
@@ -99,37 +101,25 @@
             border-radius: 999px;
             font-weight: 800;
             font-size: var(--fs-small);
-            color: var(--blue);
-            border: 1px solid var(--blue);
+            color: #fff;
+            border: 2px solid #fff;
+            background: transparent;
             text-decoration: none;
             transition: .22s;
             margin-left: 10px;
-            background: transparent;
         }
 
         .nav-actions a:hover {
-            background: var(--blue);
-            color: #fff;
-        }
-
-        .nav-logo {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            text-decoration: none;
-        }
-
-        .nav-logo img {
-            height: 48px;
-            width: auto;
-            display: block;
+            background: #fff;
+            color: var(--brand-base);
+            transform: translateY(-1px);
         }
 
         /* MAIN */
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 112px 16px 32px;
+            padding: calc(var(--nav-h) + 32px) 16px 32px;
             display: flex;
             justify-content: center;
         }
@@ -140,23 +130,23 @@
             border-radius: 16px;
             padding: 28px;
             margin: 0 12px;
-            background: linear-gradient(145deg, var(--bg-elev-2) 0%, var(--bg-elev) 100%);
-            border: 1px solid rgba(255, 255, 255, .06);
-            box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 24px var(--shadow);
         }
 
         h1,
         h2,
         h3 {
             font-weight: 800;
-            color: #fff;
+            color: var(--text-primary);
             text-align: center;
-            text-shadow: 0 2px 6px rgba(0, 0, 0, .35)
+            margin: 0;
         }
 
         h2 {
             font-size: var(--fs-title);
-            margin: 0 0 18px
+            margin-bottom: 18px;
         }
 
         /* Flash badges */
@@ -170,7 +160,7 @@
             font-size: var(--fs-small);
             border: 1px solid;
             display: block;
-            margin-bottom: 8px
+            margin-bottom: 8px;
         }
 
         .flash-warning {
@@ -196,9 +186,9 @@
             width: 100%;
             padding: 12px 14px;
             border-radius: 10px;
-            border: 2px solid var(--stroke);
-            background: #0f172a;
-            color: var(--text);
+            border: 2px solid var(--border);
+            background: #fff;
+            color: var(--text-primary);
             outline: none;
             transition: .2s;
             font-size: var(--fs-input);
@@ -206,10 +196,11 @@
         }
 
         .input:focus {
-            border-color: var(--blue);
-            box-shadow: 0 0 0 4px rgba(30, 64, 175, .18)
+            border-color: var(--brand-base);
+            box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
         }
 
+        /* Botão primário com o gradiente */
         .btn-primary {
             display: inline-flex;
             align-items: center;
@@ -220,32 +211,33 @@
             border-radius: 999px;
             border: none;
             cursor: pointer;
-            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            background: var(--brand-grad);
             color: #fff;
             font-weight: 800;
             font-size: var(--fs-btn);
-            box-shadow: 0 12px 30px rgba(30, 64, 175, .28);
+            box-shadow: 0 10px 26px rgba(19, 29, 53, .22);
             transition: .25s;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 18px 44px rgba(30, 64, 175, .38)
+            box-shadow: 0 14px 36px rgba(19, 29, 53, .30);
+            background: var(--brand-grad-hover);
         }
 
         .muted {
-            color: var(--text-dim);
+            color: var(--text-muted);
             font-size: var(--fs-small)
         }
 
         .link {
-            color: var(--blue);
+            color: var(--brand-base);
             text-decoration: none;
             font-weight: 800
         }
 
         .link:hover {
-            color: #93c5fd
+            text-decoration: underline
         }
     </style>
 </head>
@@ -255,7 +247,7 @@
     <header class="navbar">
         <div class="nav-inner">
             <a href="{{ url_for('hero') }}" class="nav-logo">
-                <img src="{{ url_for('static', filename='images/ponza-photo.png') }}" alt="Ponza Health" />
+                <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
             </a>
             <div class="nav-actions">
                 <a href="{{ url_for('register') }}">Cadastrar</a>
@@ -276,7 +268,8 @@
                     {% for category, msg in messages %}
                     <div
                         class="badge {% if category == 'warning' %}flash-warning{% elif category == 'success' %}flash-success{% else %}flash-info{% endif %}">
-                        {{ msg }}</div>
+                        {{ msg }}
+                    </div>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -287,10 +280,12 @@
                 {% endif %}
 
                 <form method="post" action="{{ url_for('login') }}">
-                    <div style="margin-bottom:12px"><input type="text" name="login" placeholder="E-mail ou usuário"
-                            required class="input"></div>
-                    <div style="margin-bottom:18px"><input type="password" name="password" placeholder="Senha" required
-                            class="input"></div>
+                    <div style="margin-bottom:12px">
+                        <input type="text" name="login" placeholder="E-mail ou usuário" required class="input">
+                    </div>
+                    <div style="margin-bottom:18px">
+                        <input type="password" name="password" placeholder="Senha" required class="input">
+                    </div>
                     <button type="submit" class="btn-primary">Entrar</button>
                 </form>
 

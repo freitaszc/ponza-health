@@ -2,257 +2,240 @@
 <html lang="pt-br">
 
 <head>
-    <meta charset="UTF-8" />
-    <title>Cadastro — Ponza Health</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+  <meta charset="UTF-8" />
+  <title>Cadastro — Ponza Health</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Funnel Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-    <!-- Funnel Sans -->
-    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet" />
+  <style>
+    :root {
+      /* Base clara para combinar com a hero */
+      --bg-primary: #ffffff;
+      --bg-card: #ffffff;
+      --text-primary: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: rgba(2, 6, 23, .12);
 
-    <style>
-        :root {
-            --ponza-primary: #1e40af;
-            --ponza-primary-dark: #1e3a8a;
-            --ponza-glow: rgba(37, 99, 235, .18);
-            --ink-1: #0b1220;
-            --ink-2: #0e152a;
-            --ink-3: #111827;
-            --stroke: #1f2937;
-            --text: #e5e7eb;
-            --text-dim: #cbd5e1;
-        }
+      /* Azul padrão em gradiente */
+      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-base: #131d35;
+      --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
 
-        /* Fonte única: Funnel Sans + ajuste de ~2px vs Inter/Montserrat */
-        body {
-            font-family: 'Funnel Sans', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-            font-size: 18px;
-            /* +2px */
-            line-height: 1.45;
-            color: var(--text);
-            background: var(--ink-1);
-        }
+      --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --fs-base: 16px; --fs-title: 34px; --fs-input: 16px; --fs-btn: 16px; --fs-small: 14px;
+      --btn-height: 44px; --btn-minw: 220px;
+      --nav-h: 72px; /* igual à hero */
+    }
 
-        .hero-gradient {
-            background:
-                radial-gradient(1100px 540px at 8% 8%, rgba(14, 165, 233, .16) 0%, transparent 54%),
-                radial-gradient(900px 500px at 92% 0%, rgba(30, 64, 175, .20) 0%, transparent 55%),
-                linear-gradient(135deg, var(--ink-1) 0%, var(--ink-2) 100%);
-        }
+    * { box-sizing: border-box }
+    html, body { margin: 0 }
 
-        .navbar-blur {
-            backdrop-filter: blur(10px);
-            background: rgba(11, 18, 32, .85);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-            border-bottom: 1px solid rgba(255, 255, 255, .06);
-        }
+    body {
+      font-family: var(--font-family);
+      font-size: var(--fs-base);
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh;
+    }
 
-        .card {
-            background: linear-gradient(145deg, var(--ink-2) 0%, var(--ink-1) 100%);
-            border: 1px solid rgba(255, 255, 255, .06);
-            box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
-        }
+    /* NAVBAR (gradiente padrão) */
+    .navbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--nav-h);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-grad);
+      border-bottom: 1px solid #0f182b;
+      box-shadow: 0 4px 18px var(--shadow);
+      padding: 0 24px;
+    }
+    .nav-inner { width: 100%; max-width: 1200px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { display: inline-flex; align-items: center; gap: 20px; text-decoration: none; }
+    .nav-logo img { height: 75px; width: auto; display: block; filter: brightness(0) invert(1); }
+    .nav-actions a {
+      display: inline-flex; align-items: center; justify-content: center; height: 38px; padding: 0 16px;
+      border-radius: 999px; font-weight: 800; font-size: var(--fs-small);
+      color: #fff; border: 2px solid #fff; background: transparent; text-decoration: none; transition: .22s; margin-left: 10px;
+    }
+    .nav-actions a:hover { background: #fff; color: var(--brand-base); transform: translateY(-1px); }
 
-        .input,
-        .select {
-            width: 100%;
-            padding: 1rem 1.1rem;
-            /* +2px aprox */
-            border-radius: .9rem;
-            border: 2px solid var(--stroke);
-            background: #0f172a;
-            color: var(--text);
-            outline: none;
-            transition: .2s;
-            appearance: none;
-            font-size: 18px;
-            /* +2px */
-        }
+    /* MAIN */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: calc(var(--nav-h) + 32px) 16px 32px; /* offset da navbar fixa */
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 520px;
+      border-radius: 16px;
+      padding: 28px;
+      margin: 0 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 24px var(--shadow);
+    }
 
-        .input:focus,
-        .select:focus {
-            border-color: var(--ponza-primary);
-            box-shadow: 0 0 0 4px var(--ponza-glow)
-        }
+    h1, h2, h3 { font-weight: 800; color: var(--text-primary); text-align: center; text-shadow: none; }
+    h2 { font-size: var(--fs-title); margin: 0 0 18px; }
 
-        .btn-primary {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            background: linear-gradient(135deg, var(--ponza-primary), var(--ponza-primary-dark));
-            color: #fff;
-            border: 0;
-            border-radius: 999px;
-            padding: 1rem 1.4rem;
-            /* +2px */
-            font-weight: 800;
-            font-size: 18px;
-            /* +2px */
-            box-shadow: 0 12px 30px rgba(30, 64, 175, .28);
-            transition: .25s;
-        }
+    /* Flash badges */
+    .flash-wrap { margin-bottom: 16px; }
+    .badge {
+      padding: .7rem .9rem;
+      border-radius: .8rem;
+      font-size: var(--fs-small);
+      border: 1px solid;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .flash-warning { background: #fff4e5; color: #9a5a00; border-color: #f3c077; }
+    .flash-success { background: #e6ffed; color: #046c4e; border-color: #9be5c1; }
+    .flash-info    { background: #e7f3ff; color: #0b5cab; border-color: #9ec5fe; }
 
-        .btn-primary:hover {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 18px 44px rgba(30, 64, 175, .38)
-        }
+    /* Form */
+    .input, .select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: #fff;
+      color: var(--text-primary);
+      outline: none;
+      transition: .2s;
+      font-size: var(--fs-input);
+      font-family: var(--font-family);
+    }
+    .input:focus, .select:focus {
+      border-color: var(--brand-base);
+      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
+    }
 
-        .btn-outline {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--ponza-primary);
-            border: 1px solid var(--ponza-primary);
-            border-radius: 999px;
-            padding: .7rem 1.1rem;
-            font-weight: 700;
-            font-size: 18px;
-            transition: .25s;
-        }
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: var(--btn-height); width: 100%; min-width: var(--btn-minw);
+      border-radius: 999px; border: none; cursor: pointer;
+      background: var(--brand-grad); color: #fff; font-weight: 800; font-size: var(--fs-btn);
+      box-shadow: 0 10px 26px rgba(19,29,53,.22); transition: .25s;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 14px 36px rgba(19,29,53,.30);
+      background: var(--brand-grad-hover);
+    }
 
-        .btn-outline:hover {
-            background: var(--ponza-primary);
-            color: #fff
-        }
+    .muted { color: var(--text-muted); font-size: var(--fs-small); }
+    .link  { color: var(--brand-base); text-decoration: none; font-weight: 800; }
+    .link:hover { text-decoration: underline; }
 
-        .badge {
-            padding: .55rem .8rem;
-            border-radius: .7rem;
-            font-size: .95rem;
-            border: 1px solid;
-            display: inline-block;
-        }
-
-        .success {
-            background: rgba(30, 64, 175, .10);
-            color: #bfdbfe;
-            border-color: rgba(30, 64, 175, .35)
-        }
-
-        .warning {
-            background: rgba(234, 179, 8, .08);
-            color: #fde68a;
-            border-color: rgba(234, 179, 8, .35)
-        }
-
-        .danger {
-            background: rgba(239, 68, 68, .08);
-            color: #fecaca;
-            border-color: rgba(239, 68, 68, .35)
-        }
-
-        /* Títulos com tamanho padronizado (34px, como nas demais páginas) */
-        .title-xl {
-            font-size: 34px;
-            font-weight: 800;
-        }
-    </style>
+    .hidden { display: none; }
+  </style>
 </head>
 
-<body class="text-[var(--text)]">
-    <!-- NAVBAR -->
-    <header class="navbar-blur py-4 px-6 fixed top-0 left-0 w-full z-50">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="flex items-center flex-shrink-0">
-                <a href="{{ url_for('hero') }}" class="inline-flex items-center gap-2">
-                    <img src="{{ url_for('static', filename='images/ponza-photo.png') }}" alt="Ponza Health"
-                        class="h-12 w-auto max-w-none">
-                </a>
-            </div>
+<body>
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="{{ url_for('hero') }}" class="nav-logo">
+        <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
+      </a>
+      <div class="nav-actions">
+        <a href="{{ url_for('register') }}">Cadastrar</a>
+        <a href="{{ url_for('login') }}">Entrar</a>
+      </div>
+    </div>
+  </header>
 
-            <div class="hidden md:flex items-center space-x-3">
-                <a href="{{ url_for('register') }}" class="btn-outline">Cadastrar</a>
-                <a href="{{ url_for('login') }}" class="btn-outline">Entrar</a>
-            </div>
+  <!-- FORM CADASTRO -->
+  <main>
+    <div class="container">
+      <div class="card">
+        <h2>Crie sua conta</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+          {% for category, msg in messages %}
+          <div class="badge {% if category == 'warning' %}flash-warning{% elif category == 'success' %}flash-success{% else %}flash-info{% endif %}">
+            {{ msg }}
+          </div>
+          {% endfor %}
         </div>
-    </header>
+        {% endif %}
+        {% endwith %}
 
-    <!-- FORM CADASTRO -->
-    <main class="hero-gradient min-h-screen pt-32 pb-16 px-4">
-        <div class="max-w-7xl mx-auto flex justify-center">
-            <div class="card rounded-2xl p-8 w-full max-w-md">
-                <h2 class="title-xl mb-6 text-center text-white">Crie sua conta</h2>
+        <form method="post" action="{{ url_for('register') }}" onsubmit="return validarEmpresa()">
+          <div style="margin-bottom:12px">
+            <input type="text" name="username" placeholder="Nome de usuário" required class="input">
+          </div>
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                <div class="mb-5 space-y-2 text-left">
-                    {% for category, message in messages %}
-                    <div
-                        class="badge {% if category == 'success' %}success{% endif %}{% if category == 'warning' %} warning{% endif %}{% if category == 'danger' %} danger{% endif %}">
-                        {{ message }}
-                    </div><br />
-                    {% endfor %}
-                </div>
-                {% endif %}
-                {% endwith %}
+          <div style="margin-bottom:12px">
+            <input type="email" name="email" placeholder="E-mail" required class="input">
+          </div>
 
-                <form method="post" action="{{ url_for('register') }}" onsubmit="return validarEmpresa()">
-                    <input type="text" name="username" placeholder="Nome de usuário" required class="input mb-3">
-                    <input type="email" name="email" placeholder="E-mail" required class="input mb-3">
+          <div style="margin-bottom:12px">
+            <select id="account_type" name="account_type" class="select" onchange="toggleEmpresaField()">
+              <option value="pessoal" selected>Conta pessoal</option>
+              <option value="empresa">Conta da empresa</option>
+            </select>
+          </div>
 
-                    <!-- Tipo de conta (corrige referência no JS) -->
-                    <select id="account_type" name="account_type" class="select mb-3" onchange="toggleEmpresaField()">
-                        <option value="pessoal" selected>Conta pessoal</option>
-                        <option value="empresa">Conta da empresa</option>
-                    </select>
+          <div id="empresa_field" class="hidden" style="margin-bottom:12px">
+            <input type="text" id="company_code" name="company_code" placeholder="Código da empresa" class="input">
+          </div>
 
-                    <div id="empresa_field" class="hidden">
-                        <input type="text" id="company_code" name="company_code" placeholder="Código da empresa"
-                            class="input mb-3">
-                    </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:4px">
+            <input type="password" name="password" placeholder="Senha" required class="input">
+            <input type="password" name="confirm" placeholder="Confirmar senha" required class="input">
+          </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <input type="password" name="password" placeholder="Senha" required class="input">
-                        <!-- IMPORTANTE: o backend espera 'confirm' -->
-                        <input type="password" name="confirm" placeholder="Confirmar senha" required class="input">
-                    </div>
+          <p class="muted" style="margin: 6px 0 16px">
+            A senha deve ter 8+ caracteres, com letra, número e símbolo.
+          </p>
 
-                    <p class="text-[16px] text-[var(--text-dim)] mt-3 mb-4">
-                        A senha deve ter 8+ caracteres, com letra, número e símbolo.
-                    </p>
+          <button type="submit" class="btn-primary">Cadastrar</button>
+        </form>
 
-                    <button type="submit" class="btn-primary">Cadastrar</button>
-                </form>
-
-                <div class="text-center mt-6 text-[16px]">
-                    <span class="text-[var(--text-dim)]">Já tem conta?</span>
-                    <a href="{{ url_for('login') }}"
-                        class="text-[var(--ponza-primary)] hover:text-blue-300 font-semibold ml-1">
-                        Entrar
-                    </a>
-                </div>
-            </div>
+        <div style="text-align:center; margin-top:16px">
+          <span class="muted">Já tem conta?</span>
+          <a href="{{ url_for('login') }}" class="link" style="margin-left:6px">Entrar</a>
         </div>
-    </main>
+      </div>
+    </div>
+  </main>
 
-    <script>
-        function toggleEmpresaField() {
-            const tipo = document.getElementById('account_type').value;
-            const campo = document.getElementById('empresa_field');
-            const input = document.getElementById('company_code');
-            if (tipo === 'empresa') {
-                campo.classList.remove('hidden');
-                input.setAttribute('required', 'required');
-            } else {
-                campo.classList.add('hidden');
-                input.removeAttribute('required');
-            }
-        }
-        function validarEmpresa() {
-            const tipo = document.getElementById('account_type').value;
-            const input = document.getElementById('company_code');
-            if (tipo === 'empresa' && !input.value.trim()) {
-                alert('Por favor, insira o código da empresa.');
-                return false;
-            }
-            return true;
-        }
-    </script>
+  <script>
+    function toggleEmpresaField() {
+      const tipo = document.getElementById('account_type').value;
+      const campo = document.getElementById('empresa_field');
+      const input = document.getElementById('company_code');
+      if (tipo === 'empresa') {
+        campo.classList.remove('hidden');
+        input.setAttribute('required', 'required');
+      } else {
+        campo.classList.add('hidden');
+        input.removeAttribute('required');
+      }
+    }
+
+    function validarEmpresa() {
+      const tipo = document.getElementById('account_type').value;
+      const input = document.getElementById('company_code');
+      if (tipo === 'empresa' && !input.value.trim()) {
+        alert('Por favor, insira o código da empresa.');
+        return false;
+      }
+      return true;
+    }
+  </script>
 </body>
-
 </html>

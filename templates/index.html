@@ -16,36 +16,43 @@
 
   <style>
     :root {
-      /* Paleta Ponza (azul escuro) */
-      --bg-deep: #080b12;
-      --bg-dark: #0b1220;
-      --bg-elev: #111827;
-      --bg-elev-2: #0f172a;
-      --text: #e5e7eb;
-      --text-dim: #cbd5e1;
-      --blue: #1e40af;
-      /* 800 */
-      --blue-dark: #1e3a8a;
-      /* 900 */
-      --blue-soft: #93c5fd;
-      /* 300 */
-      --blue-glow: rgba(37, 99, 235, .35);
+      /* Duas cores: azul escuro (sidebar) e branco */
+      --bg: #ffffff;
+      /* fundo principal */
+      --surface: #ffffff;
+      /* cartões/brancos */
+      --surface-alt: #f8fafc;
+      /* cinza bem claro para contraste leve */
+      --border: #e5e7eb;
+      /* borda clara */
+      --ink: #0b1220;
+      /* texto principal */
+      --ink-dim: #475569;
+      /* texto secundário */
+
+      /* === GRADIENTE DO SIDEBAR (PEDIDO) === */
+      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-blue-solid: #0f182b;
+      /* cor sólida para gráficos/bordas quando necessário */
+
+      --shadow: 0 8px 20px rgba(2, 6, 23, .06);
+      --shadow-strong: 0 14px 36px rgba(2, 6, 23, .12);
     }
 
-    /* Tooltip HTML do Google Charts — dark + borda azul */
+    /* Tooltip HTML do Google Charts — claro com borda azul escuro */
     .gtooltip {
       padding: 8px 10px;
-      background: #0b1222;
-      color: #e5e7eb;
-      border: 1px solid var(--blue-glow);
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--brand-blue-solid);
       border-radius: 8px;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
+      box-shadow: var(--shadow);
       font-family: 'Funnel Sans', sans-serif;
       font-size: 14px;
     }
 
     .gtooltip b {
-      color: #fff;
+      color: var(--ink);
     }
 
     @keyframes chartSlideIn {
@@ -73,36 +80,34 @@
       display: flex;
       min-height: 100vh;
       font-family: 'Funnel Sans', sans-serif;
-      background:
-        radial-gradient(1000px 600px at 10% 0%, #0b1428 0%, transparent 50%),
-        radial-gradient(900px 600px at 90% 10%, #0a0f1f 0%, transparent 50%),
-        linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-dark) 100%);
-      color: var(--text);
+      background: var(--bg);
+      color: var(--ink);
     }
 
     body.modal-open {
       overflow: hidden
     }
 
-    /* ===== Sidebar (padrão Ponza Lab) ===== */
+    /* =================== SIDEBAR =================== */
     .sidebar {
-      position: static;
       width: 250px;
       min-height: 100vh;
-      background: linear-gradient(180deg, #0b111c 0%, #0a0f1a 100%);
-      padding: 30px 20px;
+      background: var(--brand-grad);
+      padding: 28px 18px;
       border-right: 1px solid #1f2937;
-      box-shadow: 2px 0 14px rgba(0, 0, 0, .35);
+      box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
       display: flex;
       flex-direction: column;
       transition: width 180ms ease;
+      position: sticky;
+      top: 0;
     }
 
     .sidebar-logo {
       width: 200px;
       display: block;
-      margin: 0 auto 20px;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35));
+      margin: 0 auto 18px;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
       transition: width 180ms ease, margin 180ms ease;
     }
 
@@ -110,14 +115,13 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      font-size: 16px;
-      /* +2px */
+      font-size: 15px;
       padding: 14px 16px;
       border-radius: 10px;
-      color: var(--text-dim);
+      color: #e5e7eb;
       text-decoration: none;
       margin-bottom: 18px;
-      font-weight: 500;
+      font-weight: 600;
       transition: background .2s, color .2s, transform .12s;
     }
 
@@ -127,14 +131,21 @@
       flex: 0 0 21px;
     }
 
+    /* Hover BRANCO, texto azul escuro */
     .sidebar a.menu-item:hover {
-      background: rgba(30, 64, 175, .12);
-      color: #fff;
+      background: #ffffff;
+      color: var(--brand-blue-solid);
       transform: translateX(4px);
     }
 
-    .sidebar a.menu-item.admin {
-      color: #93c5fd;
+    .sidebar a.menu-item:hover i {
+      color: var(--brand-blue-solid);
+    }
+
+    .sidebar a.menu-item.active {
+      color: #fff;
+      background: var(--brand-grad);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
     }
 
     .sidebar-spacer {
@@ -147,24 +158,22 @@
 
     .sidebar-toggle {
       align-self: flex-end;
-      background: rgba(255, 255, 255, .03);
-      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .25);
       color: #e5e7eb;
       padding: 6px 10px;
       border-radius: 10px;
       cursor: pointer;
       margin-bottom: 14px;
       transition: background .2s, border-color .2s, transform .12s;
+      font-size: 12px;
     }
 
     .sidebar-toggle:hover {
-      background: rgba(30, 64, 175, .10);
-      border-color: rgba(30, 64, 175, .35);
+      background: #ffffff;
+      color: var(--brand-blue-solid);
+      border-color: #ffffff;
       transform: translateY(-1px);
-    }
-
-    .sidebar-toggle i {
-      transition: transform 180ms ease;
     }
 
     .sidebar.is-collapsed {
@@ -173,38 +182,39 @@
 
     .sidebar.is-collapsed .sidebar-logo {
       width: 44px;
-      margin: 0 auto 24px;
+      margin: 0 auto 22px;
     }
 
     .sidebar.is-collapsed .menu-item {
       justify-content: center;
       gap: 0;
       padding: 12px 0;
+      margin-bottom: 18px;
     }
 
     .sidebar.is-collapsed .menu-item .label {
-      display: none
+      display: none;
     }
 
     .sidebar.is-collapsed .sidebar-toggle i {
-      transform: rotate(180deg)
+      transform: rotate(180deg);
     }
 
-    /* ===== Conteúdo ===== */
+    /* =================== CONTEÚDO =================== */
     .content {
       flex-grow: 1;
       padding: 40px;
       position: relative;
       min-width: 0;
+      background: var(--bg);
     }
 
     h2 {
       font-size: 34px;
       font-weight: 800;
       text-align: center;
-      color: var(--text);
+      color: var(--ink);
       margin: 0 0 30px;
-      text-shadow: 0 2px 6px rgba(0, 0, 0, .35);
       position: relative;
     }
 
@@ -216,36 +226,36 @@
       transform: translateX(-50%);
       width: 80px;
       height: 4px;
-      background: linear-gradient(90deg, var(--blue), #60a5fa);
+      background: var(--brand-grad);
       border-radius: 2px;
-      box-shadow: 0 0 12px var(--blue-glow);
+      box-shadow: 0 0 8px rgba(0, 0, 0, .12);
     }
 
     .chart-container,
     .donut-container {
-      background: linear-gradient(145deg, var(--bg-elev) 0%, var(--bg-elev-2) 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
       padding: 28px;
-      border-radius: 20px;
-      box-shadow: 0 14px 40px rgba(0, 0, 0, .35), 0 0 0 1px rgba(255, 255, 255, .04) inset;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
       transition: transform .2s ease, box-shadow .2s ease;
       position: relative;
       overflow: hidden;
-      animation: chartSlideIn .8s ease-out;
-      color: var(--text);
+      animation: chartSlideIn .6s ease-out;
+      color: var(--ink);
     }
 
     .chart-container:hover,
     .donut-container:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, .45), 0 0 0 1px rgba(30, 64, 175, .08) inset;
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(2, 6, 23, .10);
     }
 
     .chart-container h3,
     .donut-container h3 {
-      color: var(--text);
+      color: var(--ink);
       font-weight: 800;
       font-size: 20px;
-      /* +2px */
       margin: 0 0 20px;
       text-align: center;
       position: relative;
@@ -260,7 +270,7 @@
       transform: translateX(-50%);
       width: 50px;
       height: 3px;
-      background: linear-gradient(90deg, var(--blue), #60a5fa);
+      background: var(--brand-grad);
       border-radius: 2px;
     }
 
@@ -296,7 +306,7 @@
       height: 180px;
       margin: 0 auto 10px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(30, 64, 175, .10) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(11, 17, 28, .08) 0%, transparent 70%);
     }
 
     #donut_label {
@@ -307,26 +317,24 @@
       justify-content: center;
       font-size: 2.6em;
       font-weight: 900;
-      color: var(--blue);
-      text-shadow: 0 2px 4px rgba(0, 0, 0, .4);
+      color: var(--brand-blue-solid);
       pointer-events: none;
     }
 
-    /* Botão padrão Ponza */
+    /* Botão padrão — usa a MESMA cor do sidebar */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+      background: var(--brand-grad);
       color: #fff;
-      border: none;
+      border: 1px solid var(--brand-blue-solid);
       padding: 12px 24px;
       border-radius: 999px;
       cursor: pointer;
       font-weight: 800;
       font-size: 16px;
-      /* +2px */
-      box-shadow: 0 8px 24px var(--blue-glow);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
       transition: transform .2s, box-shadow .2s, filter .2s;
       min-width: 220px;
       font-family: 'Funnel Sans', sans-serif;
@@ -334,36 +342,67 @@
 
     .btn:hover {
       transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 14px 36px rgba(37, 99, 235, .45);
-      filter: saturate(1.05);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, .20);
+      filter: saturate(1.04);
     }
 
-    .details-button {
-      composes: btn;
-    }
-
-    /* sem efeito real, apenas semântico */
-
-    /* Perfil topo direito */
+    /* =================== TOPO DIREITO (ícones no mesmo formato) =================== */
     .top-profile {
       position: fixed;
       top: 18px;
       right: 28px;
       z-index: 1001;
-      background: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: transparent;
       box-shadow: none;
     }
 
-    .top-profile img {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      border: 2px solid var(--blue);
-      box-shadow: 0 2px 8px rgba(37, 99, 235, .15);
-      background: #0b1222;
+    .icon-btn {
+      position: relative;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      box-shadow: var(--shadow);
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
+      text-decoration: none;
     }
 
-    /* Modal */
+    .icon-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+      border-color: var(--brand-blue-solid);
+    }
+
+    .icon-btn i {
+      color: var(--brand-blue-solid);
+      font-size: 18px;
+    }
+
+    .icon-btn .badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: var(--brand-blue-solid);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* =================== MODAL =================== */
     #detailsModal {
       display: none;
       position: fixed;
@@ -371,19 +410,19 @@
       z-index: 9999;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, .6);
-      backdrop-filter: blur(8px);
+      background: rgba(0, 0, 0, .55);
+      backdrop-filter: blur(4px);
       padding: 20px;
     }
 
     #detailsModal .modal-card {
       width: 100%;
       max-width: 420px;
-      background: linear-gradient(145deg, #0f172a 0%, #0b1222 100%);
-      border: 1px solid rgba(255, 255, 255, .06);
-      border-radius: 20px;
-      box-shadow: 0 25px 60px rgba(0, 0, 0, .55);
-      color: var(--text);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, .20);
+      color: var(--ink);
       padding: 30px;
       position: relative;
       text-align: center;
@@ -393,12 +432,12 @@
       margin: 0 0 12px;
       font-size: 20px;
       font-weight: 800;
-      color: #fff;
+      color: var(--ink);
     }
 
     #detailsModal .stats {
-      background: rgba(30, 64, 175, .10);
-      border: 1px solid rgba(30, 64, 175, .18);
+      background: var(--surface-alt);
+      border: 1px solid var(--brand-blue-solid);
       padding: 18px;
       border-radius: 14px;
       margin: 18px 0;
@@ -407,12 +446,12 @@
 
     #detailsModal .stats p {
       margin: 8px 0;
-      color: #cbd5e1;
+      color: var(--ink-dim);
       font-weight: 700;
     }
 
     #detailsModal .stats strong {
-      color: #e5e7eb;
+      color: var(--ink);
     }
 
     #detailsModal .close-btn {
@@ -421,7 +460,7 @@
       right: 12px;
       background: none;
       border: none;
-      color: #94a3b8;
+      color: #64748b;
       font-size: 24px;
       font-weight: 800;
       cursor: pointer;
@@ -429,15 +468,9 @@
     }
 
     #detailsModal .close-btn:hover {
-      color: var(--blue);
+      color: var(--brand-blue-solid);
       transform: scale(1.1);
     }
-
-    #detailsModal .cta-btn {
-      composes: btn;
-    }
-
-    /* sem efeito real */
 
     @media (max-width:700px) {
       .top-profile {
@@ -460,19 +493,20 @@
     const pacotes_usados = {{ used or 0 }};
     const pacotes_comprados = {{ (used or 0) + (remaining or 0) }};
 
+    // Cores sólidas para os gráficos (Google Charts não aceita gradiente)
+    const BRAND = '#0f182b';
+
     let comboChart, donutChart, comboData, donutData;
     google.charts.load('current', { packages: ['corechart'] });
     google.charts.setOnLoadCallback(initCharts);
 
     function initCharts() {
-      // Linhas do servidor
       const rows = [
         {% for item in quiz_chart_data %}
     ['{{ item.date }}', {{ item.count }}, {{ item.media }}]{% if not loop.last %}, {% endif %}
     {% endfor %}
       ];
 
-    // DataTable com anotações e tooltips HTML
     comboData = new google.visualization.DataTable();
     comboData.addColumn('string', 'Data');
     comboData.addColumn('number', 'Autoavaliações');
@@ -494,7 +528,6 @@
       ]);
     });
 
-    // Donut
     const total = Math.max(pacotes_comprados, 1);
     const usados = Math.min(pacotes_usados, total);
     donutData = google.visualization.arrayToDataTable([
@@ -507,7 +540,6 @@
     donutChart = new google.visualization.PieChart(document.getElementById('donut_chart'));
     redrawCharts();
 
-    // Redesenho responsivo
     window.addEventListener('resize', debounce(redrawCharts, 120));
     const ro = new ResizeObserver(debounce(redrawCharts, 80));
     document.querySelectorAll('.content, #curve_chart, #donut_chart').forEach(el => el && ro.observe(el));
@@ -521,27 +553,16 @@
       return {
         backgroundColor: 'transparent',
         chartArea: { left: small ? 48 : 60, top: 20, width: '85%', height: '75%' },
-        legend: {
-          position: tiny ? 'none' : 'bottom',
-          textStyle: { color: '#e5e7eb', fontName: 'Funnel Sans', fontSize: small ? 13 : 14, bold: true }
-        },
+        legend: { position: tiny ? 'none' : 'bottom', textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: small ? 13 : 14, bold: true } },
         seriesType: 'bars',
         series: {
-          0: { color: '#1e40af', type: 'bars', targetAxisIndex: 0, dataOpacity: 0.95 },
-          1: { type: 'line', color: '#93c5fd', lineWidth: small ? 3 : 4, pointSize: small ? 5 : 7, pointShape: 'circle', curveType: 'function' }
+          0: { color: BRAND, type: 'bars', targetAxisIndex: 0, dataOpacity: 0.95 },
+          1: { type: 'line', color: BRAND, lineWidth: small ? 3 : 4, pointSize: 0, curveType: 'function' }
         },
         bar: { groupWidth: small ? '52%' : '60%' },
-        vAxis: {
-          minValue: 0,
-          textStyle: { color: '#cbd5e1', fontName: 'Funnel Sans', fontSize: small ? 12 : 13 },
-          gridlines: { color: '#23304a', count: 5 },
-          baselineColor: '#334155'
-        },
-        hAxis: {
-          textStyle: { color: '#cbd5e1', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true },
-          slantedText: small, slantedTextAngle: small ? 30 : 0
-        },
-        annotations: { textStyle: { color: '#e5e7eb', fontName: 'Funnel Sans', fontSize: 13 }, alwaysOutside: true },
+        vAxis: { minValue: 0, textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13 }, gridlines: { color: '#e2e8f0', count: 5 }, baselineColor: '#94a3b8' },
+        hAxis: { textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true }, slantedText: small, slantedTextAngle: small ? 30 : 0 },
+        annotations: { textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: 13 }, alwaysOutside: true },
         tooltip: { isHtml: true, ignoreBounds: true },
         animation: { duration: 600, easing: 'out', startup: true }
       };
@@ -552,10 +573,12 @@
       const tiny = w < 160;
       return {
         backgroundColor: 'transparent',
-        pieHole: 0.65, pieSliceText: 'none', legend: 'none',
+        pieHole: 0.65,
+        pieSliceText: 'none',
+        legend: 'none',
         chartArea: { width: '95%', height: '95%', top: 5, left: 5 },
-        colors: ['#1e40af', '#0f172a'],
-        pieSliceBorderColor: '#0b1222',
+        colors: [BRAND, '#ffffff'],
+        pieSliceBorderColor: BRAND,
         slices: { 0: { offset: 0.02 }, 1: { offset: 0 } },
         tooltip: { isHtml: true, textStyle: { fontName: 'Funnel Sans', fontSize: tiny ? 11 : 13 }, showColorCode: true },
         animation: { duration: 600, easing: 'out', startup: true }
@@ -567,10 +590,9 @@
       comboChart.draw(comboData, getComboOptions());
       donutChart.draw(donutData, getDonutOptions());
 
-      // Glow e label do donut
       setTimeout(() => {
         const svg = document.getElementById('donut_chart')?.querySelector('svg');
-        if (svg) { svg.style.filter = 'drop-shadow(0 0 16px rgba(37,99,235,.35))'; svg.style.borderRadius = '50%' }
+        if (svg) { svg.style.filter = 'drop-shadow(0 0 12px rgba(0,0,0,.12))'; svg.style.borderRadius = '50%' }
         const total = pacotes_comprados > 0 ? pacotes_comprados : 1;
         const percentage = Math.round((pacotes_usados / total) * 100);
         const label = document.getElementById('donut_label');
@@ -578,22 +600,12 @@
       }, 0);
     }
 
-    // debounce utilitário
     function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms) } }
 
-    // Modal
-    function openModal() {
-      const m = document.getElementById('detailsModal');
-      m.style.display = 'flex'; document.body.classList.add('modal-open'); m.setAttribute('aria-hidden', 'false');
-      m.querySelector('[data-close]')?.focus();
-    }
-    function closeModal() {
-      const m = document.getElementById('detailsModal');
-      m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true');
-    }
+    function openModal() { const m = document.getElementById('detailsModal'); m.style.display = 'flex'; document.body.classList.add('modal-open'); m.setAttribute('aria-hidden', 'false'); m.querySelector('[data-close]')?.focus(); }
+    function closeModal() { const m = document.getElementById('detailsModal'); m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true'); }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
 
-    // Sidebar + redesenho após transição
     function toggleSidebar() {
       const sidebar = document.querySelector('.sidebar');
       sidebar.classList.toggle('is-collapsed');
@@ -609,14 +621,15 @@
 </head>
 
 <body>
-  <!-- Perfil topo direito -->
-  <div class="top-profile">
-    <a href="{{ url_for('account') }}"
-      style="display:flex; flex-direction:column; align-items:center; text-decoration:none;">
-      <img src="{{ url_for('static', filename=(user.profile_image or 'images/user-icon.png')) }}" alt="Minha Conta">
-      <span style="font-size:13px; color:#93c5fd; font-weight:700; font-family:'Funnel Sans',sans-serif;">Meu
-        Perfil</span>
+  <!-- Topo direito: Perfil + Notificações (mesmo formato) -->
+  <div class="top-profile" aria-label="Ações do usuário">
+    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
+      <i class="fa fa-user"></i>
     </a>
+    <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
+      <i class="fa fa-bell"></i>
+      <span class="badge">{{ (notifications_unread or 0) }}</span>
+    </button>
   </div>
 
   <!-- Modal -->
@@ -626,8 +639,8 @@
       <h3>Detalhes do Pacote</h3>
       <div class="stats">
         <p><strong>Pacotes Totais:</strong> {{ used + remaining }}</p>
-        <p><strong>Usadas:</strong> <span style="color:#bfdbfe;">{{ used }}</span></p>
-        <p><strong>Disponíveis:</strong> <span style="color:#93c5fd;">{{ remaining }}</span></p>
+        <p><strong>Usadas:</strong> <span style="color:var(--brand-blue-solid);">{{ used }}</span></p>
+        <p><strong>Disponíveis:</strong> <span style="color:var(--brand-blue-solid);">{{ remaining }}</span></p>
       </div>
       <button type="button" class="btn" onclick="window.location.href='{{ url_for('purchase') }}'">Comprar
         Pacotes</button>
@@ -640,9 +653,10 @@
       <i class="fa fa-angle-double-left"></i>
     </button>
 
-    <img src="{{ url_for('static', filename='images/logocompleta.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+    <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
 
-    <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
+    <a href="{{ url_for('index') }}" class="menu-item active"><i class="fa fa-home"></i><span
+        class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
@@ -673,7 +687,7 @@
 
   <!-- Conteúdo -->
   <div class="content">
-    <h2>Bem-vindo(a), {{ username }}</h2>
+    <h2>Bem-vindo(a), dr. Ricardo</h2>
 
     <div
       style="display:flex; justify-content:center; align-items:flex-start; flex-wrap:wrap; gap:40px; margin-top:20px;">

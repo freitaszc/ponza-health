@@ -103,9 +103,8 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(*args, **kwargs):
         u = get_logged_user()
         if not u:
-            flash("Faça login para continuar.", "warning")
             return redirect(url_for('login'))
-        g.user = u  # deixa o user no contexto da request
+        g.user = u 
         return f(*args, **kwargs)
     return wrapper
 
@@ -214,7 +213,6 @@ def login():
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('Você saiu da sua conta.', 'info')
     return redirect(url_for('login'))
 
 @app.route('/privacy_policy')
@@ -824,16 +822,7 @@ def create_quote():
             f'<label><input type="checkbox" name="supplier_ids" value="{s.id}"> {s.name}</label><br>'
             for s in suppliers
         )
-        return render_template_string(f"""
-        <h1>Nova Cotação</h1>
-        <form method="post">
-            <p>Título: <input name="title" required></p>
-            <p>Itens (texto ou JSON): <br><textarea name="items" rows="6" cols="60" required></textarea></p>
-            <p>Fornecedores:<br>{supplier_opts}</p>
-            <button type="submit">Salvar</button>
-        </form>
-        <p><a href="{{{{ url_for('quote_index') }}}}">Voltar</a></p>
-        """)
+        return render_template('create_quote.html')
 
 @app.route('/quotes/<int:quote_id>', methods=['GET'], endpoint='quote_view')
 @login_required

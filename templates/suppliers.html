@@ -5,42 +5,31 @@
     <meta charset="UTF-8" />
     <title>Fornecedores - Ponza Health</title>
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
-
     <!-- Funnel Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 
     <style>
         :root {
-            --bg-deep: #080b12;
-            --bg-dark: #0b1220;
-            --bg-elev: #111827;
-            --bg-elev-2: #0f172a;
-            --text: #e5e7eb;
-            --text-dim: #cbd5e1;
-            --blue: #1e40af;
-            /* azul escuro */
-            --blue-dark: #1e3a8a;
-            /* azul escuro mais claro */
-            --blue-glow: rgba(37, 99, 235, .35);
-            --stroke: #1f2937;
-            --line: #1f2937;
+            /* === Paleta padrão (igual pacientes) === */
+            --bg: #ffffff;
+            --ink: #0b1220;
+            --ink-dim: #475569;
+            --border: #e5e7eb;
+            --surface: #ffffff;
+            --surface-alt: #f8fafc;
+
+            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+            --brand-solid: #131d35;
+
+            --shadow: 0 8px 20px rgba(2, 6, 23, .06);
             --radius: 12px;
-            --gap: 16px;
 
-            /* Tipografia ( +2px ) */
-            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
-            --fs-base: 16px;
-            --fs-small: 14px;
-            --fs-input: 16px;
-            --fs-btn: 16px;
-            --fs-title: 34px;
-            /* títulos uniformes */
-
-            /* Botões padronizados */
-            --btn-height: 44px;
+            --btn-h: 44px;
             --btn-minw: 220px;
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
         * {
@@ -54,24 +43,74 @@
 
         body {
             font-family: var(--font-family);
-            font-size: var(--fs-base);
-            color: var(--text);
-            background:
-                radial-gradient(1000px 600px at 10% 0%, #0b1428 0%, transparent 50%),
-                radial-gradient(900px 600px at 90% 10%, #0a0f1f 0%, transparent 50%),
-                linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-dark) 100%);
+            background: var(--bg);
+            color: var(--ink);
             min-height: 100vh;
             display: flex;
         }
 
-        /* SIDEBAR (padrão) */
+        /* ===== Topo direito ===== */
+        .top-profile {
+            position: fixed;
+            top: 18px;
+            right: 28px;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-btn {
+            position: relative;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            box-shadow: var(--shadow);
+            transition: transform .15s, box-shadow .15s, border-color .15s;
+            text-decoration: none;
+        }
+
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+            border-color: var(--brand-solid)
+        }
+
+        .icon-btn i {
+            color: var(--brand-solid);
+            font-size: 18px
+        }
+
+        .icon-btn .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background: var(--brand-solid);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ===== Sidebar (igual padrão) ===== */
         .sidebar {
             width: 250px;
             min-height: 100vh;
-            background: linear-gradient(180deg, #0b111c 0%, #0a0f1a 100%);
+            background: var(--brand-grad);
             padding: 28px 18px;
-            border-right: 1px solid var(--line);
-            box-shadow: 2px 0 14px rgba(0, 0, 0, .35);
+            border-right: 1px solid #1f2937;
+            box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
             display: flex;
             flex-direction: column;
             transition: width 180ms ease;
@@ -83,7 +122,7 @@
             width: 200px;
             display: block;
             margin: 0 auto 18px;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35));
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
             transition: width 180ms ease, margin 180ms ease;
         }
 
@@ -91,10 +130,10 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            font-size: var(--fs-small);
+            font-size: 16px;
             padding: 14px 16px;
             border-radius: 10px;
-            color: var(--text-dim);
+            color: #e5e7eb;
             text-decoration: none;
             margin-bottom: 18px;
             font-weight: 600;
@@ -104,301 +143,318 @@
         .sidebar a.menu-item i {
             width: 21px;
             text-align: center;
-            flex: 0 0 21px;
+            flex: 0 0 21px
         }
 
         .sidebar a.menu-item:hover {
-            background: rgba(30, 64, 175, .12);
-            color: #fff;
-            transform: translateX(4px);
+            background: #ffffff;
+            color: var(--brand-solid);
+            transform: translateX(4px)
         }
 
-        .sidebar a.menu-item.active {
+        .sidebar a.menu-item:hover i {
+            color: var(--brand-solid)
+        }
+
+        .menu-item.active {
             color: #fff;
-            background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
-            box-shadow: 0 10px 26px var(--blue-glow);
+            background: var(--brand-grad);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
         }
 
         .sidebar-spacer {
-            flex: 1 1 auto;
+            flex: 1 1 auto
         }
 
         .sidebar a.menu-item.logout {
-            color: #e5e7eb;
+            color: #e5e7eb
         }
 
         .sidebar-toggle {
             align-self: flex-end;
-            background: rgba(255, 255, 255, .03);
-            border: 1px solid rgba(255, 255, 255, .08);
+            background: rgba(255, 255, 255, .10);
+            border: 1px solid rgba(255, 255, 255, .25);
             color: #e5e7eb;
             padding: 6px 10px;
             border-radius: 10px;
             cursor: pointer;
             margin-bottom: 14px;
             transition: background .2s, border-color .2s, transform .12s;
-            font-size: var(--fs-small);
+            font-size: 12px;
         }
 
         .sidebar-toggle:hover {
-            background: rgba(30, 64, 175, .10);
-            border-color: rgba(30, 64, 175, .35);
-            transform: translateY(-1px);
+            background: #ffffff;
+            color: var(--brand-solid);
+            border-color: #ffffff;
+            transform: translateY(-1px)
         }
 
         .sidebar.is-collapsed {
-            width: 76px;
+            width: 76px
         }
 
         .sidebar.is-collapsed .sidebar-logo {
             width: 44px;
-            margin: 0 auto 22px;
+            margin: 0 auto 22px
         }
 
         .sidebar.is-collapsed .menu-item {
             justify-content: center;
             gap: 0;
             padding: 12px 0;
-            margin-bottom: 18px;
+            margin-bottom: 14px
         }
 
         .sidebar.is-collapsed .menu-item .label {
-            display: none;
+            display: none
         }
 
         .sidebar.is-collapsed .sidebar-toggle i {
-            transform: rotate(180deg);
+            transform: rotate(180deg)
         }
 
-        /* CONTEÚDO */
+        /* ===== Conteúdo ===== */
         .content {
             flex-grow: 1;
             padding: 36px;
             min-width: 0;
             position: relative;
+            background: var(--bg)
         }
 
         h2 {
-            font-size: var(--fs-title);
+            font-size: 32px;
             text-align: center;
-            color: #fff;
-            margin: 0 0 18px;
-            text-shadow: 0 2px 6px rgba(0, 0, 0, .35);
+            color: var(--ink);
+            margin: 0 0 28px;
+            position: relative;
             font-weight: 800;
         }
 
-        /* Barra de ações centralizada */
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: var(--brand-grad);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, .12);
+        }
+
+        /* Ações / Botões */
         .actions {
             display: flex;
             justify-content: center;
             gap: 12px;
             flex-wrap: wrap;
-            margin: 10px 0 18px;
+            margin: 8px 0 18px;
         }
 
-        /* Botões padronizados */
         .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            height: var(--btn-height);
-            min-width: var(--btn-minw);
+            display: inline-block;
             padding: 0 18px;
             border-radius: 999px;
             font-weight: 800;
-            font-size: var(--fs-btn);
-            border: none;
+            font-size: 14px;
+            border: 1px solid var(--brand-solid);
             cursor: pointer;
-            color: #fff;
-            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
-            box-shadow: 0 8px 24px var(--blue-glow);
             transition: .22s;
+            text-decoration: none;
+            color: #fff;
+            background: var(--brand-grad);
+            box-shadow: var(--shadow);
+            height: var(--btn-h);
+            min-width: var(--btn-minw);
             font-family: var(--font-family);
         }
 
         .btn:hover {
             transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
         }
 
-        .btn-ghost {
-            background: rgba(255, 255, 255, .03);
-            border: 1px solid rgba(255, 255, 255, .08);
-            color: #e5e7eb;
-            padding: 0 14px;
-            height: var(--btn-height);
+        .btn-outline {
+            background: #fff;
+            color: var(--brand-solid);
+            border: 1px solid var(--brand-solid);
+            height: var(--btn-h);
             min-width: var(--btn-minw);
+            padding: 0 18px;
             border-radius: 999px;
+            font-weight: 800;
+            font-size: 14px;
             cursor: pointer;
-            font-weight: 700;
-            font-size: var(--fs-btn);
-            transition: background .2s, border-color .2s, transform .12s;
+            transition: .22s;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            font-family: var(--font-family);
+            height: var(--btn-h);
+            min-width: var(--btn-minw);
             font-family: var(--font-family);
         }
 
-        .btn-ghost:hover {
-            background: rgba(30, 64, 175, .10);
-            border-color: rgba(30, 64, 175, .35);
-            transform: translateY(-1px);
+        .btn-outline:hover {
+            box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
+            transform: translateY(-2px) scale(1.02);
         }
 
-        /* Card + tabela */
-        .card {
-            background: linear-gradient(145deg, var(--bg-elev) 0%, var(--bg-elev-2) 100%);
+        /* Painel + Tabela (tema claro) */
+        .panel {
+            background: var(--surface);
             padding: 24px;
             border-radius: 16px;
-            box-shadow: 0 18px 40px rgba(0, 0, 0, .40), 0 0 0 1px rgba(255, 255, 255, .04) inset;
-            max-width: 1200px;
+            box-shadow: var(--shadow);
+            max-width: 1100px;
             margin: 0 auto;
-        }
-
-        .card h3 {
-            margin: 0 0 14px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: 800;
+            border: 1px solid var(--border)
         }
 
         .table-wrap {
             overflow: auto;
-            border-radius: 14px;
-            box-shadow: 0 1px 0 1px rgba(255, 255, 255, .04) inset;
+            border-radius: 12px;
+            border: 1px solid var(--border)
         }
 
         table.catalog {
             width: 100%;
             border-collapse: collapse;
-            min-width: 720px;
-            background: linear-gradient(145deg, var(--bg-elev) 0%, var(--bg-elev-2) 100%);
+            color: var(--ink);
+            min-width: 720px
         }
 
-        table.catalog th,
-        table.catalog td {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--stroke);
-            text-align: center;
-            color: var(--text);
-            font-size: var(--fs-base);
-        }
-
-        table.catalog th {
-            background: #0e1627;
-            color: #dbeafe;
+        table.catalog thead th {
+            background: var(--brand-grad);
+            color: #fff;
             font-weight: 800;
-            position: sticky;
-            top: 0;
-            z-index: 1;
+            letter-spacing: .02em;
+            padding: 12px 14px;
+            text-align: center;
         }
 
-        table.catalog tr:hover td {
-            background: rgba(30, 64, 175, .08);
+        table.catalog tbody td {
+            padding: 12px 14px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: #334155
         }
 
-        /* Menus de opções */
+        table.catalog tbody tr:nth-child(even) {
+            background: #fafafa
+        }
+
+        table.catalog tbody tr:hover {
+            background: rgba(19, 29, 53, .06)
+        }
+
+        /* Menus (kebab) */
         .options-container {
             position: relative;
-            display: inline-block;
+            display: inline-block
         }
 
         .options-button {
-            background: none;
-            border: none;
+            border: 1px solid var(--border);
+            background: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 18px;
-            color: #9aa7b7;
-            transition: color .2s;
+            color: var(--brand-solid);
+            display: grid;
+            place-items: center;
+            transition: box-shadow .2s, border-color .2s;
         }
 
         .options-button:hover {
-            color: #cbd5e1;
+            box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
+            border-color: var(--brand-solid)
         }
 
         .options-menu {
             display: none;
             position: absolute;
             right: 0;
-            top: 28px;
-            min-width: 180px;
-            z-index: 100;
-            background: linear-gradient(145deg, #0f172a 0%, #0b1222 100%);
-            border: 1px solid rgba(255, 255, 255, .06);
+            top: 44px;
+            background: #fff;
+            border: 1px solid var(--border);
             border-radius: 10px;
-            box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+            box-shadow: 0 10px 26px rgba(2, 6, 23, .16);
+            min-width: 190px;
+            z-index: 10;
             overflow: hidden;
         }
 
-        .options-menu a,
-        .options-menu button {
+        .options-menu a {
             display: block;
-            width: 100%;
-            text-align: left;
-            background: none;
-            border: none;
             padding: 10px 12px;
-            color: #e5e7eb;
-            font-size: var(--fs-base);
-            cursor: pointer;
             text-decoration: none;
+            background: #fff;
+            color: var(--ink);
+            font-size: 14px;
             transition: background .2s, color .2s;
-            font-family: var(--font-family);
+            text-align: left;
         }
 
-        .options-menu a:hover,
-        .options-menu button:hover {
-            background: rgba(30, 64, 175, .14);
-            color: #fff;
+        .options-menu a:hover {
+            background: rgba(19, 29, 53, .06);
+            color: var(--brand-solid)
         }
 
-        /* Inputs + Modais */
+        /* Inputs + Modais (tema claro) */
         .input {
             width: 100%;
             padding: 12px 14px;
+            font-size: 14px;
+            color: var(--ink);
+            background: #fff;
+            border: 1px solid var(--border);
             border-radius: 10px;
-            border: 2px solid var(--stroke);
             outline: none;
-            background: #0f172a;
-            color: var(--text);
-            font-size: var(--fs-input);
+            transition: .2s;
             font-family: var(--font-family);
-            transition: border-color .2s, box-shadow .2s;
         }
 
         .input:focus {
-            border-color: var(--blue);
-            box-shadow: 0 0 0 4px rgba(30, 64, 175, .18);
+            border-color: var(--brand-solid);
+            box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
         }
 
         .modal {
             display: none;
             position: fixed;
             inset: 0;
-            z-index: 9999;
-            align-items: center;
+            background: rgba(0, 0, 0, .55);
             justify-content: center;
-            background: rgba(0, 0, 0, .6);
-            backdrop-filter: blur(8px);
-            padding: 20px;
+            align-items: center;
+            z-index: 1000;
+            padding: 16px;
         }
 
         .modal-card {
-            width: 100%;
+            width: 90%;
             max-width: 420px;
-            background: linear-gradient(145deg, #0f172a 0%, #0b1222 100%);
-            border: 1px solid rgba(255, 255, 255, .06);
-            border-radius: 20px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, .55);
-            color: var(--text);
-            padding: 26px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, .20);
+            color: var(--ink);
+            padding: 24px;
             position: relative;
             text-align: left;
+            font-family: var(--font-family);
         }
 
         .modal-card h3 {
             margin: 0 0 14px;
+            color: var(--ink);
             font-size: 20px;
             font-weight: 800;
-            color: #fff;
-            text-align: center;
+            text-align: center
         }
 
         .close-btn {
@@ -407,58 +463,47 @@
             right: 12px;
             background: none;
             border: none;
-            color: #94a3b8;
-            font-size: 24px;
+            color: #64748b;
+            font-size: 22px;
             font-weight: 800;
             cursor: pointer;
+            transition: transform .2s, color .2s;
         }
 
         .close-btn:hover {
-            color: var(--blue);
-            transform: scale(1.1);
+            color: var(--brand-solid);
+            transform: scale(1.08)
         }
 
-        /* Avatar */
-        .user-menu {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 5;
-        }
+        @media (max-width:720px) {
+            .content {
+                padding: 24px
+            }
 
-        .user-menu img {
-            width: 44px;
-            height: 44px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 2px solid var(--blue);
-            background: #0b1222;
-            box-shadow: 0 2px 8px rgba(37, 99, 235, .15);
+            .btn {
+                min-width: 100%
+            }
         }
     </style>
 </head>
 
 <body>
-    <!-- Avatar topo direito -->
-    {% set pfp = 'images/user-icon.png' %}
-    {% if user is defined and user %}
-    {% if user.profile_image is defined and user.profile_image %}
-    {% set pfp = user.profile_image %}
-    {% elif user.get is defined and user.get('profile_image') %}
-    {% set pfp = user.get('profile_image') %}
-    {% endif %}
-    {% elif current_user is defined and current_user.is_authenticated and current_user.profile_image %}
-    {% set pfp = current_user.profile_image %}
-    {% endif %}
-    <div class="user-menu">
-        <a href="{{ url_for('account') }}"><img src="{{ url_for('static', filename=pfp) }}" alt="Minha Conta"></a>
+    <!-- Topo direito -->
+    <div class="top-profile" aria-label="Ações do usuário">
+        <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
+            <i class="fa fa-user"></i>
+        </a>
+        <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
+            <i class="fa fa-bell"></i>
+            <span class="badge">{{ (notifications_unread or 0) }}</span>
+        </button>
     </div>
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
                 class="fa fa-angle-double-left"></i></button>
-        <img src="{{ url_for('static', filename='images/logo-index.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+        <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
 
         <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span
                 class="label">Início</span></a>
@@ -475,6 +520,16 @@
         <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
                 class="label">Pagamentos</span></a>
 
+        {% if username and username|lower == 'admin' %}
+        <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
+        <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
+                class="label">Admin — Empresas</span></a>
+        <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
+                class="label">Admin — Repositório</span></a>
+        <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
+                class="label">Admin — Disponibilidade</span></a>
+        {% endif %}
+
         <div class="sidebar-spacer"></div>
         <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
                 class="label">Sair</span></a>
@@ -484,13 +539,12 @@
     <div class="content">
         <h2>Cadastro de Fornecedores</h2>
 
-        <!-- Ações centralizadas -->
         <div class="actions">
             <button class="btn" onclick="openAddModal()"><i class="fa fa-plus" aria-hidden="true"></i>&nbsp;Cadastrar
                 Fornecedor</button>
         </div>
 
-        <div class="card">
+        <div class="panel">
             <div class="table-wrap">
                 <table class="catalog">
                     <thead>
@@ -498,7 +552,7 @@
                             <th>Nome</th>
                             <th>Telefone</th>
                             <th>Email</th>
-                            <th style="width:160px;">Opções</th>
+                            <th style="width:190px;">Opções</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -528,6 +582,11 @@
                                     </form>
                                 </div>
                             </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="color:var(--ink-dim); text-align:center;">Nenhum fornecedor
+                                cadastrado.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -575,16 +634,30 @@
         function toggleSidebar() { const s = document.getElementById('sidebar'); s.classList.toggle('is-collapsed'); localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0'); }
         document.addEventListener('DOMContentLoaded', () => { if (localStorage.getItem('sidebarCollapsed') === '1') { document.getElementById('sidebar')?.classList.add('is-collapsed'); } });
 
-        // Kebab menus
-        function toggleMenu(button) { const menu = button.nextElementSibling; document.querySelectorAll('.options-menu').forEach(m => { if (m !== menu) m.style.display = 'none'; }); menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'; }
-        window.addEventListener('click', (e) => { document.querySelectorAll('.options-container').forEach(ct => { if (!ct.contains(e.target)) { const m = ct.querySelector('.options-menu'); if (m) m.style.display = 'none'; } }); });
+        // Menus (kebab)
+        function toggleMenu(button) {
+            const menu = button.nextElementSibling;
+            document.querySelectorAll('.options-menu').forEach(m => { if (m !== menu) m.style.display = 'none'; });
+            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        }
+        window.addEventListener('click', e => {
+            document.querySelectorAll('.options-container').forEach(ct => {
+                if (!ct.contains(e.target)) { const m = ct.querySelector('.options-menu'); if (m) m.style.display = 'none'; }
+            });
+        });
 
         // Modais
         function openAddModal() { const m = document.getElementById('addSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false'); }
         function closeAddModal() { const m = document.getElementById('addSupplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
-        function openEditModal(id, name, phone, email) { document.getElementById('editSupplierName').value = name; document.getElementById('editSupplierPhone').value = phone; document.getElementById('editSupplierEmail').value = email; document.getElementById('editSupplierForm').action = `/update_supplier/${id}`; const m = document.getElementById('editSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false'); }
+        function openEditModal(id, name, phone, email) {
+            document.getElementById('editSupplierName').value = name;
+            document.getElementById('editSupplierPhone').value = phone;
+            document.getElementById('editSupplierEmail').value = email;
+            document.getElementById('editSupplierForm').action = `/update_supplier/${id}`;
+            const m = document.getElementById('editSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false');
+        }
         function closeEditModal() { const m = document.getElementById('editSupplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeAddModal(); closeEditModal(); } });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAddModal(); closeEditModal(); } });
     </script>
 </body>
 
