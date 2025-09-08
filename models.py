@@ -1,4 +1,3 @@
-# models.py
 from __future__ import annotations
 from datetime import datetime, date, time
 from typing import Optional
@@ -9,7 +8,12 @@ from sqlalchemy import UniqueConstraint, Index, ForeignKey
 
 db = SQLAlchemy()
 
+
+# ----------------------------
+# Helpers
+# ----------------------------
 class BaseModel:
+    """__init__ flexível baseado em kwargs (compatível com SQLAlchemy)."""
     def __init__(self, **kwargs):
         super().__init__()
         for k, v in kwargs.items():
@@ -21,6 +25,26 @@ class BaseModel:
             return f"<{cls} id={getattr(self, 'id', None)}>"
         return f"<{cls}>"
 
+
+# ----------------------------
+# Empresas (opcional para multi-tenant)
+# ----------------------------
+class Company(db.Model, BaseModel):
+    __tablename__ = "companies"
+
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(100), nullable=False)
+    access_code = db.Column(db.String(50), unique=True, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("access_code", name="uq_companies_access_code"),
+        Index("ix_companies_name", "name"),
+    )
+
+
+# ----------------------------
+# Core
+# ----------------------------
 class User(db.Model, BaseModel):
     __tablename__ = "users"
 
@@ -33,22 +57,22 @@ class User(db.Model, BaseModel):
     birthdate     = db.Column(db.Date)
     profile_image = db.Column(db.String(200), default="images/user-icon.png")
 
+    company_id    = db.Column(db.Integer, db.ForeignKey("companies.id"), nullable=True)
+    company       = relationship("Company", backref="users")
+
+    # plano / assinatura
     plan            = db.Column(db.String(20), default="standard")
     plan_status     = db.Column(db.String(20), default="inactive")
     plan_expires_at = db.Column(db.DateTime)
     trial_until     = db.Column(db.DateTime)
 
+    # Relacionamentos úteis ao app
     suppliers      = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
     products       = relationship("Product",  back_populates="user", cascade="all, delete-orphan")
     agenda_events  = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
     package_usage  = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    # Pacientes de propriedade deste usuário
-    patients       = relationship("Patient", back_populates="owner_user", cascade="all, delete-orphan")
+    secure_files   = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
 
-    __table_args__ = (
-        UniqueConstraint("username", name="uq_users_username"),
-        UniqueConstraint("email",    name="uq_users_email"),
-    )
 
 class Supplier(db.Model, BaseModel):
     __tablename__ = "suppliers"
@@ -66,10 +90,12 @@ class Supplier(db.Model, BaseModel):
         Index("ix_suppliers_phone", "phone"),
     )
 
+
 class Product(db.Model, BaseModel):
     __tablename__ = "products"
 
     id             = db.Column(db.Integer, primary_key=True)
+    user_id        = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=False)
     name           = db.Column(db.String(120), nullable=False)
     purchase_price = db.Column(db.Float, nullable=False, default=0.0)
     sale_price     = db.Column(db.Float, nullable=False, default=0.0)
@@ -77,7 +103,12 @@ class Product(db.Model, BaseModel):
     status         = db.Column(db.String(20), default="Ativo", nullable=False)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    user_id        = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    # extras úteis
+    code              = db.Column(db.String(64))
+    category          = db.Column(db.String(80))
+    application_route = db.Column(db.String(80))
+    min_stock         = db.Column(db.Integer, default=0)
+
     user           = relationship("User", back_populates="products")
 
     __table_args__ = (
@@ -85,62 +116,83 @@ class Product(db.Model, BaseModel):
         Index("ix_products_created_at", "created_at"),
     )
 
+
+# --- substitua apenas a classe Doctor atual por esta ---
 class Doctor(db.Model, BaseModel):
     __tablename__ = "doctors"
 
-    id    = db.Column(db.Integer, primary_key=True)
-    name  = db.Column(db.String(120), nullable=False)
-    phone = db.Column(db.String(20))
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(120), nullable=False)
+    crm        = db.Column(db.String(40))          # opcional
+    email      = db.Column(db.String(120))         # opcional
+    phone      = db.Column(db.String(20))     
+    specialty  = db.Column(db.String(120))         # opcional
 
     patients = relationship("Patient", back_populates="doctor", cascade="all, delete-orphan")
     consults = relationship("Consult", back_populates="doctor", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        Index("ix_doctors_name", "name"),
+        Index("ix_doctors_crm", "crm"),
+        Index("ix_doctors_email", "email"),
+        Index("ix_doctors_specialty", "specialty"),
+    )
+
+
 class Patient(db.Model, BaseModel):
+    """
+    Paciente com os novos campos do formulário:
+    obrigatórios (no formulário): name, birthdate, sex, phone_primary
+    """
     __tablename__ = "patients"
 
-    id              = db.Column(db.Integer, primary_key=True)
-    # Obrigatórios
-    name            = db.Column(db.String(120), nullable=False)
-    birthdate       = db.Column(db.Date, nullable=False)
-    sex             = db.Column(db.String(20), nullable=False)  # Feminino | Masculino | Outro | Prefiro não informar
+    id           = db.Column(db.Integer, primary_key=True)
 
-    # Opcionais
-    email           = db.Column(db.String(120))
-    cpf             = db.Column(db.String(20))
-    notes           = db.Column(db.Text)
+    # dono do cadastro = usuário logado
+    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    owner         = relationship("User", foreign_keys=[owner_user_id])
 
-    phone_primary   = db.Column(db.String(20), nullable=False)
+    # opcional: vínculo com médico do catálogo
+    doctor_id    = db.Column(db.Integer, db.ForeignKey("doctors.id"), index=True)
+    doctor       = relationship("Doctor", back_populates="patients")
+
+    # dados pessoais
+    name           = db.Column(db.String(120), nullable=False)
+    birthdate      = db.Column(db.Date)
+    sex            = db.Column(db.String(20))
+    email          = db.Column(db.String(120))
+    cpf            = db.Column(db.String(20))
+    notes          = db.Column(db.Text)
+    profile_image  = db.Column(db.String(200), default="images/patient-icon.png")  # NOVO
+
+    # telefones
+    phone_primary   = db.Column(db.String(20))
     phone_secondary = db.Column(db.String(20))
 
-    # Endereço
+    # endereço
     address_cep        = db.Column(db.String(12))
     address_street     = db.Column(db.String(200))
     address_number     = db.Column(db.String(20))
     address_complement = db.Column(db.String(100))
-    address_district   = db.Column(db.String(120))  # bairro
+    address_district   = db.Column(db.String(120))
     address_city       = db.Column(db.String(120))
     address_state      = db.Column(db.String(2))
 
-    # Relacionamentos
-    owner_user_id   = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=False)  # dono (usuário logado)
-    owner_user      = relationship("User", back_populates="patients")
+    # status e auditoria
+    status       = db.Column(db.String(20), default="Ativo", nullable=False)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    doctor_id       = db.Column(db.Integer, db.ForeignKey("doctors.id"), index=True, nullable=True)
-    doctor          = relationship("Doctor", back_populates="patients")
-
-    status          = db.Column(db.String(20), default="Ativo", nullable=False)
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    consults        = relationship("Consult", back_populates="patient", cascade="all, delete-orphan")
+    consults     = relationship("Consult", back_populates="patient", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_patients_status", "status"),
         Index("ix_patients_created_at", "created_at"),
         Index("ix_patients_phone_primary", "phone_primary"),
         Index("ix_patients_cpf", "cpf"),
-        Index("ix_patients_owner", "owner_user_id"),
         Index("ix_patients_email", "email"),
+        Index("ix_patients_owner_user_id", "owner_user_id"),
     )
+
 
 class Consult(db.Model, BaseModel):
     __tablename__ = "consults"
@@ -152,10 +204,11 @@ class Consult(db.Model, BaseModel):
     notes      = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     date       = db.Column(db.Date, nullable=False)
-    time       = db.Column(db.Time)  # pode ser NULL em eventos "dia todo"
+    time       = db.Column(db.Time)
 
     patient    = relationship("Patient", back_populates="consults")
     doctor     = relationship("Doctor",  back_populates="consults")
+
 
 class PackageUsage(db.Model, BaseModel):
     __tablename__ = "package_usage"
@@ -174,28 +227,28 @@ class PackageUsage(db.Model, BaseModel):
         except Exception:
             return 0
 
+
 class AgendaEvent(db.Model, BaseModel):
     __tablename__ = "agenda_events"
 
-    id       = db.Column(db.Integer, primary_key=True)
-    user_id  = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)
-    title    = db.Column(db.String(200), nullable=False)
-    start    = db.Column(db.DateTime, nullable=False)
-    end      = db.Column(db.DateTime, nullable=True)
+    id      = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)
+    title   = db.Column(db.String(200), nullable=False)
+    start   = db.Column(db.DateTime, nullable=False)
+    end     = db.Column(db.DateTime, nullable=True)
 
-    # Novos campos para compatibilidade com a agenda
-    notes    = db.Column(db.Text)
-    type     = db.Column(db.String(20))     # consulta|retorno|procedimento|bloqueio
-    billing  = db.Column(db.String(20))     # particular|convenio
-    insurer  = db.Column(db.String(120))    # nome do convênio
+    notes   = db.Column(db.Text)
+    type    = db.Column(db.String(20))
+    billing = db.Column(db.String(20))
+    insurer = db.Column(db.String(120))
 
-    user     = relationship("User", back_populates="agenda_events")
+    user    = relationship("User", back_populates="agenda_events")
 
     __table_args__ = (
         Index("ix_agenda_events_start", "start"),
         Index("ix_agenda_events_end", "end"),
-        Index("ix_agenda_events_type", "type"),
     )
+
 
 class Quote(db.Model, BaseModel):
     __tablename__ = "quotes"
@@ -206,9 +259,18 @@ class Quote(db.Model, BaseModel):
     suppliers  = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    __table_args__ = (
-        Index("ix_quotes_created_at", "created_at"),
-    )
+    __table_args__ = (Index("ix_quotes_created_at", "created_at"),)
+
+
+class QuoteResponse(db.Model, BaseModel):
+    __tablename__ = "quote_responses"
+
+    id           = db.Column(db.Integer, primary_key=True)
+    quote_id     = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+    supplier_id  = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False, index=True)
+    answers      = db.Column(db.Text, nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
 
 class Reference(db.Model, BaseModel):
     __tablename__ = "references"
@@ -216,6 +278,7 @@ class Reference(db.Model, BaseModel):
     id    = db.Column(db.Integer, primary_key=True)
     key   = db.Column(db.String(120), nullable=False, unique=True, index=True)
     value = db.Column(db.Text, nullable=True)
+
 
 class Video(db.Model, BaseModel):
     __tablename__ = "videos"
@@ -225,6 +288,32 @@ class Video(db.Model, BaseModel):
     url        = db.Column(db.String(500), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    __table_args__ = (
-        Index("ix_videos_created_at", "created_at"),
-    )
+    __table_args__ = (Index("ix_videos_created_at", "created_at"),)
+
+
+class SecureFile(db.Model, BaseModel):
+    __tablename__ = "secure_files"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    kind          = db.Column(db.String(40),  nullable=False)
+    filename      = db.Column(db.String(255), nullable=False)
+    mime_type     = db.Column(db.String(100), nullable=False)
+    size_bytes    = db.Column(db.Integer,     nullable=False)
+    data          = db.Column(db.LargeBinary, nullable=False)
+    created_at    = db.Column(db.DateTime,    default=datetime.utcnow, nullable=False)
+
+    owner = relationship("User", back_populates="secure_files", foreign_keys=[owner_user_id])
+
+
+class PdfFile(db.Model, BaseModel):
+    __tablename__ = "pdf_files"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    filename      = db.Column(db.String(255), nullable=False)
+    original_name = db.Column(db.String(255), nullable=False)
+    size_bytes    = db.Column(db.Integer, nullable=False, default=0)
+    uploaded_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    secure_file_id = db.Column(db.Integer, db.ForeignKey("secure_files.id"), index=True, nullable=True)
+    secure_file    = relationship("SecureFile", foreign_keys=[secure_file_id])

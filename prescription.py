@@ -133,10 +133,10 @@ def analyze_pdf(source, references_path="json/references.json", manual=False):
 
     if manual:
         lines = [l.strip() for l in source.splitlines() if l.strip()]
-        gender = "F"  # padrão ou você pode deixar o usuário informar isso no formulário
+        gender = "F"  # ou pegue do formulário
         results = scan_results(lines, references, gender)
         diagnosis, prescriptions = build_diagnosis_and_prescriptions(results)
-        return diagnosis, prescriptions
+        return diagnosis, prescriptions, "", gender, 0, "", "", ""
 
     lines = read_pdf(source)
     if not lines or not references:

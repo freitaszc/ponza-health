@@ -13,32 +13,23 @@
 
   <style>
     :root {
-      /* Tema claro padrão do site */
       --bg: #ffffff;
       --surface: #ffffff;
       --surface-alt: #f8fafc;
       --border: #e5e7eb;
       --ink: #0b1220;
       --ink-dim: #475569;
-
-      /* Sidebar/brand */
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-blue-solid: #0f182b;
-
-      /* Layout */
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --radius: 16px;
-
-      /* Tipografia */
       --fs-title: 34px;
       --fs-base: 16px;
       --fs-label: 14px;
       --fs-btn: 16px;
       --fs-menu: 15px;
-
-      /* Botões */
       --btn-minw: 220px;
-      --btn-h: 44px;
+      --btn-h: 44px
     }
 
     * {
@@ -55,10 +46,9 @@
       min-height: 100vh;
       font-family: 'Funnel Sans', sans-serif;
       background: var(--bg);
-      color: var(--ink);
+      color: var(--ink)
     }
 
-    /* Sidebar (padrão do site) */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -70,7 +60,7 @@
       flex-direction: column;
       transition: width .18s ease;
       position: sticky;
-      top: 0;
+      top: 0
     }
 
     .sidebar-logo {
@@ -158,7 +148,6 @@
       transform: rotate(180deg)
     }
 
-    /* Conteúdo */
     .content {
       flex: 1;
       padding: 40px;
@@ -194,7 +183,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      padding: 28px;
+      padding: 28px
     }
 
     .panel h3 {
@@ -232,7 +221,7 @@
       border-radius: 12px;
       outline: none;
       transition: .2s;
-      font-family: 'Funnel Sans', sans-serif;
+      font-family: 'Funnel Sans', sans-serif
     }
 
     .textarea {
@@ -245,6 +234,14 @@
     .select:focus {
       border-color: var(--brand-blue-solid);
       box-shadow: 0 0 0 4px rgba(15, 24, 43, .12)
+    }
+
+    .supplier-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px
     }
 
     .supplier-list {
@@ -289,7 +286,7 @@
       font-size: var(--fs-btn);
       box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
       cursor: pointer;
-      transition: transform .2s, box-shadow .2s, filter .2s;
+      transition: transform .2s, box-shadow .2s, filter .2s
     }
 
     .btn:hover {
@@ -297,29 +294,71 @@
       box-shadow: 0 14px 36px rgba(0, 0, 0, .20)
     }
 
-    /* Topo direito (opcional) */
-    .top-profile {
+    .btn-outline {
+      background: #fff;
+      color: var(--brand-blue-solid);
+      border: 1px solid var(--brand-blue-solid);
+      min-width: auto;
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-weight: 800
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
       position: fixed;
-      top: 18px;
-      right: 28px;
-      z-index: 10;
-      display: flex;
-      gap: 12px
+      inset: 0;
+      background: rgba(0, 0, 0, .55);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 16px
     }
 
-    .icon-btn {
-      border: 1px solid var(--border);
+    .modal-card {
+      width: 90%;
+      max-width: 420px;
       background: var(--surface);
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: grid;
-      place-items: center;
-      box-shadow: var(--shadow)
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, .20);
+      color: var(--ink);
+      padding: 22px;
+      position: relative
     }
 
-    .icon-btn i {
-      color: var(--brand-blue-solid)
+    .modal-card h4 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 800;
+      text-align: center
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 22px;
+      font-weight: 800;
+      cursor: pointer
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px
+    }
+
+    .modal-actions .btn,
+    .modal-actions .btn-outline {
+      flex: 1;
+      min-width: auto;
+      height: 44px
     }
   </style>
 
@@ -330,24 +369,19 @@
       localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
     }
     document.addEventListener('DOMContentLoaded', () => {
-      if (localStorage.getItem('sidebarCollapsed') === '1') { document.querySelector('.sidebar')?.classList.add('is-collapsed'); }
+      if (localStorage.getItem('sidebarCollapsed') === '1') {
+        document.querySelector('.sidebar')?.classList.add('is-collapsed');
+      }
     });
   </script>
 </head>
 
 <body>
-  <!-- Topo direito -->
-  <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
-        class="fa fa-user"></i></a>
-  </div>
-
   <!-- Sidebar -->
   <div class="sidebar">
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
@@ -361,7 +395,6 @@
         class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
-
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
@@ -373,6 +406,7 @@
 
     <div class="panel">
       <h3>Preencha os dados da cotação</h3>
+
       <form method="post">
         <label for="title">Nome da Cotação</label>
         <input class="input" type="text" name="title" id="title" placeholder="Ex: Reposição de Estoque de Suplementos"
@@ -383,12 +417,22 @@
 Vitamina D 2000UI - 10 un.
 Magnésio Dimalato - 5 un." required></textarea>
 
-        <label>Fornecedores</label>
-        <div class="supplier-list">
-          {% for supplier in suppliers %}
-          <label><input type="checkbox" name="supplier_ids" value="{{ supplier.id }}"> {{ supplier.name }}</label>
-          {% endfor %}
-        </div>
+        <div class="supplier-head">
+          <label>Fornecedores</label>
+          <div class="supplier-list">
+            {% for supplier in suppliers %}
+              <label>
+                <input type="checkbox" name="supplier_ids" value="{{ supplier.id }}">
+                {{ supplier.name }}
+                {% if supplier.phone %}<small style="color:#64748b;margin-left:6px;">(WhatsApp: {{ supplier.phone }})</small>{% endif %}
+                {% if supplier.email %}<small style="color:#64748b;margin-left:6px;">(E-mail: {{ supplier.email }})</small>{% endif %}
+              </label>
+            {% else %}
+              <div style="color:#64748b;">Nenhum fornecedor cadastrado. Cadastre em <a href="{{ url_for('suppliers') }}">Fornecedores</a>.</div>
+            {% endfor %}
+          </div>
+          
+        </noscript>
 
         <div class="actions">
           <button type="submit" class="btn">Criar Cotação</button>
@@ -396,6 +440,90 @@ Magnésio Dimalato - 5 un." required></textarea>
       </form>
     </div>
   </div>
+
+  <!-- Modal: novo fornecedor -->
+  <div id="supplierModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeSupplierModal()" aria-label="Fechar modal">×</button>
+      <h4>Novo Fornecedor</h4>
+
+      <div style="display:grid; gap:10px;">
+        <input id="sup_name" class="input" placeholder="Nome do fornecedor" />
+        <input id="sup_phone" class="input" placeholder="Telefone (opcional)" />
+        <input id="sup_email" class="input" type="email" placeholder="E-mail (opcional)" />
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-outline" type="button" onclick="closeSupplierModal()">Cancelar</button>
+        <button class="btn" type="button" onclick="createSupplier()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Modal ----------
+    function openSupplierModal() { const m = document.getElementById('supplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false'); }
+    function closeSupplierModal() { const m = document.getElementById('supplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
+
+    // ---------- Lista dinâmica de fornecedores ----------
+    async function loadSuppliers() {
+      try {
+        const r = await fetch('/api/suppliers');
+        const data = await r.json();
+        const wrap = document.getElementById('supplierList');
+        wrap.innerHTML = '';
+        data.forEach(s => {
+          const id = `sup_${s.id}`;
+          const label = document.createElement('label');
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.name = 'supplier_ids';
+          input.value = s.id;
+          label.appendChild(input);
+          label.appendChild(document.createTextNode(' ' + s.name));
+          wrap.appendChild(label);
+        });
+      } catch (e) {
+        console.error('Erro ao carregar fornecedores:', e);
+      }
+    }
+
+    // ---------- Criar fornecedor e recarregar lista ----------
+    async function createSupplier() {
+      const name = document.getElementById('sup_name').value.trim();
+      const phone = document.getElementById('sup_phone').value.trim();
+      const email = document.getElementById('sup_email').value.trim();
+
+      if (!name) {
+        alert('Informe o nome do fornecedor.');
+        return;
+      }
+      try {
+        const r = await fetch('/api/suppliers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, email })
+        });
+        const out = await r.json();
+        if (!r.ok || !out.success) {
+          alert(out.error || 'Não foi possível criar o fornecedor.');
+          return;
+        }
+        // Limpa campos, fecha modal e atualiza a lista
+        document.getElementById('sup_name').value = '';
+        document.getElementById('sup_phone').value = '';
+        document.getElementById('sup_email').value = '';
+        closeSupplierModal();
+        await loadSuppliers();
+      } catch (e) {
+        console.error(e);
+        alert('Erro inesperado ao criar fornecedor.');
+      }
+    }
+
+    // Carrega lista na entrada da página
+    document.addEventListener('DOMContentLoaded', loadSuppliers);
+  </script>
 </body>
 
 </html>

@@ -17,22 +17,26 @@
 
   <style>
     :root {
+      /* Tema claro padronizado */
       --bg: #ffffff;
-      --ink: #0b1220;
-      --ink-dim: #475569;
-      --border: #e5e7eb;
       --surface: #ffffff;
       --surface-alt: #f8fafc;
+      --border: #e5e7eb;
+      --ink: #0b1220;
+      --ink-dim: #475569;
 
+      /* Azul escuro padrão (gradiente + sólido) */
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-solid: #131d35;
 
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --radius: 12px;
-
       --btn-h: 44px;
-      --btn-minw: 160px;
+      --btn-minw: 220px;
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+      --fs-base: 14px;
+      --fs-title: 32px;
     }
 
     * {
@@ -44,15 +48,18 @@
       margin: 0
     }
 
+    /* ===== Layout base (padrão Estoque) ===== */
     body {
       font-family: var(--font-family);
       background: var(--bg);
       color: var(--ink);
       min-height: 100vh;
       display: flex;
+      /* Sidebar + conteúdo lado a lado */
+      font-size: var(--fs-base);
     }
 
-    /* Topo direito */
+    /* ===== Topo direito (perfil/notify) ===== */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -75,7 +82,7 @@
       place-items: center;
       box-shadow: var(--shadow);
       transition: transform .15s, box-shadow .15s, border-color .15s;
-      text-decoration: none;
+      text-decoration: none
     }
 
     .icon-btn:hover {
@@ -103,10 +110,10 @@
       font-weight: 800;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center
     }
 
-    /* Sidebar */
+    /* ===== Sidebar (padrão Estoque) ===== */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -119,6 +126,27 @@
       transition: width 180ms ease;
       position: sticky;
       top: 0;
+      /* fica “grudado” à viewport */
+    }
+
+    .sidebar-toggle {
+      align-self: flex-end;
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background .2s, border-color .2s, transform .12s;
+      font-size: 12px
+    }
+
+    .sidebar-toggle:hover {
+      background: #ffffff;
+      color: var(--brand-solid);
+      border-color: #ffffff;
+      transform: translateY(-1px)
     }
 
     .sidebar-logo {
@@ -126,7 +154,7 @@
       display: block;
       margin: 0 auto 18px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
-      transition: width 180ms ease, margin 180ms ease;
+      transition: width 180ms ease, margin 180ms ease
     }
 
     .sidebar a.menu-item {
@@ -140,7 +168,7 @@
       text-decoration: none;
       margin-bottom: 18px;
       font-weight: 600;
-      transition: background .2s, color .2s, transform .12s;
+      transition: background .2s, color .2s, transform .12s
     }
 
     .sidebar a.menu-item i {
@@ -159,7 +187,7 @@
       color: var(--brand-solid)
     }
 
-    .menu-item.active {
+    .sidebar a.menu-item.active {
       color: #fff;
       background: var(--brand-grad);
       box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
@@ -173,26 +201,7 @@
       color: #e5e7eb
     }
 
-    .sidebar-toggle {
-      align-self: flex-end;
-      background: rgba(255, 255, 255, .10);
-      border: 1px solid rgba(255, 255, 255, .25);
-      color: #e5e7eb;
-      padding: 6px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-bottom: 14px;
-      transition: background .2s, border-color .2s, transform .12s;
-      font-size: 12px;
-    }
-
-    .sidebar-toggle:hover {
-      background: #ffffff;
-      color: var(--brand-solid);
-      border-color: #ffffff;
-      transform: translateY(-1px)
-    }
-
+    /* Estado colapsado */
     .sidebar.is-collapsed {
       width: 76px
     }
@@ -217,17 +226,17 @@
       transform: rotate(180deg)
     }
 
-    /* Conteúdo */
+    /* ===== Conteúdo ===== */
     .content {
       flex-grow: 1;
-      padding: 24px 36px;
+      padding: 36px;
       min-width: 0;
       position: relative;
-      background: var(--bg)
+      background: var(--bg);
     }
 
     h2 {
-      font-size: 32px;
+      font-size: var(--fs-title);
       text-align: center;
       color: var(--ink);
       margin: 0 0 28px;
@@ -245,10 +254,10 @@
       height: 4px;
       background: var(--brand-grad);
       border-radius: 2px;
-      box-shadow: 0 0 8px rgba(0, 0, 0, .12);
+      box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
-    /* Header da agenda */
+    /* ===== Header da agenda (cartão) ===== */
     .agenda-header {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -258,116 +267,98 @@
       box-shadow: var(--shadow)
     }
 
-    /* Busca */
-    .search-container {
-      position: relative;
-      margin-bottom: 24px;
-    }
-
-    .search-input {
-      width: 100%;
-      max-width: 400px;
-      padding: 12px 16px 12px 44px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
-      color: var(--ink);
-      font-size: 14px;
-      font-family: var(--font-family);
-      transition: border-color .2s, box-shadow .2s;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: var(--brand-solid);
-      box-shadow: 0 0 0 3px rgba(19, 29, 53, .1)
-    }
-
-    .search-input::placeholder {
-      color: var(--ink-dim)
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--ink-dim);
-      font-size: 16px
-    }
-
-    /* Ações */
-    .actions {
+    /* ===== Botões topo centralizados, sem corte ===== */
+    .actions-row {
       display: flex;
+      justify-content: center;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+      /* quebra em múltiplas linhas quando necessário */
+      margin: 8px 0 18px;
     }
 
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 14px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: .2s;
-      text-decoration: none;
-      color: var(--ink);
-      background: var(--surface);
-      box-shadow: var(--shadow);
       height: var(--btn-h);
       min-width: var(--btn-minw);
-      font-family: var(--font-family);
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
-      border-color: var(--brand-solid)
-    }
-
-    .btn.primary {
-      background: var(--brand-grad);
+      padding: 0 22px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      border: 1px solid var(--brand-solid);
+      cursor: pointer;
+      transition: .22s;
+      text-decoration: none;
       color: #fff;
-      border-color: var(--brand-solid)
-    }
-
-    .btn.primary:hover {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 12px 28px rgba(19, 29, 53, .2)
+      background: var(--brand-grad);
+      box-shadow: var(--shadow)
     }
 
     .btn i {
       font-size: 16px
     }
 
-    /* Calendário */
+    .btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
+    }
+
+    .btn.primary {
+      background: var(--brand-grad)
+    }
+
+    .btn.danger {
+      background: #dc2626;
+      border-color: #b91c1c
+    }
+
+    .btn.danger:hover {
+      filter: brightness(1.03)
+    }
+
+    .btn.pill {
+      height: 44px;
+      min-width: 110px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      background: #ffffff;
+      color: var(--brand-solid);
+      border: 2px solid var(--brand-solid);
+      border-radius: 999px;
+    }
+
+    .btn.pill:hover {
+      background: var(--brand-solid);
+      color: #fff
+    }
+
+    /* ===== Calendário ===== */
     .calendar-wrapper {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 16px;
       box-shadow: var(--shadow);
-      overflow: hidden
+      overflow: hidden;
     }
 
     .calendar-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 20px 24px;
+      padding: 16px 20px;
       background: var(--surface-alt);
       border-bottom: 1px solid var(--border);
+      gap: 12px;
     }
 
     .date-navigation {
       display: flex;
       align-items: center;
-      gap: 16px
+      gap: 10px;
+      flex-wrap: wrap
     }
 
     .nav-btn {
@@ -402,12 +393,12 @@
     }
 
     .view-btn {
-      padding: 8px 16px;
+      padding: 8px 14px;
       border: 1px solid var(--border);
       background: var(--surface);
       border-radius: 8px;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       color: var(--ink);
       transition: .2s;
@@ -423,7 +414,6 @@
       background: var(--surface-alt)
     }
 
-    /* FullCalendar overrides */
     #calendar {
       padding: 0;
       background: transparent
@@ -507,7 +497,7 @@
       border-color: var(--border) !important
     }
 
-    /* Modal */
+    /* ===== Modais ===== */
     .modal {
       display: none;
       position: fixed;
@@ -515,7 +505,7 @@
       background: rgba(0, 0, 0, .55);
       justify-content: center;
       align-items: center;
-      z-index: 1000;
+      z-index: 1100;
       padding: 16px;
       backdrop-filter: blur(4px);
     }
@@ -530,7 +520,7 @@
       box-shadow: 0 25px 60px rgba(0, 0, 0, .20);
       padding: 32px;
       position: relative;
-      font-family: var(--font-family);
+      text-align: left;
     }
 
     .modal-card h3 {
@@ -567,7 +557,7 @@
     }
 
     .form-group {
-      margin-bottom: 20px
+      margin-bottom: 16px
     }
 
     .form-group label {
@@ -613,18 +603,14 @@
         min-width: 100%
       }
 
-      .actions {
-        flex-direction: column;
-        align-items: stretch
-      }
-
+      /* no mobile, botões ocupam largura total ao quebrar */
       .form-row {
         grid-template-columns: 1fr
       }
 
       .calendar-header {
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
         align-items: stretch
       }
 
@@ -633,14 +619,14 @@
       }
     }
 
-    /* Drag and drop styles */
+    /* Drag/Drop/Resize cursors */
     .fc .fc-event.fc-event-draggable {
       cursor: grab
     }
 
     .fc .fc-event.fc-event-dragging {
       cursor: grabbing;
-      opacity: 0.8
+      opacity: .85
     }
 
     .fc .fc-event.fc-event-resizable {
@@ -648,7 +634,7 @@
     }
 
     .fc .fc-event:hover {
-      filter: brightness(1.1)
+      filter: brightness(1.05)
     }
   </style>
 </head>
@@ -656,16 +642,14 @@
 <body>
   <!-- Topo direito -->
   <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
-      <i class="fa fa-user"></i>
-    </a>
+    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
+        class="fa fa-user"></i></a>
     <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
-      <i class="fa fa-bell"></i>
-      <span class="badge">{{ (notifications_unread or 0) }}</span>
+      <i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span>
     </button>
   </div>
 
-  <!-- Sidebar -->
+  <!-- Sidebar (padrão Estoque) -->
   <div class="sidebar" id="sidebar">
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
@@ -706,45 +690,33 @@
 
     <!-- Header da agenda -->
     <div class="agenda-header">
-      <!-- Barra de busca -->
-      <div class="search-container">
-        <div style="position: relative; display: inline-block;">
-          <i class="fa fa-search search-icon"></i>
-          <input type="text" class="search-input" placeholder="Busque um paciente">
-        </div>
-      </div>
-
-      <!-- Ações -->
-      <div class="actions">
-        <button class="btn primary" id="newEventBtn">
-          <i class="fa fa-plus"></i>
-          Novo Agendamento
-        </button>
-        <button class="btn"><i class="fa fa-list"></i>Lista de Espera</button>
-        <button class="btn"><i class="fa fa-eye"></i>Observações</button>
-        <button class="btn"><i class="fa fa-print"></i>Imprimir Agenda</button>
-        <button class="btn"><i class="fa fa-cogs"></i>Agendamento online</button>
+      <!-- Botões centralizados (sem corte) -->
+      <div class="actions-row">
+        <button class="btn primary" id="newEventBtn"><i class="fa fa-plus"></i>&nbsp;Novo Agendamento</button>
+        <button class="btn"><i class="fa fa-list"></i>&nbsp;Lista de Espera</button>
+        <button class="btn"><i class="fa fa-eye"></i>&nbsp;Observações</button>
+        <button class="btn" id="printBtn"><i class="fa fa-print"></i>&nbsp;Imprimir Agenda</button>
+        <button class="btn"><i class="fa fa-cogs"></i>&nbsp;Agendamento online</button>
       </div>
     </div>
 
     <!-- Calendar Wrapper -->
     <div class="calendar-wrapper">
-      <!-- Calendar Header -->
       <div class="calendar-header">
         <div class="date-navigation">
-          <button class="nav-btn" id="prevBtn"><i class="fa fa-chevron-left"></i></button>
+          <button class="nav-btn" id="prevBtn" title="Anterior"><i class="fa fa-chevron-left"></i></button>
           <div class="current-period" id="currentPeriod">07/09 a 13/09</div>
-          <button class="nav-btn" id="nextBtn"><i class="fa fa-chevron-right"></i></button>
-          <button class="nav-btn" id="todayBtn">HOJE</button>
+          <button class="nav-btn" id="nextBtn" title="Próximo"><i class="fa fa-chevron-right"></i></button>
+          <button class="btn pill" id="todayBtn" title="Ir para hoje">HOJE</button>
         </div>
 
         <div class="view-controls">
-          <button class="view-btn" onclick="changeView('dayGridMonth')">DIA</button>
+          <button class="view-btn" onclick="changeView('dayGridMonth')">MÊS</button>
           <button class="view-btn active" onclick="changeView('timeGridWeek')">SEMANA</button>
         </div>
       </div>
 
-      <!-- Calendar -->
+      <!-- Calendário -->
       <div id="calendar"></div>
     </div>
   </div>
@@ -806,10 +778,8 @@
         <textarea id="add_notes" placeholder="Observações adicionais" rows="3" class="textarea"></textarea>
       </div>
 
-      <button class="btn primary" onclick="submitAddEvent()" style="width:100%;">
-        <i class="fa fa-save"></i>
-        Salvar Agendamento
-      </button>
+      <button class="btn primary" onclick="submitAddEvent()" style="width:100%;"><i class="fa fa-save"></i>&nbsp;Salvar
+        Agendamento</button>
     </div>
   </div>
 
@@ -872,15 +842,18 @@
         <textarea id="edit_notes" rows="3" class="textarea"></textarea>
       </div>
 
-      <button class="btn primary" onclick="submitEditEvent()" style="width:100%;">
-        <i class="fa fa-save"></i>
-        Salvar Alterações
-      </button>
+      <div style="display:flex; gap:10px;">
+        <button class="btn danger" onclick="deleteEvent()" style="flex:0 0 160px;"><i
+            class="fa fa-trash"></i>&nbsp;Excluir</button>
+        <button class="btn primary" onclick="submitEditEvent()" style="flex:1;"><i class="fa fa-save"></i>&nbsp;Salvar
+          Alterações</button>
+      </div>
     </div>
   </div>
 
-  <!-- Scripts -->
+  <!-- Scripts utilitários -->
   <script>
+    // Sidebar toggle (mesmo padrão do Estoque)
     function toggleSidebar() {
       const s = document.getElementById('sidebar');
       s.classList.toggle('is-collapsed');
@@ -892,7 +865,7 @@
       }
     });
 
-    // Abrir/fechar modais
+    // Abre/fecha modais
     function openModal(id) { document.getElementById(id).style.display = 'flex' }
     function closeModal(id) { document.getElementById(id).style.display = 'none' }
 
@@ -915,7 +888,7 @@
       update();
     }
 
-    // Preenche e abre o modal de ADIÇÃO
+    // Abrir modais com preenchimento
     function openAddModal(prefill) {
       document.getElementById('add_title').value = prefill?.title || '';
       document.getElementById('add_date').value = prefill?.date || '';
@@ -925,12 +898,9 @@
       document.getElementById('add_type').value = prefill?.type || 'consulta';
       document.getElementById('add_billing').value = prefill?.billing || 'particular';
       document.getElementById('add_insurer').value = prefill?.insurer || '';
-
       setupBillingToggle(document.getElementById('add_billing'));
       openModal('addModal');
     }
-
-    // Preenche e abre o modal de EDIÇÃO
     function openEditModal(prefill) {
       document.getElementById('edit_id').value = prefill?.id || '';
       document.getElementById('edit_title').value = prefill?.title || '';
@@ -941,7 +911,6 @@
       document.getElementById('edit_type').value = prefill?.type || 'consulta';
       document.getElementById('edit_billing').value = prefill?.billing || 'particular';
       document.getElementById('edit_insurer').value = prefill?.insurer || '';
-
       setupBillingToggle(document.getElementById('edit_billing'));
       openModal('editModal');
     }
@@ -968,15 +937,9 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         const result = await res.json();
-        if (result.success) {
-          closeModal('addModal');
-          calendar.refetchEvents();
-        } else {
-          alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-      } catch (e) {
-        alert('Falha de rede ao salvar. Tente novamente.');
-      }
+        if (result.success) { closeModal('addModal'); calendar.refetchEvents(); }
+        else { alert('Erro: ' + (result.error || 'Erro desconhecido')); }
+      } catch (e) { alert('Falha de rede ao salvar. Tente novamente.'); }
     }
 
     // Submeter EDIÇÃO
@@ -1003,17 +966,26 @@
           method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         const result = await res.json();
-        if (result.success) {
-          closeModal('editModal');
-          calendar.refetchEvents();
-        } else {
-          alert('Erro: ' + (result.error || 'Erro desconhecido'));
-        }
-      } catch (e) {
-        alert('Falha de rede ao salvar. Tente novamente.');
-      }
+        if (result.success) { closeModal('editModal'); calendar.refetchEvents(); }
+        else { alert('Erro: ' + (result.error || 'Erro desconhecido')); }
+      } catch (e) { alert('Falha de rede ao salvar. Tente novamente.'); }
     }
 
+    // Excluir (usa DELETE no backend)
+    async function deleteEvent() {
+      const id = document.getElementById('edit_id').value || null;
+      if (!id) { alert('Evento inválido.'); return; }
+      if (!confirm('Deseja realmente excluir este agendamento?')) return;
+
+      try {
+        const res = await fetch(`/api/events/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const result = await res.json();
+        if (result.success) { closeModal('editModal'); calendar.refetchEvents(); }
+        else { alert('Erro ao excluir: ' + (result.error || 'Erro desconhecido')); }
+      } catch (e) { alert('Falha de rede ao excluir. Tente novamente.'); }
+    }
+
+    // Troca de visão e label do período
     function changeView(viewName) {
       calendar.changeView(viewName);
       document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
@@ -1021,7 +993,6 @@
       const btns = document.querySelectorAll('.view-btn');
       if (btns[idx]) btns[idx].classList.add('active');
     }
-
     function updatePeriodDisplay() {
       const view = calendar.view;
       const start = view.currentStart;
@@ -1039,7 +1010,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script>
-    // Config avançado com drag/drop/resize/criação por seleção
     let calendar;
     document.addEventListener('DOMContentLoaded', function () {
       const calendarEl = document.getElementById('calendar');
@@ -1074,16 +1044,16 @@
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
         dayHeaderFormat: { weekday: 'short', day: '2-digit', month: '2-digit' },
 
-        // Criar evento ao selecionar um intervalo
+        // Criar evento ao selecionar intervalo
         select: (info) => {
           const y = info.start.getFullYear();
           const m = String(info.start.getMonth() + 1).padStart(2, '0');
           const d = String(info.start.getDate()).padStart(2, '0');
           const dateStr = `${y}-${m}-${d}`;
 
-          const timeStr = info.start.getHours().toString().padStart(2, '0') + ':' + info.start.getMinutes().toString().padStart(2, '0');
+          const timeStr = String(info.start.getHours()).padStart(2, '0') + ':' + String(info.start.getMinutes()).padStart(2, '0');
           const endTimeStr = info.end
-            ? info.end.getHours().toString().padStart(2, '0') + ':' + info.end.getMinutes().toString().padStart(2, '0')
+            ? String(info.end.getHours()).padStart(2, '0') + ':' + String(info.end.getMinutes()).padStart(2, '0')
             : '';
 
           openAddModal({ date: dateStr, time: timeStr, endTime: endTimeStr });
@@ -1094,6 +1064,9 @@
         eventClick: (info) => {
           const ev = info.event;
           if (ev.classNames.includes('holiday-event')) return;
+
+          // Evitar editar entradas sem id (ex.: vindas de Consult)
+          if (!ev.id) return;
 
           const start = ev.start;
           const end = ev.end || null;
@@ -1121,7 +1094,7 @@
         // Drag & drop
         eventDrop: async (info) => {
           const ev = info.event;
-          if (ev.classNames.includes('holiday-event')) { info.revert(); return; }
+          if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
 
           try {
             const payload = {
@@ -1141,7 +1114,7 @@
         // Resize
         eventResize: async (info) => {
           const ev = info.event;
-          if (ev.classNames.includes('holiday-event')) { info.revert(); return; }
+          if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
 
           try {
             const payload = {
@@ -1158,7 +1131,7 @@
           }
         },
 
-        datesSet: function () { updatePeriodDisplay(); }
+        datesSet() { updatePeriodDisplay(); }
       });
 
       calendar.render();
@@ -1169,9 +1142,12 @@
       document.getElementById('nextBtn').addEventListener('click', () => { calendar.next(); });
       document.getElementById('todayBtn').addEventListener('click', () => { calendar.today(); });
 
-      // Botão "Novo Agendamento"
+      // Botões diversos
       document.getElementById('newEventBtn').addEventListener('click', () => openAddModal());
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
     });
   </script>
+
+</body>
 
 </html>

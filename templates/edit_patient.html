@@ -3,14 +3,15 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Ponza Health - Editar Paciente</title>
-  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
-
+  <title>Editar Paciente - Ponza Health</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
   <!-- Funnel Sans -->
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <!-- CSS base padronizado -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ponza-base.css') }}">
 
   <style>
     :root {
@@ -21,11 +22,13 @@
       --ink: #0b1220;
       --ink-dim: #475569;
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
-      --brand-blue-solid: #0f182b;
+      --brand-solid: #131d35;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
-      --shadow-strong: 0 14px 36px rgba(2, 6, 23, .12);
-      --gap: 16px;
-      --radius: 16px;
+      --radius: 12px;
+      --btn-h: 44px;
+      --btn-minw: 220px;
+      --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --fs-title: 32px;
     }
 
     * {
@@ -38,119 +41,14 @@
     }
 
     body {
-      display: flex;
-      min-height: 100vh;
-      font-family: 'Funnel Sans', sans-serif;
+      font-family: var(--font-family);
       background: var(--bg);
-      color: var(--ink)
-    }
-
-    /* SIDEBAR */
-    .sidebar {
-      width: 250px;
+      color: var(--ink);
       min-height: 100vh;
-      background: var(--brand-grad);
-      padding: 28px 18px;
-      border-right: 1px solid #1f2937;
-      box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
-      display: flex;
-      flex-direction: column;
-      transition: width .18s ease;
-      position: sticky;
-      top: 0
+      display: flex
     }
 
-    .sidebar-logo {
-      width: 200px;
-      display: block;
-      margin: 0 auto 18px;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25))
-    }
-
-    .sidebar a.menu-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 15px;
-      padding: 14px 16px;
-      border-radius: 10px;
-      color: #e5e7eb;
-      text-decoration: none;
-      margin-bottom: 18px;
-      font-weight: 600;
-      transition: background .2s, color .2s, transform .12s
-    }
-
-    .sidebar a.menu-item i {
-      width: 21px;
-      text-align: center;
-      flex: 0 0 21px
-    }
-
-    .sidebar a.menu-item:hover {
-      background: #fff;
-      color: var(--brand-blue-solid);
-      transform: translateX(4px)
-    }
-
-    .sidebar a.menu-item:hover i {
-      color: var(--brand-blue-solid)
-    }
-
-    .sidebar a.menu-item.active {
-      color: #fff;
-      background: var(--brand-grad);
-      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
-    }
-
-    .sidebar-spacer {
-      flex: 1 1 auto
-    }
-
-    .sidebar-toggle {
-      align-self: flex-end;
-      background: rgba(255, 255, 255, .10);
-      border: 1px solid rgba(255, 255, 255, .25);
-      color: #e5e7eb;
-      padding: 6px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-bottom: 14px;
-      transition: .2s;
-      font-size: 12px
-    }
-
-    .sidebar-toggle:hover {
-      background: #fff;
-      color: var(--brand-blue-solid);
-      border-color: #fff;
-      transform: translateY(-1px)
-    }
-
-    .sidebar.is-collapsed {
-      width: 76px
-    }
-
-    .sidebar.is-collapsed .sidebar-logo {
-      width: 44px;
-      margin: 0 auto 22px
-    }
-
-    .sidebar.is-collapsed .menu-item {
-      justify-content: center;
-      gap: 0;
-      padding: 12px 0
-    }
-
-    .sidebar.is-collapsed .menu-item .label {
-      display: none
-    }
-
-    .sidebar.is-collapsed .sidebar-toggle i {
-      transform: rotate(180deg)
-    }
-
-    /* TOPO DIREITO */
+    /* Topo direito (ícones) */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -172,18 +70,18 @@
       display: grid;
       place-items: center;
       box-shadow: var(--shadow);
-      transition: .15s;
+      transition: transform .15s, box-shadow .15s, border-color .15s;
       text-decoration: none
     }
 
     .icon-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
-      border-color: var(--brand-blue-solid)
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+      border-color: var(--brand-solid)
     }
 
     .icon-btn i {
-      color: var(--brand-blue-solid);
+      color: var(--brand-solid);
       font-size: 18px
     }
 
@@ -195,7 +93,7 @@
       height: 16px;
       padding: 0 4px;
       border-radius: 999px;
-      background: var(--brand-blue-solid);
+      background: var(--brand-solid);
       color: #fff;
       font-size: 10px;
       font-weight: 800;
@@ -204,21 +102,129 @@
       justify-content: center
     }
 
-    /* CONTEÚDO */
+    /* Sidebar */
+    .sidebar {
+      width: 250px;
+      min-height: 100vh;
+      background: var(--brand-grad);
+      padding: 28px 18px;
+      border-right: 1px solid #1f2937;
+      box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
+      display: flex;
+      flex-direction: column;
+      transition: width 180ms ease;
+      position: sticky;
+      top: 0
+    }
+
+    .sidebar-logo {
+      width: 200px;
+      display: block;
+      margin: 0 auto 18px;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+      transition: width 180ms ease, margin 180ms ease
+    }
+
+    .sidebar a.menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      color: #e5e7eb;
+      text-decoration: none;
+      margin-bottom: 18px;
+      font-weight: 600;
+      transition: background .2s, color .2s, transform .12s
+    }
+
+    .sidebar a.menu-item i {
+      width: 21px;
+      text-align: center;
+      flex: 0 0 21px
+    }
+
+    .sidebar a.menu-item:hover {
+      background: #ffffff;
+      color: var(--brand-solid);
+      transform: translateX(4px)
+    }
+
+    .sidebar a.menu-item.active {
+      color: #fff;
+      background: var(--brand-grad);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
+    }
+
+    .sidebar-spacer {
+      flex: 1 1 auto
+    }
+
+    .sidebar a.menu-item.logout {
+      color: #e5e7eb
+    }
+
+    .sidebar-toggle {
+      align-self: flex-end;
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background .2s, border-color .2s, transform .12s;
+      font-size: 12px
+    }
+
+    .sidebar-toggle:hover {
+      background: #ffffff;
+      color: var(--brand-solid);
+      border-color: #ffffff;
+      transform: translateY(-1px)
+    }
+
+    .sidebar.is-collapsed {
+      width: 76px
+    }
+
+    .sidebar.is-collapsed .sidebar-logo {
+      width: 44px;
+      margin: 0 auto 22px
+    }
+
+    .sidebar.is-collapsed .menu-item {
+      justify-content: center;
+      gap: 0;
+      padding: 12px 0;
+      margin-bottom: 14px
+    }
+
+    .sidebar.is-collapsed .menu-item .label {
+      display: none
+    }
+
+    .sidebar.is-collapsed .sidebar-toggle i {
+      transform: rotate(180deg)
+    }
+
+    /* Conteúdo */
     .content {
       flex-grow: 1;
-      padding: 40px;
+      padding: 36px;
+      min-width: 0;
       position: relative;
-      min-width: 0
+      background: var(--bg)
     }
 
     h2 {
-      font-size: 34px;
-      font-weight: 800;
+      font-size: var(--fs-title);
       text-align: center;
       color: var(--ink);
-      margin: 0 0 30px;
-      position: relative
+      margin: 0 0 28px;
+      position: relative;
+      font-weight: 800
     }
 
     h2::after {
@@ -234,60 +240,60 @@
       box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
+    /* Painel / formulário */
     .panel {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
       padding: 24px;
-      margin: 0 auto 18px;
-      max-width: 980px
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      max-width: 1100px;
+      margin: 0 auto;
+      border: 1px solid var(--border)
     }
 
-    .panel h3 {
-      margin: 0 0 16px;
-      font-size: 20px;
+    .section-title {
+      font-size: 18px;
       font-weight: 800;
-      text-align: center;
-      color: var(--ink)
+      margin: 8px 0 18px
     }
 
-    .row {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px
     }
 
-    .half {
-      flex: 1;
-      min-width: 240px
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px
     }
 
-    .third {
-      flex: 1;
-      min-width: 180px
+    .form-group {
+      margin-bottom: 16px
     }
 
     label {
-      font-size: 12px;
-      color: var(--ink-dim);
-      font-weight: 800;
-      letter-spacing: .04em
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--ink);
+      font-size: 14px
     }
 
     .input,
-    .select,
-    .textarea {
+    .textarea,
+    select {
       width: 100%;
       padding: 12px 14px;
-      font-size: 15px;
-      color: var(--ink);
-      background: #fff;
+      border-radius: 10px;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      font-family: var(--font-family);
+      font-size: 14px;
       outline: none;
-      transition: .2s;
-      font-family: 'Funnel Sans', sans-serif
+      transition: .2s
     }
 
     .textarea {
@@ -296,74 +302,76 @@
     }
 
     .input:focus,
-    .select:focus,
-    .textarea:focus {
-      border-color: var(--brand-blue-solid);
-      box-shadow: 0 0 0 4px rgba(15, 24, 43, .08)
+    .textarea:focus,
+    select:focus {
+      border-color: var(--brand-solid);
+      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
     }
 
     .actions {
       display: flex;
-      justify-content: center;
-      gap: 16px;
+      gap: 12px;
       flex-wrap: wrap;
-      margin-top: 16px
+      margin-top: 18px;
+      justify-content: center;
+      align-items: center
     }
 
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: var(--brand-grad);
-      color: #fff;
-      border: 1px solid var(--brand-blue-solid);
-      padding: 12px 24px;
+      height: var(--btn-h);
+      min-width: var(--btn-minw);
+      padding: 0 22px;
       border-radius: 999px;
-      cursor: pointer;
       font-weight: 800;
-      font-size: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
-      transition: transform .2s, box-shadow .2s, filter .2s;
-      min-width: 200px
+      font-size: 14px;
+      border: 1px solid var(--brand-solid);
+      cursor: pointer;
+      transition: .22s;
+      text-decoration: none;
+      color: #fff;
+      background: var(--brand-grad);
+      box-shadow: var(--shadow)
     }
 
     .btn:hover {
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: var(--shadow-strong);
-      filter: saturate(1.04)
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
     }
 
-    .btn-outline {
+    .btn.secondary {
       background: #fff;
       color: var(--ink);
-      border: 1px solid var(--border);
-      box-shadow: none
+      border: 1px solid var(--border)
     }
 
-    .btn-outline:hover {
-      border-color: var(--brand-blue-solid)
+    .btn.secondary:hover {
+      border-color: var(--brand-solid)
     }
 
-    @media(max-width:720px) {
-      .content {
-        padding: 28px
+    @media (max-width:900px) {
+
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr
       }
 
-      .sidebar {
-        width: 72px
+      .content {
+        padding: 24px
+      }
+
+      .btn {
+        min-width: 100%
       }
     }
   </style>
 
   <script>
-    function toggleSidebar() {
-      const s = document.querySelector('.sidebar');
-      s.classList.toggle('is-collapsed');
-      localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      if (localStorage.getItem('sidebarCollapsed') === '1') { document.querySelector('.sidebar')?.classList.add('is-collapsed'); }
-    });
+    // Sidebar: toggle + persistência
+    function toggleSidebar() { const s = document.getElementById('sidebar'); s.classList.toggle('is-collapsed'); localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0'); }
+    document.addEventListener('DOMContentLoaded', () => { if (localStorage.getItem('sidebarCollapsed') === '1') { document.getElementById('sidebar')?.classList.add('is-collapsed'); } });
   </script>
 </head>
 
@@ -378,19 +386,32 @@
   </div>
 
   <!-- Sidebar -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
+    <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
+        Lab</span></a>
+    <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
+        class="label">Cotações</span></a>
     <a href="{{ url_for('catalog') }}" class="menu-item active"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
-    <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
-        class="label">Agenda</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
         class="label">Estoque</span></a>
+    <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
+        class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
+    {% if username and username|lower == 'admin' %}
+    <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
+    <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
+        class="label">Admin — Empresas</span></a>
+    <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
+        class="label">Admin — Repositório</span></a>
+    <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
+        class="label">Admin — Disponibilidade</span></a>
+    {% endif %}
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
@@ -400,76 +421,75 @@
   <div class="content">
     <h2>Editar Paciente</h2>
 
-    <form class="panel" method="post" action="{{ url_for('edit_patient', patient_id=patient.id) }}">
-      <h3>Dados Pessoais</h3>
-      <div class="row">
-        <div class="half">
-          <label for="name">NOME COMPLETO</label>
+    <form class="panel" method="post" action="{{ url_for('edit_patient', patient_id=patient.id) }}" novalidate>
+      <div class="section-title">Dados Pessoais</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="name">Nome completo</label>
           <input id="name" name="name" class="input" type="text" value="{{ patient.name }}"
             placeholder="Nome e sobrenome" required>
         </div>
-        <div class="half">
-          <label for="email">E-MAIL</label>
+        <div class="form-group">
+          <label for="email">E-mail</label>
           <input id="email" name="email" class="input" type="email" value="{{ patient.email }}"
             placeholder="email@exemplo.com">
         </div>
       </div>
-      <div class="row" style="margin-top:12px">
-        <div class="third">
-          <label for="birthdate">DATA DE NASCIMENTO</label>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="birthdate">Data de nascimento</label>
           <input id="birthdate" name="birthdate" class="input" type="date" value="{{ patient.birthdate }}">
         </div>
-        <div class="third">
-          <label for="document">DOCUMENTO</label>
+        <div class="form-group">
+          <label for="document">Documento</label>
           <input id="document" name="document" class="input" type="text" value="{{ patient.document }}"
             placeholder="CPF / RG">
         </div>
-        <div class="third">
-          <label for="phone">TELEFONE</label>
+        <div class="form-group">
+          <label for="phone">Telefone</label>
           <input id="phone" name="phone" class="input" type="tel" value="{{ patient.phone }}"
             placeholder="(00) 00000-0000">
         </div>
       </div>
 
-      <h3 style="margin-top:22px">Endereço</h3>
-      <div class="row">
-        <div class="half">
-          <label for="street">RUA</label>
+      <div class="section-title">Endereço</div>
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="street">Rua</label>
           <input id="street" name="street" class="input" type="text" value="{{ patient.street }}">
         </div>
-        <div class="third">
-          <label for="number">NÚMERO</label>
+        <div class="form-group">
+          <label for="number">Número</label>
           <input id="number" name="number" class="input" type="text" value="{{ patient.number }}">
         </div>
-        <div class="third">
+        <div class="form-group">
           <label for="zipcode">CEP</label>
           <input id="zipcode" name="zipcode" class="input" type="text" value="{{ patient.zipcode }}">
         </div>
       </div>
-      <div class="row" style="margin-top:12px">
-        <div class="half">
-          <label for="city">CIDADE</label>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="city">Cidade</label>
           <input id="city" name="city" class="input" type="text" value="{{ patient.city }}">
         </div>
-        <div class="half">
-          <label for="state">ESTADO</label>
+        <div class="form-group">
+          <label for="state">Estado</label>
           <input id="state" name="state" class="input" type="text" value="{{ patient.state }}">
         </div>
       </div>
 
-      <h3 style="margin-top:22px">Observações</h3>
-      <div class="row">
-        <div class="half" style="flex:1 1 100%">
-          <label for="notes">OBSERVAÇÕES</label>
-          <textarea id="notes" name="notes" class="textarea"
-            placeholder="Alergias, histórico, observações gerais">{{ patient.notes }}</textarea>
-        </div>
+      <div class="section-title">Observações</div>
+      <div class="form-group">
+        <label for="notes">Observações</label>
+        <textarea id="notes" name="notes" class="textarea"
+          placeholder="Alergias, histórico, observações gerais">{{ patient.notes }}</textarea>
       </div>
 
       <div class="actions">
-        <button type="submit" class="btn"><i class="fa fa-save" style="margin-right:8px"></i>Salvar</button>
-        <a href="{{ url_for('catalog') }}" class="btn btn-outline"><i class="fa fa-times"
-            style="margin-right:8px"></i>Cancelar</a>
+        <button type="submit" class="btn"><i class="fa fa-save"></i>&nbsp;Salvar</button>
+        <a href="{{ url_for('catalog') }}" class="btn secondary"><i class="fa fa-times"></i>&nbsp;Cancelar</a>
       </div>
     </form>
   </div>

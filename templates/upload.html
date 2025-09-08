@@ -519,7 +519,7 @@
     {% elif success %}
     <div class="alert alert-success">
       ✅ Análise realizada com sucesso!
-      <a href="{{ url_for('patient_result', patient_id=success_id) }}"
+      <a href="{{ url_for('patient_result', patient_id=success_id) }}" target="_blank" rel="noopener noreferrer"
         style="color:#065f46; font-weight:800; text-decoration:underline;">
         Ver resultado
       </a>

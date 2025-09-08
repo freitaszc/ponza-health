@@ -1,78 +1,93 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <title>Resultado - Ponza Health (PDF)</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/pdf.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
     <style>
-        body {
-            margin: 1cm 0.5cm;
-            font-family: "Times New Roman", serif;
-            font-size: 14px;
+        @page {
+            size: A4;
+            margin: 20mm 15mm;
         }
+
+        body {
+            margin: 0;
+            font-family: "Times New Roman", serif;
+            font-size: 13.5px;
+            color: #111;
+        }
+
         .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 10px 20px;
+            padding: 0 0 10px 0;
+            border-bottom: 1px solid #000;
         }
+
         .patient-info {
             text-align: left;
             white-space: pre-wrap;
-            max-width: 60%;
+            max-width: 65%;
+            line-height: 1.35;
         }
+
         .logo {
             width: 150px;
-            margin-top: -10px;
+            margin-top: -6px;
         }
+
         .result-section {
-            padding: 0 20px;
+            padding-top: 16px;
         }
+
         .result-title {
             text-align: center;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
-            margin: 40px 0 20px;
+            margin: 26px 0 12px;
         }
+
         pre {
             white-space: pre-wrap;
             font-family: "Times New Roman", serif;
-            font-size: 14px;
+            font-size: 13.5px;
+            line-height: 1.4;
+            margin: 0;
         }
+
         .signature-block {
             text-align: center;
-            margin-top: 60px;
+            margin-top: 50px;
         }
+
         .signature-line {
             display: inline-block;
             border-top: 1px solid #000;
-            width: 300px;
+            width: 320px;
             margin-top: 10px;
         }
     </style>
 </head>
+
 <body>
     <div class="header">
-        <div class="patient-info">{{ patient_info.strip() }}</div>
-        <div>
-            <img src="{{ logo_path }}" class="logo">
-        </div>
+        <div class="patient-info">{{ patient_info }}</div>
+        <div><img src="{{ url_for('static', filename='images/1.png', _external=True) }}" class="logo" alt="Ponza Health"></div>
     </div>
 
     <div class="result-section">
         <div class="result-title">Resultado da Análise</div>
         <pre>{{ diagnostic_text }}</pre>
 
-        <div class="result-title" style="margin-top: 30px;">Prescrição</div>
+        <div class="result-title">Prescrição</div>
         <pre>{{ prescription_text }}</pre>
     </div>
 
     <div class="signature-block">
         <div class="signature-line"></div>
-        <div style="margin-top: 6px;">
-            {{ doctor_name }}
-        </div>
+        <div style="margin-top: 6px;">{{ doctor_name }}</div>
     </div>
 </body>
+
 </html>

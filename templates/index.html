@@ -5,13 +5,9 @@
   <meta charset="UTF-8">
   <title>Ponza Health - Início</title>
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
-
-  <!-- Funnel Sans -->
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-  <!-- Google Charts -->
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
   <style>
@@ -22,10 +18,8 @@
       --border: #e5e7eb;
       --ink: #0b1220;
       --ink-dim: #475569;
-
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-blue-solid: #0f182b;
-
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --shadow-strong: 0 14px 36px rgba(2, 6, 23, .12);
     }
@@ -38,11 +32,11 @@
       border-radius: 8px;
       box-shadow: var(--shadow);
       font-family: 'Funnel Sans', sans-serif;
-      font-size: 14px;
+      font-size: 14px
     }
 
     .gtooltip b {
-      color: var(--ink);
+      color: var(--ink)
     }
 
     @keyframes chartSlideIn {
@@ -71,14 +65,14 @@
       min-height: 100vh;
       font-family: 'Funnel Sans', sans-serif;
       background: var(--bg);
-      color: var(--ink);
+      color: var(--ink)
     }
 
     body.modal-open {
       overflow: hidden
     }
 
-    /* ========== SIDEBAR ========== */
+    /* SIDEBAR (igual) */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -90,7 +84,7 @@
       flex-direction: column;
       transition: width 180ms ease;
       position: sticky;
-      top: 0;
+      top: 0
     }
 
     .sidebar-logo {
@@ -98,7 +92,7 @@
       display: block;
       margin: 0 auto 18px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
-      transition: width 180ms ease, margin 180ms ease;
+      transition: width 180ms ease, margin 180ms ease
     }
 
     .sidebar a.menu-item {
@@ -112,37 +106,37 @@
       text-decoration: none;
       margin-bottom: 18px;
       font-weight: 600;
-      transition: background .2s, color .2s, transform .12s;
+      transition: background .2s, color .2s, transform .12s
     }
 
     .sidebar a.menu-item i {
       width: 21px;
       text-align: center;
-      flex: 0 0 21px;
+      flex: 0 0 21px
     }
 
     .sidebar a.menu-item:hover {
       background: #fff;
       color: var(--brand-blue-solid);
-      transform: translateX(4px);
+      transform: translateX(4px)
     }
 
     .sidebar a.menu-item:hover i {
-      color: var(--brand-blue-solid);
+      color: var(--brand-blue-solid)
     }
 
     .sidebar a.menu-item.active {
       color: #fff;
       background: var(--brand-grad);
-      box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
     }
 
     .sidebar-spacer {
-      flex: 1 1 auto;
+      flex: 1 1 auto
     }
 
     .sidebar a.menu-item.logout {
-      color: #e5e7eb;
+      color: #e5e7eb
     }
 
     .sidebar-toggle {
@@ -155,7 +149,7 @@
       cursor: pointer;
       margin-bottom: 14px;
       transition: background .2s, border-color .2s, transform .12s;
-      font-size: 12px;
+      font-size: 12px
     }
 
     .sidebar-toggle:hover {
@@ -189,42 +183,14 @@
       transform: rotate(180deg)
     }
 
-    .compact-card {
-      min-width: 260px;
-      padding: 14px;
-    }
-
-    .mini-donut {
-      width: 64px;
-      height: 64px;
-    }
-
-    .compact-card .metric-value {
-      font-size: 24px;
-    }
-
-    body.sidebar-collapsed .compact-card {
-      min-width: 280px;
-      padding: 16px;
-    }
-
-    body.sidebar-collapsed .mini-donut {
-      width: 72px;
-      height: 72px;
-    }
-
-    body.sidebar-collapsed .compact-card .metric-value {
-      font-size: 26px;
-    }
-
-    /* ========== CONTEÚDO ========== */
+    /* CONTEÚDO */
     .content {
       flex-grow: 1;
       padding: 40px;
       position: relative;
       min-width: 0;
       background: var(--bg);
-      transition: padding 180ms ease;
+      transition: padding 180ms ease
     }
 
     h2 {
@@ -233,7 +199,7 @@
       text-align: center;
       color: var(--ink);
       margin: 0 0 30px;
-      position: relative;
+      position: relative
     }
 
     h2::after {
@@ -246,23 +212,36 @@
       height: 4px;
       background: var(--brand-grad);
       border-radius: 2px;
-      box-shadow: 0 0 8px rgba(0, 0, 0, .12);
+      box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
-    /* Linha ÚNICA (não quebra) para os 4 cards */
-    .dashboard-row {
-      display: flex;
+    /* NOVO: grade centralizada para os 4 donuts */
+    .donuts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(260px, 1fr));
       gap: 16px;
+      justify-items: center;
+      /* centraliza cards */
       align-items: stretch;
-      flex-wrap: nowrap;
-      /* nunca quebra linha */
-      margin: 32px 0;
-      overflow-x: auto;
-      /* só aparece scroll se muito estreito */
-      -webkit-overflow-scrolling: touch;
+      margin: 32px auto;
+      max-width: 1200px;
+      /* mantém conjunto no centro */
     }
 
-    /* Cards compactos */
+    @media(max-width:1200px) {
+      .donuts-grid {
+        grid-template-columns: repeat(2, minmax(260px, 1fr));
+        max-width: 820px
+      }
+    }
+
+    @media(max-width:620px) {
+      .donuts-grid {
+        grid-template-columns: 1fr;
+        max-width: 420px
+      }
+    }
+
     .compact-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -270,15 +249,16 @@
       border-radius: 16px;
       box-shadow: var(--shadow);
       min-width: 260px;
-      /* alvo para caber 4 */
       max-width: 280px;
       transition: transform .2s ease, box-shadow .2s ease;
       animation: chartSlideIn .6s ease-out;
+      text-align: center;
+      /* centraliza conteúdo do card */
     }
 
     .compact-card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(2, 6, 23, .10);
+      box-shadow: 0 12px 28px rgba(2, 6, 23, .10)
     }
 
     .compact-card h3 {
@@ -286,20 +266,22 @@
       font-weight: 700;
       font-size: 15px;
       margin: 0 0 12px;
-      text-align: left
+      text-align: center
     }
 
     .metric-row {
       display: flex;
       align-items: center;
-      gap: 12px
+      gap: 12px;
+      justify-content: center
     }
 
+    /* centraliza donut + números */
     .mini-donut {
-      width: 64px;
-      height: 64px
+      margin: 0 auto
     }
 
+    /* garante donut centralizado */
     .metric-value {
       font-size: 24px;
       font-weight: 900;
@@ -312,7 +294,8 @@
       color: var(--ink-dim);
       display: flex;
       align-items: center;
-      gap: 6px
+      gap: 6px;
+      justify-content: center
     }
 
     .status-indicator {
@@ -338,59 +321,53 @@
       background: #8b5cf6
     }
 
-    /* Botão enxuto nos cards */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--brand-grad);
-      color: #fff;
-      border: 1px solid var(--brand-blue-solid);
-      padding: 8px 14px;
-      border-radius: 999px;
+    .link-plain {
+      font-size: 4px;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 6px;
+      font: inherit;
+      color: var(--brand-blue-solid);
       cursor: pointer;
-      font-weight: 800;
-      font-size: 13px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
-      transition: transform .2s, box-shadow .2s, filter .2s;
-      min-width: 0;
-      font-family: 'Funnel Sans', sans-serif;
+      text-decoration: underline;
+      font-weight: 800
     }
 
-    .btn:hover {
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 14px 36px rgba(0, 0, 0, .20);
-      filter: saturate(1.04)
+    .link-plain:hover {
+      filter: saturate(1.1)
     }
 
-    /* Gráfico grande */
+    /* BLOCO INFERIOR */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px
+    }
+
+    @media(max-width:1100px) {
+      .bottom-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
     .chart-container {
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 28px;
+      padding: 24px;
       border-radius: 16px;
       box-shadow: var(--shadow);
-      transition: transform .2s ease, box-shadow .2s ease;
-      position: relative;
-      overflow: hidden;
       animation: chartSlideIn .6s ease-out;
-      color: var(--ink);
-      flex: 1;
-      min-width: 520px;
-    }
-
-    .chart-container:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(2, 6, 23, .10)
+      color: var(--ink)
     }
 
     .chart-container h3 {
       color: var(--ink);
       font-weight: 800;
-      font-size: 20px;
-      margin: 0 0 20px;
+      font-size: 18px;
+      margin: 0 0 16px;
       text-align: center;
-      position: relative;
+      position: relative
     }
 
     .chart-container h3::after {
@@ -402,22 +379,67 @@
       width: 50px;
       height: 3px;
       background: var(--brand-grad);
-      border-radius: 2px;
+      border-radius: 2px
     }
 
-    @media (max-width:1100px) {
-      .chart-container {
-        min-width: 420px
-      }
+    .side-widgets {
+      display: flex;
+      flex-direction: column;
+      gap: 16px
     }
 
-    @media (max-width:900px) {
-      .chart-container {
-        min-width: 100%
-      }
+    .widget {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 16px;
+      box-shadow: var(--shadow)
     }
 
-    /* ========== TOP RIGHT ICONS ========== */
+    .widget h4 {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      text-align: center
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 14px;
+      color: var(--ink)
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--surface-alt);
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 800;
+      color: var(--ink)
+    }
+
+    tbody td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    tbody tr:hover {
+      background: #f9fbff
+    }
+
+    /* TOP RIGHT */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -427,7 +449,7 @@
       align-items: center;
       gap: 12px;
       background: transparent;
-      box-shadow: none;
+      box-shadow: none
     }
 
     .icon-btn {
@@ -442,12 +464,12 @@
       place-items: center;
       box-shadow: var(--shadow);
       transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
-      text-decoration: none;
+      text-decoration: none
     }
 
     .icon-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
       border-color: var(--brand-blue-solid)
     }
 
@@ -473,7 +495,7 @@
       justify-content: center
     }
 
-    /* ========== MODAL ========== */
+    /* Modal Detalhes */
     #detailsModal {
       display: none;
       position: fixed;
@@ -483,7 +505,7 @@
       justify-content: center;
       background: rgba(0, 0, 0, .55);
       backdrop-filter: blur(4px);
-      padding: 20px;
+      padding: 20px
     }
 
     #detailsModal .modal-card {
@@ -496,7 +518,7 @@
       color: var(--ink);
       padding: 30px;
       position: relative;
-      text-align: center;
+      text-align: center
     }
 
     #detailsModal h3 {
@@ -535,7 +557,7 @@
       font-size: 24px;
       font-weight: 800;
       cursor: pointer;
-      transition: transform .2s, color .2s;
+      transition: transform .2s, color .2s
     }
 
     #detailsModal .close-btn:hover {
@@ -543,7 +565,7 @@
       transform: scale(1.1)
     }
 
-    @media (max-width:700px) {
+    @media(max-width:700px) {
       .top-profile {
         right: 10px;
         top: 8px
@@ -556,234 +578,39 @@
       .sidebar {
         width: 72px
       }
-
-      /* mesmo no mobile os cards ficam numa linha rolável */
     }
   </style>
-
-  <script>
-    // ===== Dados do servidor =====
-    const pacotes_usados = {{ used or 0 }};
-    const pacotes_comprados = {{ (used or 0) + (remaining or 0) }};
-
-    const BRAND = '#0f182b';
-
-    let comboChart, packagesChart, patientsChart, proceduresChart, insuranceChart;
-    let comboData, packagesData, patientsData, proceduresData, insuranceData;
-
-    google.charts.load('current', { packages: ['corechart'] });
-    google.charts.setOnLoadCallback(initCharts);
-
-    function initCharts() {
-      const rows = [
-        {% for item in quiz_chart_data %}
-    ['{{ item.date }}', {{ item.count }}, {{ item.media }}]{% if not loop.last %}, {% endif %}
-    {% endfor %}
-      ];
-
-    // Donuts dos cards (64x64)
-    patientsData = google.visualization.arrayToDataTable([
-      ['Tipo', 'Quantidade'], ['Novos', 100], ['Recorrentes', 0]
-    ]);
-    proceduresData = google.visualization.arrayToDataTable([
-      ['Tipo', 'Quantidade'], ['Retorno', 2], ['Primeira Consulta', 0]
-    ]);
-    insuranceData = google.visualization.arrayToDataTable([
-      ['Tipo', 'Quantidade'], ['Particular', 2], ['Convênio', 0]
-    ]);
-
-    // Pacotes de Análise no mesmo formato dos demais donuts
-    const total = Math.max(pacotes_comprados, 1);
-    const usados = Math.min(pacotes_usados, total);
-    const disponivel = Math.max(total - usados, 0);
-    packagesData = google.visualization.arrayToDataTable([
-      ['Status', 'Qtd'], ['Usado', usados], ['Disponível', disponivel]
-    ]);
-
-    // Combo principal (7 dias)
-    comboData = new google.visualization.DataTable();
-    comboData.addColumn('string', 'Data');
-    comboData.addColumn('number', 'Análises');
-    comboData.addColumn({ type: 'string', role: 'annotation' });
-    comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
-    comboData.addColumn('number', 'Média');
-    comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
-
-    rows.forEach(([d, c, m]) => {
-      const cFmt = (c ?? 0);
-      const mFmt = (m ?? 0);
-      comboData.addRow([
-        d,
-        cFmt,
-        cFmt ? String(cFmt) : null,
-        `<div class="gtooltip"><div><b>${d}</b></div><div>Análises: <b>${cFmt}</b></div></div>`,
-        mFmt,
-        `<div class="gtooltip"><div><b>${d}</b></div><div>Média: <b>${mFmt}</b></div></div>`
-      ]);
-    });
-
-    // Instância dos gráficos
-    comboChart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
-    packagesChart = new google.visualization.PieChart(document.getElementById('packages_chart'));
-    patientsChart = new google.visualization.PieChart(document.getElementById('patients_chart'));
-    proceduresChart = new google.visualization.PieChart(document.getElementById('procedures_chart'));
-    insuranceChart = new google.visualization.PieChart(document.getElementById('insurance_chart'));
-
-    redrawCharts();
-
-    // Observa redimensionamentos + transição da sidebar
-    window.addEventListener('resize', debounce(redrawCharts, 120));
-    const ro = new ResizeObserver(debounce(redrawCharts, 80));
-    ['.content', '#curve_chart', '#packages_chart', '#patients_chart', '#procedures_chart', '#insurance_chart']
-      .forEach(sel => { const el = document.querySelector(sel); if (el) ro.observe(el); });
-    }
-
-    function getComboOptions() {
-      const w = (document.getElementById('curve_chart')?.clientWidth) || 800;
-      const small = w < 700;
-      const tiny = w < 500;
-      return {
-        backgroundColor: 'transparent',
-        chartArea: { left: small ? 48 : 60, top: 20, width: '85%', height: '75%' },
-        legend: {
-          position: tiny ? 'none' : 'bottom',
-          textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: small ? 13 : 14, bold: true }
-        },
-        seriesType: 'bars',
-        series: {
-          0: { color: BRAND, type: 'bars', targetAxisIndex: 0, dataOpacity: 0.95 },
-          1: { type: 'line', color: BRAND, lineWidth: small ? 3 : 4, pointSize: 0, curveType: 'function' }
-        },
-        bar: { groupWidth: small ? '52%' : '60%' },
-        vAxis: {
-          minValue: 0, textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13 },
-          gridlines: { color: '#e2e8f0', count: 5 }, baselineColor: '#94a3b8'
-        },
-        hAxis: {
-          textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true },
-          slantedText: small, slantedTextAngle: small ? 30 : 0
-        },
-        annotations: { textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: 13 }, alwaysOutside: true },
-        tooltip: { isHtml: true, ignoreBounds: true },
-        animation: { duration: 600, easing: 'out', startup: true }
-      };
-    }
-
-    // Opções dos donuts pequenos (todos iguais)
-    function getSmallDonutOptions(colors) {
-      return {
-        backgroundColor: 'transparent',
-        pieHole: 0.65,
-        pieSliceText: 'none',
-        legend: 'none',
-        chartArea: { width: '100%', height: '100%', top: 0, left: 0 },
-        colors: colors,
-        pieSliceBorderColor: 'transparent',
-        tooltip: { trigger: 'none' },
-        animation: { duration: 600, easing: 'out', startup: true }
-      };
-    }
-
-    function redrawCharts() {
-      if (comboChart) comboChart.draw(comboData, getComboOptions());
-
-      const gray = '#e5e7eb';
-      if (packagesChart) packagesChart.draw(packagesData, getSmallDonutOptions([BRAND, gray]));
-      if (patientsChart) patientsChart.draw(patientsData, getSmallDonutOptions(['#10b981', gray]));
-      if (proceduresChart) proceduresChart.draw(proceduresData, getSmallDonutOptions(['#f59e0b', gray]));
-      if (insuranceChart) insuranceChart.draw(insuranceData, getSmallDonutOptions(['#3b82f6', gray]));
-
-      // sombra sutil nos SVGs
-      setTimeout(() => {
-        ['packages_chart', 'patients_chart', 'procedures_chart', 'insurance_chart'].forEach(id => {
-          const svg = document.getElementById(id)?.querySelector('svg');
-          if (svg) { svg.style.filter = 'drop-shadow(0 0 8px rgba(0,0,0,.10))'; svg.style.borderRadius = '50%'; }
-        });
-      }, 0);
-    }
-
-    function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); } }
-
-    function openModal() {
-      const m = document.getElementById('detailsModal');
-      m.style.display = 'flex'; document.body.classList.add('modal-open');
-      m.setAttribute('aria-hidden', 'false'); m.querySelector('[data-close]')?.focus();
-    }
-    function closeModal() {
-      const m = document.getElementById('detailsModal');
-      m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true');
-    }
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() });
-
-    function toggleSidebar() {
-      const sidebar = document.querySelector('.sidebar');
-      const body = document.body;
-
-      sidebar.classList.toggle('is-collapsed');
-      const collapsed = sidebar.classList.contains('is-collapsed');
-
-      // reflete o estado no <body>
-      body.classList.toggle('sidebar-collapsed', collapsed);
-
-      // persiste
-      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-
-      // redesenha gráficos quando a largura terminar de animar
-      const onEnd = (ev) => {
-        if (ev.propertyName === 'width') {
-          redrawCharts();
-          sidebar.removeEventListener('transitionend', onEnd);
-        }
-      };
-      sidebar.addEventListener('transitionend', onEnd);
-      setTimeout(redrawCharts, 220);
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
-      if (collapsed) {
-        document.querySelector('.sidebar')?.classList.add('is-collapsed');
-        document.body.classList.add('sidebar-collapsed'); // <- aplica no load
-      }
-    });
-  </script>
 </head>
 
 <body>
-  <!-- Topo direito -->
   <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
-      <i class="fa fa-user"></i>
-    </a>
+    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
+        class="fa fa-user"></i></a>
     <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
-      <i class="fa fa-bell"></i>
-      <span class="badge">{{ (notifications_unread or 0) }}</span>
+      <i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span>
     </button>
   </div>
 
-  <!-- Modal Detalhes -->
   <div id="detailsModal" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <button class="close-btn" data-close onclick="closeModal()" aria-label="Fechar">×</button>
       <h3>Detalhes do Pacote</h3>
       <div class="stats">
-        <p><strong>Pacotes Totais:</strong> {{ used + remaining }}</p>
-        <p><strong>Usadas:</strong> <span style="color:var(--brand-blue-solid);">{{ used }}</span></p>
-        <p><strong>Disponíveis:</strong> <span style="color:var(--brand-blue-solid);">{{ remaining }}</span></p>
+        <p><strong>Pacotes Totais:</strong> {{ (package_limit or 0) }}</p>
+        <p><strong>Usadas:</strong> <span style="color:var(--brand-blue-solid);">{{ (package_used or 0) }}</span></p>
+        <p><strong>Disponíveis:</strong> <span style="color:var(--brand-blue-solid);">{{ (remaining or 0) }}</span></p>
       </div>
-      <button type="button" class="btn" onclick="window.location.href='{{ url_for('purchase') }}'">Comprar
-        Pacotes</button>
+      <div class="card-actions">
+        <button type="button" class="link-plain" onclick="window.location.href='{{ url_for('purchase') }}'">Comprar
+          Pacotes</button>
+      </div>
     </div>
   </div>
 
-  <!-- Sidebar -->
   <div class="sidebar">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu">
-      <i class="fa fa-angle-double-left"></i>
-    </button>
-
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
+        class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-
     <a href="{{ url_for('index') }}" class="menu-item active"><i class="fa fa-home"></i><span
         class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
@@ -798,7 +625,6 @@
         class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
-
     {% if username and username|lower == 'admin' %}
     <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
     <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
@@ -808,86 +634,318 @@
     <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
         class="label">Admin — Disponibilidade</span></a>
     {% endif %}
-
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
   </div>
 
-  <!-- Conteúdo -->
   <div class="content">
     <h2>Bem-vindo(a), {{ username }}</h2>
 
-    <!-- LINHA ÚNICA: quatro donuts compactos -->
-    <div class="dashboard-row">
-      <!-- Pacotes de Análise -->
+    <!-- DONUTS CENTRALIZADOS -->
+    <div class="donuts-grid">
       <div class="compact-card">
         <h3>Pacotes de Análise</h3>
         <div class="metric-row">
-          <div id="packages_chart" class="mini-donut"></div>
+          <div id="packages_chart" class="mini-donut" style="width:64px;height:64px"></div>
           <div>
             <div class="metric-value">
               {{ ((used or 0) + (remaining or 0)) and ((used or 0) * 100 // ((used or 0) + (remaining or 0))) or 0 }}%
             </div>
-            <div class="metric-label"><span class="status-indicator"
-                style="background: var(--brand-blue-solid);"></span> Usado</div>
-            <div class="metric-label"><span class="status-indicator" style="background: #e5e7eb;"></span> Disponível
-            </div>
+            <div class="metric-label"><span class="status-indicator" style="background:var(--brand-blue-solid);"></span>
+              Usado: {{ used or 0 }}</div>
+            <div class="metric-label"><span class="status-indicator" style="background:#e5e7eb;"></span> Disponível: {{
+              remaining or 0 }}</div>
           </div>
         </div>
-        <div style="margin-top: 10px; justify-content: center;">
-          <button class="btn" onclick="openModal()">Ver Detalhes</button>
+        <div class="card-actions">
+          <button class="link-plain" onclick="openModal()">Ver detalhes</button>
         </div>
       </div>
 
-      <!-- Pacientes -->
       <div class="compact-card">
-        <h3>Pacientes</h3>
+        <h3>Pacientes (últimos 30 dias)</h3>
         <div class="metric-row">
-          <div id="patients_chart" class="mini-donut"></div>
+          <div id="patients_chart" class="mini-donut" style="width:64px;height:64px"></div>
           <div>
-            <div class="metric-value">100%</div>
-            <div class="metric-label"><span class="status-indicator new"></span> Novos</div>
-            <div class="metric-label"><span class="status-indicator" style="background:#e5e7eb;"></span> Recorrentes
-            </div>
-          </div>
-        </div>
-        <div style="margin-top:10px; color:var(--ink-dim); font-size:13px;">
-          <strong>Homens:</strong> 1<br><strong>Mulheres:</strong> 0
-        </div>
-      </div>
-
-      <!-- Procedimentos realizados -->
-      <div class="compact-card">
-        <h3>Procedimentos realizados</h3>
-        <div class="metric-row">
-          <div id="procedures_chart" class="mini-donut"></div>
-          <div>
-            <div class="metric-value">2</div>
-            <div class="metric-label"><span class="status-indicator return"></span> Retorno</div>
+            <div class="metric-value">{{ (patients_new_30 or 0) + (patients_return_30 or 0) }}</div>
+            <div class="metric-label"><span class="status-indicator new"></span> Novos: {{ patients_new_30 or 0 }}</div>
+            <div class="metric-label"><span class="status-indicator" style="background:#e5e7eb;"></span> Recorrentes: {{
+              patients_return_30 or 0 }}</div>
           </div>
         </div>
       </div>
 
-      <!-- Pacientes x Convênio -->
       <div class="compact-card">
-        <h3>Pacientes x Convênio</h3>
+        <h3>Procedimentos (últimos 30 dias)</h3>
         <div class="metric-row">
-          <div id="insurance_chart" class="mini-donut"></div>
+          <div id="procedures_chart" class="mini-donut" style="width:64px;height:64px"></div>
           <div>
-            <div class="metric-value">2</div>
-            <div class="metric-label"><span class="status-indicator particular"></span> Particular</div>
+            <div class="metric-value">{{ (procedures_return_30 or 0) + (procedures_first_30 or 0) }}</div>
+            <div class="metric-label"><span class="status-indicator return"></span> Retorno: {{ procedures_return_30 or
+              0 }}</div>
+            <div class="metric-label"><span class="status-indicator" style="background:#e5e7eb;"></span> Primeira: {{
+              procedures_first_30 or 0 }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="compact-card">
+        <h3>Convênio (últimos 30 dias)</h3>
+        <div class="metric-row">
+          <div id="insurance_chart" class="mini-donut" style="width:64px;height:64px"></div>
+          <div>
+            <div class="metric-value">{{ (insurance_particular_30 or 0) + (insurance_convenio_30 or 0) }}</div>
+            <div class="metric-label"><span class="status-indicator particular"></span> Particular: {{
+              insurance_particular_30 or 0 }}</div>
+            <div class="metric-label"><span class="status-indicator convenio"></span> Convênio: {{ insurance_convenio_30
+              or 0 }}</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Gráfico grande embaixo -->
-    <div class="chart-container" style="margin-top: 16px;">
-      <h3>Análises de PDFs — últimos 7 dias</h3>
-      <div id="curve_chart" style="width:100%; height:350px;"></div>
+    <!-- GRID INFERIOR -->
+    <div class="bottom-grid">
+      <div class="chart-container">
+        <h3>Análises de PDFs — últimos 7 dias</h3>
+        <div id="curve_chart" style="width:100%;height:300px"></div>
+      </div>
+
+      <div class="side-widgets">
+        <div class="widget">
+          <h4>Estoque baixo (< 5)</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th style="width:80px">Qtd.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if low_stock and low_stock|length > 0 %}
+                {% for p in low_stock %}
+                <tr>
+                  <td>{{ p.name }}</td>
+                  <td>{{ p.quantity }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                  <td colspan="2" style="color:var(--ink-dim)">Nenhum produto abaixo do nível mínimo.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Substitui donut por TABELA de Cotações -->
+        <div class="widget">
+          <h4>Cotações respondidas</h4>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cotação</th>
+                  <th style="width:120px">Respostas</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- DADOS ESPERADOS: quotes_items = [{ name/subject, responses }, ...] -->
+                {% if quotes_items and quotes_items|length > 0 %}
+                {% for q in quotes_items %}
+                <tr>
+                  <td>{{ q.name or q.subject }}</td>
+                  <td>{{ q.responses or 0 }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                  <td colspan="2" style="color:var(--ink-dim)">Nenhuma cotação encontrada.</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:center;color:var(--ink-dim);font-weight:700;margin-top:8px">
+            Total: {{ quotes_total or 0 }} — Respondidas: {{ quotes_responded or 0 }} — Pendentes: {{ quotes_pending or
+            0 }}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- SCRIPTS -->
+  <script>
+    // ===== Dados do servidor =====
+    const pacotes_usados = Number({{ used or 0 }}) || 0;
+    const pacotes_comprados = Number({{ (used or 0) + (remaining or 0) }}) || 0;
+
+    const PATIENTS_NEW_30 = Number({{ patients_new_30 or 0 }}) || 0;
+    const PATIENTS_RETURN_30 = Number({{ patients_return_30 or 0 }}) || 0;
+    const PROC_RETURN_30 = Number({{ procedures_return_30 or 0 }}) || 0;
+    const PROC_FIRST_30 = Number({{ procedures_first_30 or 0 }}) || 0;
+    const INS_PARTICULAR_30 = Number({{ insurance_particular_30 or 0 }}) || 0;
+    const INS_CONVENIO_30 = Number({{ insurance_convenio_30 or 0 }}) || 0;
+
+    // série do gráfico principal
+    const rows = [
+      {% for item in quiz_chart_data %}
+    ['{{ item.date }}', Number({{ item.count or 0 }}), Number({{ item.media or 0 }})]{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    ];
+    (function ensureRows() {
+      if (Array.isArray(rows) && rows.length === 0) {
+        const t = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(t); d.setDate(t.getDate() - i);
+          const label = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+          rows.push([label, 0, 0]);
+        }
+      }
+    })();
+
+    const BRAND = '#0f182b', GRAY = '#e5e7eb';
+    let comboChart, packagesChart, patientsChart, proceduresChart, insuranceChart;
+    let comboData, packagesData, patientsData, proceduresData, insuranceData;
+
+    google.charts.load('current', { packages: ['corechart'] });
+    google.charts.setOnLoadCallback(initCharts);
+
+    function zeroSafePieData(pairs, fallbackLabel = 'Sem dados') {
+      const total = pairs.reduce((s, p) => s + (Number(p[1]) || 0), 0);
+      if (total > 0) {
+        return { data: google.visualization.arrayToDataTable([['Tipo', 'Qtd'], ...pairs]), colors: null };
+      }
+      return { data: google.visualization.arrayToDataTable([['Tipo', 'Qtd'], [fallbackLabel, 1]]), colors: [GRAY] };
+    }
+
+    function initCharts() {
+      // pacotes
+      const total = Math.max(pacotes_comprados, 0);
+      const usados = Math.max(Math.min(pacotes_usados, total), 0);
+      const disponivel = Math.max(total - usados, 0);
+      const pkg = zeroSafePieData([['Usado', usados], ['Disponível', disponivel]], 'Sem pacotes');
+      packagesData = pkg.data;
+
+      // pacientes
+      const pat = zeroSafePieData([['Novos', PATIENTS_NEW_30], ['Recorrentes', PATIENTS_RETURN_30]], 'Sem pacientes');
+      patientsData = pat.data;
+
+      // procedimentos
+      const proc = zeroSafePieData([['Retorno', PROC_RETURN_30], ['Primeira', PROC_FIRST_30]], 'Sem procedimentos');
+      proceduresData = proc.data;
+
+      // convênio
+      const ins = zeroSafePieData([['Particular', INS_PARTICULAR_30], ['Convênio', INS_CONVENIO_30]], 'Sem atendimentos');
+      insuranceData = ins.data;
+
+      // gráfico de linhas/barras
+      comboData = new google.visualization.DataTable();
+      comboData.addColumn('string', 'Data');
+      comboData.addColumn('number', 'Análises');
+      comboData.addColumn({ type: 'string', role: 'annotation' });
+      comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
+      comboData.addColumn('number', 'Média');
+      comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
+      rows.forEach(([d, c, m]) => {
+        const cFmt = (c ?? 0), mFmt = (m ?? 0);
+        comboData.addRow([
+          d, cFmt, cFmt ? String(cFmt) : null,
+          `<div class="gtooltip"><div><b>${d}</b></div><div>Análises: <b>${cFmt}</b></div></div>`,
+          mFmt,
+          `<div class="gtooltip"><div><b>${d}</b></div><div>Média: <b>${mFmt}</b></div></div>`
+        ]);
+      });
+
+      // instâncias
+      comboChart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
+      packagesChart = new google.visualization.PieChart(document.getElementById('packages_chart'));
+      patientsChart = new google.visualization.PieChart(document.getElementById('patients_chart'));
+      proceduresChart = new google.visualization.PieChart(document.getElementById('procedures_chart'));
+      insuranceChart = new google.visualization.PieChart(document.getElementById('insurance_chart'));
+
+      window.__pieFallbackColors = {
+        packages: pkg.colors || [BRAND, GRAY],
+        patients: pat.colors || ['#10b981', GRAY],
+        procedures: proc.colors || ['#f59e0b', GRAY],
+        insurance: ins.colors || ['#3b82f6', GRAY]
+      };
+
+      redrawCharts();
+      window.addEventListener('resize', debounce(redrawCharts, 120));
+      const ro = new ResizeObserver(debounce(redrawCharts, 80));
+      ['.content', '#curve_chart', '#packages_chart', '#patients_chart', '#procedures_chart', '#insurance_chart']
+        .forEach(sel => { const el = document.querySelector(sel); if (el) ro.observe(el); });
+    }
+
+    function getComboOptions() {
+      const w = (document.getElementById('curve_chart')?.clientWidth) || 800;
+      const small = w < 700, tiny = w < 500;
+      return {
+        backgroundColor: 'transparent',
+        chartArea: { left: small ? 40 : 56, top: 12, width: '85%', height: '72%' },
+        legend: { position: tiny ? 'none' : 'bottom', textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true } },
+        seriesType: 'bars',
+        series: { 0: { color: BRAND, type: 'bars', targetAxisIndex: 0, dataOpacity: .95 }, 1: { type: 'line', color: BRAND, lineWidth: small ? 3 : 4, pointSize: 0, curveType: 'function' } },
+        bar: { groupWidth: small ? '52%' : '60%' },
+        vAxis: { minValue: 0, textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 11 : 12 }, gridlines: { color: '#e2e8f0', count: 5 }, baselineColor: '#94a3b8' },
+        hAxis: { textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 11 : 12, bold: true }, slantedText: small, slantedTextAngle: small ? 30 : 0 },
+        annotations: { textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: 12 }, alwaysOutside: true },
+        tooltip: { isHtml: true, ignoreBounds: true },
+        animation: { duration: 600, easing: 'out', startup: true }
+      };
+    }
+    function getSmallDonutOptions(colors) {
+      const base = { backgroundColor: 'transparent', pieHole: .65, pieSliceText: 'none', legend: 'none', chartArea: { width: '100%', height: '100%', top: 0, left: 0 }, pieSliceBorderColor: 'transparent', tooltip: { trigger: 'none' }, animation: { duration: 600, easing: 'out', startup: true } };
+      if (colors && Array.isArray(colors)) base.colors = colors;
+      return base;
+    }
+
+    function redrawCharts() {
+      if (comboChart) comboChart.draw(comboData, getComboOptions());
+
+      const pkgColors = window.__pieFallbackColors?.packages || [BRAND, GRAY];
+      const patColors = window.__pieFallbackColors?.patients || ['#10b981', GRAY];
+      const proColors = window.__pieFallbackColors?.procedures || ['#f59e0b', GRAY];
+      const insColors = window.__pieFallbackColors?.insurance || ['#3b82f6', GRAY];
+
+      if (packagesChart) packagesChart.draw(packagesData, getSmallDonutOptions(pkgColors));
+      if (patientsChart) patientsChart.draw(patientsData, getSmallDonutOptions(patColors));
+      if (proceduresChart) proceduresChart.draw(proceduresData, getSmallDonutOptions(proColors));
+      if (insuranceChart) insuranceChart.draw(insuranceData, getSmallDonutOptions(insColors));
+
+      // leve sombra nos SVGs
+      setTimeout(() => {
+        ['packages_chart', 'patients_chart', 'procedures_chart', 'insurance_chart'].forEach(id => {
+          const svg = document.getElementById(id)?.querySelector('svg');
+          if (svg) { svg.style.filter = 'drop-shadow(0 0 8px rgba(0,0,0,.10))'; svg.style.borderRadius = '12px'; }
+        });
+      }, 0);
+    }
+
+    // Modal
+    function openModal() { const m = document.getElementById('detailsModal'); m.style.display = 'flex'; document.body.classList.add('modal-open'); m.setAttribute('aria-hidden', 'false'); m.querySelector('[data-close]')?.focus(); }
+    function closeModal() { const m = document.getElementById('detailsModal'); m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Sidebar
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar'); const body = document.body;
+      sidebar.classList.toggle('is-collapsed'); const collapsed = sidebar.classList.contains('is-collapsed');
+      body.classList.toggle('sidebar-collapsed', collapsed);
+      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+      const onEnd = (ev) => { if (ev.propertyName === 'width') { redrawCharts(); sidebar.removeEventListener('transitionend', onEnd); } };
+      sidebar.addEventListener('transitionend', onEnd); setTimeout(redrawCharts, 220);
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+      if (collapsed) { document.querySelector('.sidebar')?.classList.add('is-collapsed'); document.body.classList.add('sidebar-collapsed'); }
+    });
+  </script>
 </body>
 
 </html>

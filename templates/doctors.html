@@ -234,7 +234,6 @@
       box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
-    /* Contêineres */
     .panel {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -264,7 +263,6 @@
       min-width: 220px
     }
 
-    /* Form */
     label {
       font-size: 12px;
       color: var(--ink-dim);
@@ -307,14 +305,16 @@
       background: var(--brand-grad);
       color: #fff;
       border: 1px solid var(--brand-blue-solid);
-      padding: 12px 24px;
+      padding: 12px 18px;
       border-radius: 999px;
       cursor: pointer;
       font-weight: 800;
-      font-size: 16px;
+      font-size: 14px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
       transition: transform .2s, box-shadow .2s, filter .2s;
-      min-width: 200px
+      min-width: 220px;
+      height: 44px;
+      font-family: var(--font-family, 'Funnel Sans', sans-serif);
     }
 
     .btn:hover {
@@ -327,14 +327,14 @@
       background: #fff;
       color: var(--ink);
       border: 1px solid var(--border);
-      box-shadow: none
+      box-shadow: none;
+      font-size: 14px;
     }
 
     .btn-outline:hover {
       border-color: var(--brand-blue-solid)
     }
 
-    /* Tabela */
     .table-wrap {
       overflow: auto;
       border: 1px solid var(--border);
@@ -377,6 +377,88 @@
       flex-wrap: wrap
     }
 
+    /* ====== Modal ====== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, .5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 720px;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(2, 6, 23, .25);
+      overflow: hidden;
+      animation: pop .15s ease-out;
+    }
+
+    @keyframes pop {
+      from {
+        transform: scale(.98);
+        opacity: .0
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-alt);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ink);
+      margin: 0
+    }
+
+    .modal-close {
+      border: 1px solid var(--border);
+      background: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 18px 20px
+    }
+
+    .modal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px 20px 22px
+    }
+
     @media(max-width:720px) {
       .content {
         padding: 28px
@@ -384,6 +466,10 @@
 
       .sidebar {
         width: 72px
+      }
+
+      .modal-grid {
+        grid-template-columns: 1fr
       }
     }
   </style>
@@ -395,7 +481,22 @@
       localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
     }
     document.addEventListener('DOMContentLoaded', () => {
-      if (localStorage.getItem('sidebarCollapsed') === '1') { document.querySelector('.sidebar')?.classList.add('is-collapsed'); }
+      if (localStorage.getItem('sidebarCollapsed') === '1') {
+        document.querySelector('.sidebar')?.classList.add('is-collapsed');
+      }
+
+      // Modal handlers
+      const backdrop = document.getElementById('modal-backdrop');
+      const openBtn = document.getElementById('open-modal');
+      const closeBtns = document.querySelectorAll('[data-close-modal]');
+
+      const openModal = () => backdrop.classList.add('show');
+      const closeModal = () => backdrop.classList.remove('show');
+
+      openBtn?.addEventListener('click', openModal);
+      closeBtns.forEach(b => b.addEventListener('click', closeModal));
+      backdrop?.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
     });
   </script>
 </head>
@@ -455,8 +556,10 @@
         </div>
         <div class="actions" style="width:100%">
           <button class="btn" type="submit"><i class="fa fa-search" style="margin-right:8px"></i>Buscar</button>
-          <a class="btn btn-outline" href="{{ url_for('doctors') }}"><i class="fa fa-plus"
-              style="margin-right:8px"></i>Novo Profissional</a>
+          <!-- BOTÃO QUE ABRE O MODAL -->
+          <button type="button" id="open-modal" class="btn btn-outline" style="min-width:220px;">
+            <i class="fa" style="margin-right:8px; font-size:14px;"></i>Novo Profissional
+          </button>
         </div>
       </form>
     </div>
@@ -503,6 +606,45 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- ===== Modal: Novo Profissional ===== -->
+  <div class="modal-backdrop" id="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h4 class="modal-title" id="modal-title">Cadastrar novo profissional</h4>
+        <button class="modal-close" type="button" title="Fechar" aria-label="Fechar" data-close-modal><i
+            class="fa fa-times"></i></button>
+      </div>
+      <form method="post" action="{{ url_for('add_doctor_route') }}" class="modal-body">
+        <div class="modal-grid">
+          <div>
+            <label for="name">NOME*</label>
+            <input class="input" type="text" id="name" name="name" placeholder="Nome completo" required>
+          </div>
+          <div>
+            <label for="crm">CRM (opcional)</label>
+            <input class="input" type="text" id="crm" name="crm" placeholder="CRM">
+          </div>
+          <div>
+            <label for="phone">NÚMERO</label>
+            <input class="input" type="tel" id="phone" name="phone" placeholder="(00) 00000-0000">
+          </div>
+          <div>
+            <label for="email">E-MAIL (opcional)</label>
+            <input class="input" type="email" id="email" name="email" placeholder="email@exemplo.com">
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label for="specialty">ESPECIALIDADE (opcional)</label>
+            <input class="input" type="text" id="specialty" name="specialty" placeholder="Ex.: Cardiologia">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" data-close-modal>Cancelar</button>
+          <button type="submit" class="btn">Cadastrar</button>
+        </div>
+      </form>
+    </div>
   </div>
 </body>
 
