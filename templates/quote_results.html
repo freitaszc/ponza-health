@@ -1,162 +1,230 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
+
 <head>
-  <meta charset="UTF-8">
-  <title>Responder Cotação - Ponza Health</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/web.css') }}">
-  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="utf-8">
+  <title>Resultado da Cotação</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
   <style>
+    :root {
+      --bg: #0b0b12;
+      --panel: #111827;
+      --muted: #94a3b8;
+      --stroke: #1f2937;
+      --text: #e5e7eb;
+      --brand: #8b5cf6;
+      --brand-2: #22d3ee;
+      --chip: #0ea5e9;
+      --win: #16a34a;
+    }
+
+    html,
     body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       margin: 0;
-      font-family: 'Montserrat', sans-serif;
-      background-color: #f9f9f9;
     }
 
-    .top-menu {
-      background-color: white;
-      padding: 10px 0;
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      border-bottom: 1px solid #eee;
+    .wrap {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 16px;
     }
 
-    .top-menu a {
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 500;
-      font-size: 14px;
-      color: #333;
-      text-decoration: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      transition: 0.3s;
-    }
-
-    .top-menu a:hover {
-      background-color: #133a5c;
-      color: white;
-    }
-
-    .content {
-      max-width: 1000px;
-      margin: 0 auto;
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
       padding: 20px;
-      text-align: center;
     }
 
-    .logo-img {
-      width: 100px;
-      display: block;
-      margin: 0 auto 20px auto;
+    h1 {
+      margin: 0 0 16px;
+      font-size: 22px
     }
 
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    .muted {
+      color: var(--muted)
     }
 
-    h2 {
-      font-size: 24px;
-      color: #2c3e50;
-      margin-bottom: 30px;
-      text-align: center;
+    .grid {
+      display: grid;
+      gap: 16px
+    }
+
+    @media(min-width:900px) {
+      .grid {
+        grid-template-columns: 1fr 1fr
+      }
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 30px;
+      font-size: 14px
     }
 
-    th, td {
-      padding: 12px;
-      border: 1px solid #ccc;
-      text-align: center;
-      font-size: 14px;
+    th,
+    td {
+      border-bottom: 1px solid var(--stroke);
+      padding: 10px 12px;
+      text-align: left
     }
 
     th {
-      background-color: #f0f0f0;
-      font-weight: 600;
+      color: #cbd5e1;
+      font-weight: 600
     }
 
-    input[type="number"] {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 14px;
+    .supplier {
+      white-space: nowrap
     }
 
-    .menu-button {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      color: #333;
-      border: 2px solid #133a5c;
-      background-color: white;
-      padding: 10px 16px;
-      border-radius: 6px;
-      text-decoration: none;
-      transition: 0.3s ease;
-      cursor: pointer;
-      width: 100%;
+    .best {
+      background: rgba(22, 163, 74, .12)
     }
 
-    .menu-button:hover {
-      background-color: #133a5c;
-      color: white;
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      font-size: 12px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      color: #d1d5db
+    }
+
+    .chip {
+      background: rgba(14, 165, 233, .12);
+      color: #bae6fd;
+      border-color: #0ea5e9
+    }
+
+    .win {
+      background: rgba(22, 163, 74, .12);
+      color: #bbf7d0;
+      border-color: #16a34a
+    }
+
+    a {
+      color: #a5b4fc;
+      text-decoration: none
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+      margin-bottom: 16px
+    }
+
+    .topbar .links {
+      display: flex;
+      gap: 10px;
+      align-items: center
     }
   </style>
 </head>
+
 <body>
-
-  <div class="top-menu">
-    <div style="position: absolute; left: 20px;">
-        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Logo" style="height: 40px;">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="links">
+        <a href="{{ url_for('index') }}">Dashboard</a>
+        <a href="{{ url_for('quotes_index') }}">Cotações</a>
+        <a href="{{ url_for('suppliers') }}">Fornecedores</a>
+        <!-- Link “Admin” removido pois o endpoint não existe no app.py atual -->
+        {# Se quiser exibir algo somente para admin, use:
+        {% if user and user.username and user.username|lower == 'admin' %} ... {% endif %} #}
+      </div>
+      <div>
+        {% if notifications_unread %}
+        <span class="badge chip">{{ notifications_unread }} novas</span>
+        {% endif %}
+      </div>
     </div>
-    <a href="{{ url_for('index') }}">Início</a>
-    <a href="{{ url_for('upload') }}">Ponza Lab</a>
-    <a href="{{ url_for('quote_index') }}">Cotações</a>
-    <a href="{{ url_for('catalog') }}">Pacientes</a>
-    <a href="{{ url_for('products') }}">Estoque</a>
-    <a href="{{ url_for('agenda') }}">Agenda</a>
-    <a href="{{ url_for('logout') }}">Sair</a>
-  </div>
 
-  <div class="content">
-    <h2>{{ quote.title }}</h2>
+    <div class="card" style="margin-bottom:16px">
+      <h1>Resultado — {{ quote.title }}</h1>
+      <div class="muted">Comparativo por item entre fornecedores selecionados</div>
+    </div>
 
-    <div class="container">
-      <form method="post">
+    <div class="card">
+      <div class="grid">
+        <div>
+          <h3 style="margin:0 0 8px;">Itens</h3>
+          <ol style="margin:0; padding-left:18px">
+            {% for idx, label in quote_items %}
+            <li style="margin-bottom:6px">{{ label }}</li>
+            {% else %}
+            <li class="muted">Nenhum item.</li>
+            {% endfor %}
+          </ol>
+        </div>
+        <div>
+          <h3 style="margin:0 0 8px;">Fornecedores</h3>
+          <ul style="list-style:none; padding:0; margin:0">
+            {% for name in supplier_names %}
+            <li style="margin-bottom:6px">• {{ name }}</li>
+            {% else %}
+            <li class="muted">Nenhum fornecedor selecionado.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin:0 0 8px;">Comparativo</h3>
+      <div style="overflow:auto">
         <table>
           <thead>
             <tr>
-              <th>Item</th>
-              <th>Preço Unitário (R$)</th>
-              <th>Prazo (dias)</th>
+              <th style="width:40%">Item</th>
+              {% for sid in quote_suppliers %}
+              <th class="supplier">{{ supplier_names[loop.index0] }}</th>
+              {% endfor %}
             </tr>
           </thead>
           <tbody>
-            {% for idx, item in quote_items %}
+            {% for idx, label in quote_items %}
             <tr>
-              <td>{{ item }}</td>
-              <td><input type="number" name="price_{{ loop.index0 }}" step="0.01" min="0" required></td>
-              <td><input type="number" name="deadline_{{ loop.index0 }}" min="1" required></td>
+              <td>{{ label }}</td>
+              {% for sid in quote_suppliers %}
+              {% set resp = quote_responses.get(sid) %}
+              {% set ans = (resp.answers if resp else []) %}
+              {% set cell = (ans[idx] if idx < ans|length else None) %} {% set price=cell.price if cell else '' %} {%
+                set deadline=cell.deadline if cell else '' %} {% set is_best=(best_per_item.get(idx)==sid) %} <td
+                class="{{ 'best' if is_best }}">
+                {% if price %}
+                <div>
+                  <span class="badge {{ 'win' if is_best else '' }}">
+                    R$ {{ price }}
+                  </span>
+                  {% if deadline %}<span class="muted"> • prazo: {{ deadline }}d</span>{% endif %}
+                </div>
+                {% else %}
+                <span class="muted">—</span>
+                {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="{{ 1 + quote_suppliers|length }}" class="muted">Sem itens.</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
-        <button type="submit" class="menu-button">Enviar Resposta</button>
-      </form>
+      </div>
+    </div>
+
+    <div style="margin:18px 0">
+      <a href="{{ url_for('quote_index') }}">← Voltar para cotações</a>
     </div>
   </div>
-
 </body>
+
 </html>

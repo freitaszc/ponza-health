@@ -99,7 +99,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      font-size: 15px;
+      font-size: 16px;
       padding: 14px 16px;
       border-radius: 10px;
       color: #e5e7eb;
@@ -215,17 +215,15 @@
       box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
-    /* NOVO: grade centralizada para os 4 donuts */
+    /* NOVO: grade centralizada para os 4 cards */
     .donuts-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(260px, 1fr));
       gap: 16px;
       justify-items: center;
-      /* centraliza cards */
       align-items: stretch;
       margin: 32px auto;
       max-width: 1200px;
-      /* mantém conjunto no centro */
     }
 
     @media(max-width:1200px) {
@@ -253,7 +251,6 @@
       transition: transform .2s ease, box-shadow .2s ease;
       animation: chartSlideIn .6s ease-out;
       text-align: center;
-      /* centraliza conteúdo do card */
     }
 
     .compact-card:hover {
@@ -265,7 +262,7 @@
       color: var(--brand-blue-solid);
       font-weight: 700;
       font-size: 15px;
-      margin: 0 0 12px;
+      margin: 0 0 10px;
       text-align: center
     }
 
@@ -276,12 +273,10 @@
       justify-content: center
     }
 
-    /* centraliza donut + números */
     .mini-donut {
       margin: 0 auto
     }
 
-    /* garante donut centralizado */
     .metric-value {
       font-size: 24px;
       font-weight: 900;
@@ -565,6 +560,13 @@
       transform: scale(1.1)
     }
 
+    /* novo gráfico compacto */
+    .mini-line {
+      width: 100%;
+      height: 90px;
+      margin: 0 auto;
+    }
+
     @media(max-width:700px) {
       .top-profile {
         right: 10px;
@@ -607,12 +609,12 @@
     </div>
   </div>
 
-  <div class="sidebar">
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
-    <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-    <a href="{{ url_for('index') }}" class="menu-item active"><i class="fa fa-home"></i><span
-        class="label">Início</span></a>
+        class="fa fa-angle-double-left"></i></button> <img src="{{ url_for('static', filename='images/3.svg') }}"
+      class="sidebar-logo" alt="Ponza Health" />
+    <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
@@ -623,26 +625,18 @@
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
         class="label">Agenda</span></a>
+
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
-    {% if username and username|lower == 'admin' %}
-    <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
-    <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
-        class="label">Admin — Empresas</span></a>
-    <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
-        class="label">Admin — Repositório</span></a>
-    <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
-        class="label">Admin — Disponibilidade</span></a>
-    {% endif %}
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
   </div>
 
   <div class="content">
-    <h2>Bem-vindo(a), {{ username }}</h2>
+    <h2>Bem-vindo(a) {{ username }}</h2>
 
-    <!-- DONUTS CENTRALIZADOS -->
+    <!-- DONUTS + CONSULTAS -->
     <div class="donuts-grid">
       <div class="compact-card">
         <h3>Pacotes de Análise</h3>
@@ -676,22 +670,14 @@
         </div>
       </div>
 
+      <!-- Novo card de Consultas -->
       <div class="compact-card">
-        <h3>Procedimentos (últimos 30 dias)</h3>
-        <div class="metric-row">
-          <div id="procedures_chart" class="mini-donut" style="width:64px;height:64px"></div>
-          <div>
-            <div class="metric-value">{{ (procedures_return_30 or 0) + (procedures_first_30 or 0) }}</div>
-            <div class="metric-label"><span class="status-indicator return"></span> Retorno: {{ procedures_return_30 or
-              0 }}</div>
-            <div class="metric-label"><span class="status-indicator" style="background:#e5e7eb;"></span> Primeira: {{
-              procedures_first_30 or 0 }}</div>
-          </div>
-        </div>
+        <h3>Consultas (últimos 7 dias)</h3>
+        <div id="consultations_chart" class="mini-line"></div>
       </div>
 
       <div class="compact-card">
-        <h3>Convênio (últimos 30 dias)</h3>
+        <h3>Pagamentos (últimos 30 dias)</h3>
         <div class="metric-row">
           <div id="insurance_chart" class="mini-donut" style="width:64px;height:64px"></div>
           <div>
@@ -714,7 +700,7 @@
 
       <div class="side-widgets">
         <div class="widget">
-          <h4>Estoque baixo (< 5)</h4>
+          <h4>Estoque baixo (&lt; 5)</h4>
           <div class="table-wrap">
             <table>
               <thead>
@@ -753,7 +739,6 @@
                 </tr>
               </thead>
               <tbody>
-                <!-- DADOS ESPERADOS: quotes_items = [{ name/subject, responses }, ...] -->
                 {% if quotes_items and quotes_items|length > 0 %}
                 {% for q in quotes_items %}
                 <tr>
@@ -779,171 +764,187 @@
   </div>
 
   <!-- SCRIPTS -->
+  <!-- SCRIPTS -->
   <script>
-    // ===== Dados do servidor =====
+    // ===== Variáveis vindas do backend =====
     const pacotes_usados = Number({{ used or 0 }}) || 0;
     const pacotes_comprados = Number({{ (used or 0) + (remaining or 0) }}) || 0;
 
     const PATIENTS_NEW_30 = Number({{ patients_new_30 or 0 }}) || 0;
     const PATIENTS_RETURN_30 = Number({{ patients_return_30 or 0 }}) || 0;
-    const PROC_RETURN_30 = Number({{ procedures_return_30 or 0 }}) || 0;
-    const PROC_FIRST_30 = Number({{ procedures_first_30 or 0 }}) || 0;
     const INS_PARTICULAR_30 = Number({{ insurance_particular_30 or 0 }}) || 0;
     const INS_CONVENIO_30 = Number({{ insurance_convenio_30 or 0 }}) || 0;
 
-    // série do gráfico principal
-    const rows = [
-      {% for item in quiz_chart_data %}
-    ['{{ item.date }}', Number({{ item.count or 0 }}), Number({{ item.media or 0 }})]{% if not loop.last %}, {% endif %}
+    // Consultas últimos 7 dias (par [label, valor])
+    const CONSULTATIONS_7 = [
+      {% if consultations_last7 is defined and consultations_last7 %}
+    {% for item in consultations_last7 %}
+    ['{{ item.date }}', Number({{ item.count or 0 }})]{% if not loop.last %}, {% endif %}
     {% endfor %}
-    ];
-    (function ensureRows() {
-      if (Array.isArray(rows) && rows.length === 0) {
-        const t = new Date();
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date(t); d.setDate(t.getDate() - i);
-          const label = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
-          rows.push([label, 0, 0]);
-        }
-      }
-    })();
+    {% endif %}
+  ];
 
-    const BRAND = '#0f182b', GRAY = '#e5e7eb';
-    let comboChart, packagesChart, patientsChart, proceduresChart, insuranceChart;
-    let comboData, packagesData, patientsData, proceduresData, insuranceData;
+    // Análises de PDFs últimos 7 dias (tente vários nomes comuns do backend)
+    const PDF_ANALYSES_7 = [
+      {% if pdf_analyses_last7 is defined and pdf_analyses_last7 %}
+    {% for item in pdf_analyses_last7 %}
+    ['{{ item.date }}', Number({{ item.count or 0 }})]{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    {% elif analyses_last7 is defined and analyses_last7 %}
+    {% for item in analyses_last7 %}
+    ['{{ item.date }}', Number({{ item.count or 0 }})]{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    {% elif pdfs_last7 is defined and pdfs_last7 %}
+    {% for item in pdfs_last7 %}
+    ['{{ item.date }}', Number({{ item.count or 0 }})]{% if not loop.last %}, {% endif %}
+    {% endfor %}
+    {% endif %}
+  ];
 
+    // ===== Google Charts =====
     google.charts.load('current', { packages: ['corechart'] });
     google.charts.setOnLoadCallback(initCharts);
 
+    let packagesChart, patientsChart, insuranceChart;
+    let consultationsChart, curveChart; // barras
+    let packagesData, patientsData, insuranceData, consultationsData, curveData;
+
+    // Helpers
     function zeroSafePieData(pairs, fallbackLabel = 'Sem dados') {
       const total = pairs.reduce((s, p) => s + (Number(p[1]) || 0), 0);
       if (total > 0) {
-        return { data: google.visualization.arrayToDataTable([['Tipo', 'Qtd'], ...pairs]), colors: null };
+        return { data: google.visualization.arrayToDataTable([['Tipo', 'Qtd'], ...pairs]) };
       }
-      return { data: google.visualization.arrayToDataTable([['Tipo', 'Qtd'], [fallbackLabel, 1]]), colors: [GRAY] };
+      return { data: google.visualization.arrayToDataTable([['Tipo', 'Qtd'], [fallbackLabel, 1]]) };
+    }
+
+    function brDate(d) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+
+    // Garante 7 pontos (últimos 7 dias) caso o backend não mande nada
+    function ensure7DaySeries(rows) {
+      if (Array.isArray(rows) && rows.length > 0) return rows;
+      const out = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        out.push([brDate(d), 0]);
+      }
+      return out;
+    }
+
+    function getSmallDonutOptions() {
+      return {
+        backgroundColor: 'transparent',
+        pieHole: .65,
+        pieSliceText: 'none',
+        legend: 'none',
+        chartArea: { width: '100%', height: '100%' },
+        tooltip: { trigger: 'none' }
+      };
+    }
+
+    function getMiniBarOptions() {
+      return {
+        backgroundColor: 'transparent',
+        chartArea: { left: 24, top: 10, width: '82%', height: '70%' },
+        hAxis: { textStyle: { fontSize: 10, color: '#475569' }, gridlines: { color: 'transparent' } },
+        vAxis: { minValue: 0, textStyle: { fontSize: 10, color: '#475569' }, gridlines: { color: '#e2e8f0' } },
+        legend: 'none',
+        bar: { groupWidth: '65%' },
+        colors: ['#0f182b']
+      };
+    }
+
+    function getMainBarOptions() {
+      return {
+        backgroundColor: 'transparent',
+        chartArea: { left: 40, top: 24, width: '85%', height: '70%' },
+        hAxis: { textStyle: { fontSize: 12, color: '#475569' } },
+        vAxis: { minValue: 0, textStyle: { fontSize: 12, color: '#475569' }, gridlines: { color: '#e2e8f0' } },
+        legend: 'none',
+        bar: { groupWidth: '60%' },
+        colors: ['#0f182b']
+      };
     }
 
     function initCharts() {
-      // pacotes
+      // Donuts
       const total = Math.max(pacotes_comprados, 0);
       const usados = Math.max(Math.min(pacotes_usados, total), 0);
       const disponivel = Math.max(total - usados, 0);
-      const pkg = zeroSafePieData([['Usado', usados], ['Disponível', disponivel]], 'Sem pacotes');
-      packagesData = pkg.data;
+      packagesData = zeroSafePieData([['Usado', usados], ['Disponível', disponivel]], 'Sem pacotes').data;
+      patientsData = zeroSafePieData([['Novos', PATIENTS_NEW_30], ['Recorrentes', PATIENTS_RETURN_30]], 'Sem pacientes').data;
+      insuranceData = zeroSafePieData([['Particular', INS_PARTICULAR_30], ['Convênio', INS_CONVENIO_30]], 'Sem atendimentos').data;
 
-      // pacientes
-      const pat = zeroSafePieData([['Novos', PATIENTS_NEW_30], ['Recorrentes', PATIENTS_RETURN_30]], 'Sem pacientes');
-      patientsData = pat.data;
-
-      // procedimentos
-      const proc = zeroSafePieData([['Retorno', PROC_RETURN_30], ['Primeira', PROC_FIRST_30]], 'Sem procedimentos');
-      proceduresData = proc.data;
-
-      // convênio
-      const ins = zeroSafePieData([['Particular', INS_PARTICULAR_30], ['Convênio', INS_CONVENIO_30]], 'Sem atendimentos');
-      insuranceData = ins.data;
-
-      // gráfico de linhas/barras
-      comboData = new google.visualization.DataTable();
-      comboData.addColumn('string', 'Data');
-      comboData.addColumn('number', 'Análises');
-      comboData.addColumn({ type: 'string', role: 'annotation' });
-      comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
-      comboData.addColumn('number', 'Média');
-      comboData.addColumn({ type: 'string', role: 'tooltip', p: { html: true } });
-      rows.forEach(([d, c, m]) => {
-        const cFmt = (c ?? 0), mFmt = (m ?? 0);
-        comboData.addRow([
-          d, cFmt, cFmt ? String(cFmt) : null,
-          `<div class="gtooltip"><div><b>${d}</b></div><div>Análises: <b>${cFmt}</b></div></div>`,
-          mFmt,
-          `<div class="gtooltip"><div><b>${d}</b></div><div>Média: <b>${mFmt}</b></div></div>`
-        ]);
-      });
-
-      // instâncias
-      comboChart = new google.visualization.ComboChart(document.getElementById('curve_chart'));
       packagesChart = new google.visualization.PieChart(document.getElementById('packages_chart'));
       patientsChart = new google.visualization.PieChart(document.getElementById('patients_chart'));
-      proceduresChart = new google.visualization.PieChart(document.getElementById('procedures_chart'));
       insuranceChart = new google.visualization.PieChart(document.getElementById('insurance_chart'));
 
-      window.__pieFallbackColors = {
-        packages: pkg.colors || [BRAND, GRAY],
-        patients: pat.colors || ['#10b981', GRAY],
-        procedures: proc.colors || ['#f59e0b', GRAY],
-        insurance: ins.colors || ['#3b82f6', GRAY]
-      };
+      // Barras - Consultas (mini)
+      const consPairs = ensure7DaySeries(CONSULTATIONS_7);
+      consultationsData = new google.visualization.DataTable();
+      consultationsData.addColumn('string', 'Dia');
+      consultationsData.addColumn('number', 'Consultas');
+      consultationsData.addRows(consPairs);
+      consultationsChart = new google.visualization.ColumnChart(document.getElementById('consultations_chart'));
+
+      // Barras - Análises de PDFs (principal)
+      const pdfPairs = ensure7DaySeries(PDF_ANALYSES_7);
+      curveData = new google.visualization.DataTable();
+      curveData.addColumn('string', 'Dia');
+      curveData.addColumn('number', 'Análises');
+      curveData.addRows(pdfPairs);
+      curveChart = new google.visualization.ColumnChart(document.getElementById('curve_chart'));
 
       redrawCharts();
-      window.addEventListener('resize', debounce(redrawCharts, 120));
-      const ro = new ResizeObserver(debounce(redrawCharts, 80));
-      ['.content', '#curve_chart', '#packages_chart', '#patients_chart', '#procedures_chart', '#insurance_chart']
-        .forEach(sel => { const el = document.querySelector(sel); if (el) ro.observe(el); });
-    }
-
-    function getComboOptions() {
-      const w = (document.getElementById('curve_chart')?.clientWidth) || 800;
-      const small = w < 700, tiny = w < 500;
-      return {
-        backgroundColor: 'transparent',
-        chartArea: { left: small ? 40 : 56, top: 12, width: '85%', height: '72%' },
-        legend: { position: tiny ? 'none' : 'bottom', textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: small ? 12 : 13, bold: true } },
-        seriesType: 'bars',
-        series: { 0: { color: BRAND, type: 'bars', targetAxisIndex: 0, dataOpacity: .95 }, 1: { type: 'line', color: BRAND, lineWidth: small ? 3 : 4, pointSize: 0, curveType: 'function' } },
-        bar: { groupWidth: small ? '52%' : '60%' },
-        vAxis: { minValue: 0, textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 11 : 12 }, gridlines: { color: '#e2e8f0', count: 5 }, baselineColor: '#94a3b8' },
-        hAxis: { textStyle: { color: '#334155', fontName: 'Funnel Sans', fontSize: small ? 11 : 12, bold: true }, slantedText: small, slantedTextAngle: small ? 30 : 0 },
-        annotations: { textStyle: { color: '#0b1220', fontName: 'Funnel Sans', fontSize: 12 }, alwaysOutside: true },
-        tooltip: { isHtml: true, ignoreBounds: true },
-        animation: { duration: 600, easing: 'out', startup: true }
-      };
-    }
-    function getSmallDonutOptions(colors) {
-      const base = { backgroundColor: 'transparent', pieHole: .65, pieSliceText: 'none', legend: 'none', chartArea: { width: '100%', height: '100%', top: 0, left: 0 }, pieSliceBorderColor: 'transparent', tooltip: { trigger: 'none' }, animation: { duration: 600, easing: 'out', startup: true } };
-      if (colors && Array.isArray(colors)) base.colors = colors;
-      return base;
+      window.addEventListener('resize', redrawCharts);
     }
 
     function redrawCharts() {
-      if (comboChart) comboChart.draw(comboData, getComboOptions());
+      if (packagesChart) packagesChart.draw(packagesData, getSmallDonutOptions());
+      if (patientsChart) patientsChart.draw(patientsData, getSmallDonutOptions());
+      if (insuranceChart) insuranceChart.draw(insuranceData, getSmallDonutOptions());
 
-      const pkgColors = window.__pieFallbackColors?.packages || [BRAND, GRAY];
-      const patColors = window.__pieFallbackColors?.patients || ['#10b981', GRAY];
-      const proColors = window.__pieFallbackColors?.procedures || ['#f59e0b', GRAY];
-      const insColors = window.__pieFallbackColors?.insurance || ['#3b82f6', GRAY];
-
-      if (packagesChart) packagesChart.draw(packagesData, getSmallDonutOptions(pkgColors));
-      if (patientsChart) patientsChart.draw(patientsData, getSmallDonutOptions(patColors));
-      if (proceduresChart) proceduresChart.draw(proceduresData, getSmallDonutOptions(proColors));
-      if (insuranceChart) insuranceChart.draw(insuranceData, getSmallDonutOptions(insColors));
-
-      // leve sombra nos SVGs
-      setTimeout(() => {
-        ['packages_chart', 'patients_chart', 'procedures_chart', 'insurance_chart'].forEach(id => {
-          const svg = document.getElementById(id)?.querySelector('svg');
-          if (svg) { svg.style.filter = 'drop-shadow(0 0 8px rgba(0,0,0,.10))'; svg.style.borderRadius = '12px'; }
-        });
-      }, 0);
+      if (consultationsChart) consultationsChart.draw(consultationsData, getMiniBarOptions());
+      if (curveChart) curveChart.draw(curveData, getMainBarOptions());
     }
 
-    // Modal
-    function openModal() { const m = document.getElementById('detailsModal'); m.style.display = 'flex'; document.body.classList.add('modal-open'); m.setAttribute('aria-hidden', 'false'); m.querySelector('[data-close]')?.focus(); }
-    function closeModal() { const m = document.getElementById('detailsModal'); m.style.display = 'none'; document.body.classList.remove('modal-open'); m.setAttribute('aria-hidden', 'true'); }
+    // ===== Modal =====
+    function openModal() {
+      const m = document.getElementById('detailsModal');
+      m.style.display = 'flex';
+      document.body.classList.add('modal-open');
+      m.setAttribute('aria-hidden', 'false');
+      m.querySelector('[data-close]')?.focus();
+    }
+    function closeModal() {
+      const m = document.getElementById('detailsModal');
+      m.style.display = 'none';
+      document.body.classList.remove('modal-open');
+      m.setAttribute('aria-hidden', 'true');
+    }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-    // Sidebar
+    // ===== Sidebar =====
     function toggleSidebar() {
-      const sidebar = document.querySelector('.sidebar'); const body = document.body;
-      sidebar.classList.toggle('is-collapsed'); const collapsed = sidebar.classList.contains('is-collapsed');
+      const sidebar = document.querySelector('.sidebar');
+      const body = document.body;
+      sidebar.classList.toggle('is-collapsed');
+      const collapsed = sidebar.classList.contains('is-collapsed');
       body.classList.toggle('sidebar-collapsed', collapsed);
       localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-      const onEnd = (ev) => { if (ev.propertyName === 'width') { redrawCharts(); sidebar.removeEventListener('transitionend', onEnd); } };
-      sidebar.addEventListener('transitionend', onEnd); setTimeout(redrawCharts, 220);
     }
     document.addEventListener('DOMContentLoaded', () => {
       const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
-      if (collapsed) { document.querySelector('.sidebar')?.classList.add('is-collapsed'); document.body.classList.add('sidebar-collapsed'); }
+      if (collapsed) {
+        document.querySelector('.sidebar')?.classList.add('is-collapsed');
+        document.body.classList.add('sidebar-collapsed');
+      }
     });
   </script>
 </body>

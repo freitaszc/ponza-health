@@ -300,7 +300,7 @@
       box-shadow: 0 8px 18px rgba(2, 6, 23, .10)
     }
 
-    /* Filtros (igual estoque) */
+    /* Filtros */
     .filter-form {
       display: flex;
       gap: 10px;
@@ -348,7 +348,7 @@
       overflow: visible
     }
 
-    /* Tabela (como estoque) */
+    /* Tabela */
     table.catalog-table {
       width: 100%;
       border-collapse: collapse;
@@ -384,7 +384,6 @@
       background: rgba(19, 29, 53, .06)
     }
 
-    /* Nome linka para editar */
     .patient-link {
       color: var(--ink);
       text-decoration: none;
@@ -478,6 +477,34 @@
       background: rgba(220, 38, 38, .08)
     }
 
+    /* Botões quadradinhos */
+    .icon-square {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .icon-square:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+      border-color: var(--brand-solid);
+      background: #fafafa;
+    }
+
+    .icon-square.danger:hover {
+      border-color: #ef4444;
+      background: #fee2e2;
+    }
+
     /* Gráficos (se houver) */
     .chart-container,
     #curve_chart,
@@ -494,7 +521,7 @@
       border-radius: 16px
     }
 
-    /* Modal genérico (fora da tabela) */
+    /* Modal genérico */
     .modal {
       display: none;
       position: fixed;
@@ -503,7 +530,6 @@
       justify-content: center;
       align-items: center;
       z-index: 20000;
-      /* acima de tudo */
     }
 
     .modal-card {
@@ -599,7 +625,6 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
@@ -611,19 +636,9 @@
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
         class="label">Agenda</span></a>
+
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
-
-    {% if username and username|lower == 'admin' %}
-    <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
-    <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
-        class="label">Admin — Empresas</span></a>
-    <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
-        class="label">Admin — Repositório</span></a>
-    <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
-        class="label">Admin — Disponibilidade</span></a>
-    {% endif %}
-
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
@@ -665,9 +680,8 @@
         <tbody>
           {% for patient in patients %}
           <tr>
-            <td>
-              <a href="{{ url_for('edit_patient', patient_id=patient.id) }}" class="patient-link">{{ patient.name }}</a>
-            </td>
+            <td><a href="{{ url_for('edit_patient', patient_id=patient.id) }}" class="patient-link">{{ patient.name
+                }}</a></td>
             <td>{{ patient.phone_primary or '—' }}</td>
             <td>{{ patient.doctor.name if patient.doctor else '—' }}</td>
             <td>
@@ -693,8 +707,10 @@
                 </div>
                 <form method="post" action="{{ url_for('delete_patient', patient_id=patient.id) }}"
                   onsubmit="return confirm('Deseja realmente remover este paciente?')" style="margin:0;">
-                  <button type="submit" title="Remover Paciente"
-                    style="background:#fff;border:1px solid var(--border);width:36px;height:36px;border-radius:10px;cursor:pointer;color:#e11d48;font-weight:800;">×</button>
+                  <button type="submit" class="icon-square danger" title="Remover Paciente"
+                    aria-label="Remover Paciente">
+                    <i class="fa fa-trash"></i>
+                  </button>
                 </form>
               </div>
             </td>
@@ -709,7 +725,7 @@
     </div>
   </div>
 
-  <!-- MODAL: Nova Consulta (fora da tabela; z-index alto) -->
+  <!-- MODAL: Nova Consulta -->
   <div id="consultationModal" class="modal">
     <div class="modal-card">
       <button class="modal-close" type="button" onclick="closeConsultationModal()">×</button>
@@ -803,10 +819,18 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
-      }).then(r => r.json()).then(result => {
-        if (result.success) { alert("Consulta adicionada com sucesso!"); closeConsultationModal(); location.reload(); }
-        else { alert("Erro: " + (result.error || "Erro desconhecido")); }
-      }).catch(() => alert("Erro ao salvar. Tente novamente."));
+      })
+        .then(r => r.json())
+        .then(result => {
+          if (result.success) {
+            alert("Consulta adicionada com sucesso!");
+            closeConsultationModal();
+            location.reload();
+          } else {
+            alert("Erro: " + (result.error || "Erro desconhecido"));
+          }
+        })
+        .catch(() => alert("Erro ao salvar. Tente novamente."));
     }
   </script>
 </body>

@@ -2,13 +2,12 @@
 <html lang="pt-br">
 
 <head>
-  <meta charset="UTF-8" />
-  <title>Cadastro — Ponza Health</title>
+  <meta charset="UTF-8">
+  <title>Cadastrar — Ponza Health</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet" />
-
   <style>
     :root {
       --bg-primary: #ffffff;
@@ -48,6 +47,7 @@
       min-height: 100vh;
     }
 
+    /* NAVBAR */
     .navbar {
       position: fixed;
       inset: 0 0 auto 0;
@@ -107,6 +107,7 @@
       transform: translateY(-1px);
     }
 
+    /* LAYOUT */
     .container {
       max-width: 1200px;
       margin: 0 auto;
@@ -126,6 +127,7 @@
       box-shadow: 0 10px 24px var(--shadow);
     }
 
+    /* TITLES */
     h1,
     h2,
     h3 {
@@ -133,11 +135,69 @@
       color: var(--text-primary);
       text-align: center;
       text-shadow: none;
+      margin: 0;
     }
 
     h2 {
       font-size: var(--fs-title);
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      text-align: center;
       margin: 0 0 18px;
+    }
+
+    /* FLASHES */
+    .flash-stack {
+      display: grid;
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+
+    .flash {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid transparent;
+    }
+
+    .flash .label {
+      font-weight: 800;
+    }
+
+    .flash-success {
+      background: #ecfdf5;
+      border-color: #bbf7d0;
+      color: #065f46;
+    }
+
+    .flash-error {
+      background: #fff1f2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+
+    /* FORM */
+    form.auth-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
     }
 
     .input,
@@ -160,6 +220,41 @@
       box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
     }
 
+    .input-with-btn {
+      position: relative;
+    }
+
+    .icon-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 32px;
+      min-width: 36px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .icon-btn:hover {
+      border-color: #cbd5e1;
+    }
+
+    .icon {
+      width: 20px;
+      height: 20px;
+      stroke: #475569;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      display: block;
+    }
+
     .btn-primary {
       display: inline-flex;
       align-items: center;
@@ -176,6 +271,7 @@
       font-size: var(--fs-btn);
       box-shadow: 0 10px 26px rgba(19, 29, 53, .22);
       transition: .25s;
+      margin-top: 4px;
     }
 
     .btn-primary:hover {
@@ -202,57 +298,106 @@
     .hidden {
       display: none;
     }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 22px;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <!-- NAVBAR -->
   <header class="navbar">
     <div class="nav-inner">
-      <a href="{{ url_for('hero') }}" class="nav-logo">
+      <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
         <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
       </a>
-      <div class="nav-actions">
+      <nav class="nav-actions">
+        <a href="{{ url_for('prices') }}">Preços</a>
         <a href="{{ url_for('register') }}">Cadastrar</a>
         <a href="{{ url_for('login') }}">Entrar</a>
-      </div>
+      </nav>
     </div>
   </header>
 
   <main>
     <div class="container">
       <div class="card">
-        <h2>Crie sua conta</h2>
+        <h2>Criar conta</h2>
 
-        <!-- SEM BLOCOS DE MENSAGENS/FLASH NO CADASTRO -->
+        <!-- FLASHES (apenas cadastro) -->
+        {% with messages = get_flashed_messages(with_categories=True,
+        category_filter=['register_success','register_error']) %}
+        {% if messages %}
+        <div class="flash-stack" role="region" aria-live="polite" aria-label="Mensagens do sistema">
+          {% for category, msg in messages %}
+          <div class="flash {{ 'flash-success' if 'success' in category else 'flash-error' }}" role="alert">
+            <span class="label">{{ 'Sucesso' if 'success' in category else 'Erro' }}:</span>
+            <span>{{ msg|safe }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
-        <form method="post" action="{{ url_for('register') }}" onsubmit="return validarEmpresa()">
-          <div style="margin-bottom:12px">
-            <input type="text" name="username" placeholder="Nome de usuário" required class="input">
+        <!-- FORM CADASTRO -->
+        <form method="post" action="{{ url_for('register') }}" class="auth-form" novalidate>
+          <div class="field">
+            <label for="username">Usuário</label>
+            <input id="username" type="text" class="input" name="username" required autofocus>
           </div>
 
-          <div style="margin-bottom:12px">
-            <input type="email" name="email" placeholder="E-mail" required class="input">
+          <div class="field">
+            <label for="email">E-mail</label>
+            <input id="email" type="email" class="input" name="email" required>
           </div>
 
-          <div style="margin-bottom:12px">
-            <select id="account_type" name="account_type" class="select" onchange="toggleEmpresaField()">
-              <option value="pessoal" selected>Conta pessoal</option>
-              <option value="empresa">Conta da empresa</option>
-            </select>
+          <div class="field">
+            <label for="password">Senha</label>
+            <div class="input-with-btn">
+              <input id="password" type="password" class="input" name="password" placeholder="Mínimo de 8 caracteres"
+                minlength="8" required>
+              <button type="button" class="icon-btn" data-target="password" aria-label="Mostrar senha"
+                aria-pressed="false">
+                <!-- Eye (show) -->
+                <svg class="icon icon-eye" viewBox="0 0 24 24">
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <!-- Eye-off (hide) -->
+                <svg class="icon icon-eye-off hidden" viewBox="0 0 24 24">
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.2" />
+                  <path
+                    d="M9.9 4.2A11.4 11.4 0 0 1 12 4c7 0 11 8 11 8a20.8 20.8 0 0 1-5.1 5.6M6.1 6.1A20.5 20.5 0 0 0 1 12s4 7 11 7c1.3 0 2.5-.2 3.5-.5" />
+                </svg>
+              </button>
+            </div>
+            <div class="hint">Use ao menos 8 caracteres.</div>
           </div>
 
-          <div id="empresa_field" class="hidden" style="margin-bottom:12px">
-            <input type="text" id="company_code" name="company_code" placeholder="Código da empresa" class="input">
+          <div class="field">
+            <label for="confirm">Confirmar senha</label>
+            <div class="input-with-btn">
+              <input id="confirm" type="password" class="input" name="confirm" placeholder="Repita a senha"
+                minlength="8" required>
+              <button type="button" class="icon-btn" data-target="confirm" aria-label="Mostrar senha"
+                aria-pressed="false">
+                <svg class="icon icon-eye" viewBox="0 0 24 24">
+                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg class="icon icon-eye-off hidden" viewBox="0 0 24 24">
+                  <path d="M3 3l18 18" />
+                  <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.2" />
+                  <path
+                    d="M9.9 4.2A11.4 11.4 0 0 1 12 4c7 0 11 8 11 8a20.8 20.8 0 0 1-5.1 5.6M6.1 6.1A20.5 20.5 0 0 0 1 12s4 7 11 7c1.3 0 2.5-.2 3.5-.5" />
+                </svg>
+              </button>
+            </div>
           </div>
-
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:4px">
-            <input type="password" name="password" placeholder="Senha" required class="input">
-            <input type="password" name="confirm" placeholder="Confirmar senha" required class="input">
-          </div>
-
-          <p class="muted" style="margin: 6px 0 16px">
-            A senha deve ter 8+ caracteres, com letra, número e símbolo.
-          </p>
 
           <button type="submit" class="btn-primary">Cadastrar</button>
         </form>
@@ -266,28 +411,30 @@
   </main>
 
   <script>
-    function toggleEmpresaField() {
-      const tipo = document.getElementById('account_type').value;
-      const campo = document.getElementById('empresa_field');
-      const input = document.getElementById('company_code');
-      if (tipo === 'empresa') {
-        campo.classList.remove('hidden');
-        input.setAttribute('required', 'required');
-      } else {
-        campo.classList.add('hidden');
-        input.removeAttribute('required');
-      }
-    }
+    // Toggle mostrar/ocultar senha com ícones clássicos (eye / eye-off)
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('.icon-btn');
+      if (!btn) return;
 
-    function validarEmpresa() {
-      const tipo = document.getElementById('account_type').value;
-      const input = document.getElementById('company_code');
-      if (tipo === 'empresa' && !input.value.trim()) {
-        alert('Por favor, insira o código da empresa.');
-        return false;
+      const id = btn.getAttribute('data-target');
+      const input = document.getElementById(id);
+      if (!input) return;
+
+      const wasHidden = input.type === 'password';
+      input.type = wasHidden ? 'text' : 'password';
+
+      // Atualiza ícones
+      const eye = btn.querySelector('.icon-eye');
+      const eyeOff = btn.querySelector('.icon-eye-off');
+      if (eye && eyeOff) {
+        eye.classList.toggle('hidden', wasHidden);      // ao mostrar, some o "eye"
+        eyeOff.classList.toggle('hidden', !wasHidden);  // ao mostrar, aparece o "eye-off"
       }
-      return true;
-    }
+
+      // Acessibilidade
+      btn.setAttribute('aria-pressed', wasHidden ? 'true' : 'false');
+      btn.setAttribute('aria-label', wasHidden ? 'Ocultar senha' : 'Mostrar senha');
+    }, false);
   </script>
 </body>
 

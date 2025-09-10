@@ -8,7 +8,7 @@
     <!-- Funnel Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- Font Awesome -->
+    <!-- Font Awesome (a página já usa, mas aqui vamos de emoji nos botões) -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 
     <style>
@@ -103,7 +103,7 @@
             justify-content: center;
         }
 
-        /* ===== Sidebar (igual padrão) ===== */
+        /* ===== Sidebar ===== */
         .sidebar {
             width: 250px;
             min-height: 100vh;
@@ -292,9 +292,6 @@
             text-decoration: none;
             box-shadow: var(--shadow);
             font-family: var(--font-family);
-            height: var(--btn-h);
-            min-width: var(--btn-minw);
-            font-family: var(--font-family);
         }
 
         .btn-outline:hover {
@@ -302,7 +299,7 @@
             transform: translateY(-2px) scale(1.02);
         }
 
-        /* Painel + Tabela (tema claro) */
+        /* Painel + Tabela */
         .panel {
             background: var(--surface);
             padding: 24px;
@@ -335,44 +332,6 @@
             text-align: center;
         }
 
-        .btn-ghost {
-            background: transparent;
-            color: var(--brand-solid);
-            border: 1px solid var(--brand-solid);
-            height: var(--btn-h);
-            min-width: var(--btn-minw);
-            padding: 0 18px;
-            border-radius: 999px;
-            font-weight: 800;
-            font-size: 14px;
-            cursor: pointer;
-            transition: .22s;
-            text-decoration: none;
-            box-shadow: var(--shadow);
-            font-family: var(--font-family);
-        }
-
-        .btn-ghost:hover {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
-        }
-
-        /* Deixa Cancelar e Salvar com o MESMO tamanho dentro do modal */
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: stretch;
-            /* ocupa toda a linha */
-        }
-
-        .modal-actions .btn,
-        .modal-actions .btn-ghost {
-            flex: 1;
-            /* mesmas larguras */
-            min-width: unset;
-            /* ignora min-width global pra igualar */
-        }
-
         table.catalog tbody td {
             padding: 12px 14px;
             border-top: 1px solid var(--border);
@@ -388,62 +347,56 @@
             background: rgba(19, 29, 53, .06)
         }
 
-        /* Menus (kebab) */
-        .options-container {
-            position: relative;
-            display: inline-block
+        /* NOVO: dois quadradinhos (editar/excluir) */
+        .row-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
-        .options-button {
-            border: 1px solid var(--border);
-            background: #fff;
+        .icon-square {
             width: 36px;
             height: 36px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 18px;
-            color: var(--brand-solid);
             display: grid;
             place-items: center;
-            transition: box-shadow .2s, border-color .2s;
-        }
-
-        .options-button:hover {
-            box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
-            border-color: var(--brand-solid)
-        }
-
-        .options-menu {
-            display: overflow;
-            position: absolute;
-            right: 0;
-            top: 44px;
-            background: #fff;
             border: 1px solid var(--border);
-            border-radius: 10px;
-            box-shadow: 0 10px 26px rgba(2, 6, 23, .16);
-            min-width: 190px;
-            z-index: 10;
-            overflow: hidden;
-        }
-
-        .options-menu a {
-            display: block;
-            padding: 10px 12px;
-            text-decoration: none;
             background: #fff;
-            color: var(--ink);
-            font-size: 14px;
-            transition: background .2s, color .2s;
-            text-align: left;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+            font-size: 18px;
+            /* tamanho do emoji */
+            line-height: 1;
         }
 
-        .options-menu a:hover {
-            background: rgba(19, 29, 53, .06);
-            color: var(--brand-solid)
+        .icon-square i {
+            margin: 0;
+            line-height: 1;
+            display: block;
         }
 
-        /* Inputs + Modais (tema claro) */
+        .icon-square:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
+            border-color: var(--brand-solid);
+            background: #fafafa;
+        }
+
+        .icon-square.danger:hover {
+            border-color: #ef4444;
+            background: #fee2e2;
+        }
+
+        .edit-icon {
+            transform: translateX(1px);
+            display: block;
+            line-height: 1;
+        }
+
+
+        /* Inputs + Modais */
         .input {
             width: 100%;
             padding: 12px 14px;
@@ -513,6 +466,41 @@
             transform: scale(1.08)
         }
 
+        /* Ações iguais no modal */
+        .btn-ghost {
+            background: transparent;
+            color: var(--brand-solid);
+            border: 1px solid var(--brand-solid);
+            height: var(--btn-h);
+            min-width: var(--btn-minw);
+            padding: 0 18px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 14px;
+            cursor: pointer;
+            transition: .22s;
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            font-family: var(--font-family);
+        }
+
+        .btn-ghost:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: stretch;
+        }
+
+        .modal-actions .btn,
+        .modal-actions .btn-ghost {
+            flex: 1;
+            min-width: unset;
+        }
+
         @media (max-width:720px) {
             .content {
                 padding: 24px
@@ -542,7 +530,6 @@
         <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
                 class="fa fa-angle-double-left"></i></button>
         <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-
         <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span
                 class="label">Início</span></a>
         <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
@@ -555,19 +542,10 @@
                 class="label">Estoque</span></a>
         <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
                 class="label">Agenda</span></a>
+        <a href="{{ url_for('doctors') }}" class="menu-item active"><i class="fa fa-stethoscope"></i><span
+                class="label">Profissionais</span></a>
         <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
                 class="label">Pagamentos</span></a>
-
-        {% if username and username|lower == 'admin' %}
-        <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
-        <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
-                class="label">Admin — Empresas</span></a>
-        <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
-                class="label">Admin — Repositório</span></a>
-        <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
-                class="label">Admin — Disponibilidade</span></a>
-        {% endif %}
-
         <div class="sidebar-spacer"></div>
         <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
                 class="label">Sair</span></a>
@@ -578,8 +556,7 @@
         <h2>Cadastro de Fornecedores</h2>
 
         <div class="actions">
-            <button class="btn" onclick="openAddModal()"><i aria-hidden="true"></i>&nbsp; Cadastrar
-                Fornecedor</button>
+            <button class="btn" onclick="openAddModal()"><i aria-hidden="true"></i>&nbsp; Cadastrar Fornecedor</button>
         </div>
 
         <div class="panel">
@@ -590,7 +567,7 @@
                             <th>Nome</th>
                             <th>Telefone</th>
                             <th>Email</th>
-                            <th style="width:190px;">Opções</th>
+                            <th style="width:140px;">Opções</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -600,24 +577,24 @@
                             <td>{{ supplier.phone }}</td>
                             <td>{{ supplier.email }}</td>
                             <td>
-                                <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
-                                    <div class="options-container">
-                                        <button class="options-button" onclick="toggleMenu(this)" aria-haspopup="true"
-                                            aria-expanded="false">⋮</button>
-                                        <div class="options-menu" role="menu">
-                                            <a href="#" role="menuitem"
-                                                onclick="openEditModal('{{ supplier.id }}','{{ supplier.name }}','{{ supplier.phone }}','{{ supplier.email }}')">
-                                                <i class="fa fa-pencil" style="margin-right:6px;"></i> Editar
-                                            </a>
-                                        </div>
-                                    </div>
+                                <div class="row-actions">
+                                    <!-- Editar -->
+                                    <button class="icon-square" title="Editar" aria-label="Editar"
+                                        onclick="openEditModal('{{ supplier.id }}','{{ supplier.name }}','{{ supplier.phone }}','{{ supplier.email }}')">
+                                        <i class="fa fa-pencil edit-icon"></i>
+                                    </button>
+
+                                    <!-- Excluir -->
                                     <form method="post"
                                         action="{{ url_for('delete_supplier', supplier_id=supplier.id) }}"
                                         onsubmit="return confirm('Deseja realmente excluir este fornecedor?')"
-                                        style="margin:0;">
-                                        <button type="submit" class="btn-ghost" title="Excluir"><i
-                                                class="fa fa-trash"></i>&nbsp;Excluir</button>
+                                        style="display:inline;">
+                                        <button type="submit" class="icon-square danger" title="Excluir"
+                                            aria-label="Excluir">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
                                     </form>
+
                                 </div>
                             </td>
                         </tr>
@@ -670,33 +647,48 @@
 
     <script>
         // Sidebar persistência
-        function toggleSidebar() { const s = document.getElementById('sidebar'); s.classList.toggle('is-collapsed'); localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0'); }
-        document.addEventListener('DOMContentLoaded', () => { if (localStorage.getItem('sidebarCollapsed') === '1') { document.getElementById('sidebar')?.classList.add('is-collapsed'); } });
-
-        // Menus (kebab)
-        function toggleMenu(button) {
-            const menu = button.nextElementSibling;
-            document.querySelectorAll('.options-menu').forEach(m => { if (m !== menu) m.style.display = 'none'; });
-            menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+        function toggleSidebar() {
+            const s = document.getElementById('sidebar');
+            s.classList.toggle('is-collapsed');
+            localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
         }
-        window.addEventListener('click', e => {
-            document.querySelectorAll('.options-container').forEach(ct => {
-                if (!ct.contains(e.target)) { const m = ct.querySelector('.options-menu'); if (m) m.style.display = 'none'; }
-            });
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('sidebarCollapsed') === '1') {
+                document.getElementById('sidebar')?.classList.add('is-collapsed');
+            }
         });
 
         // Modais
-        function openAddModal() { const m = document.getElementById('addSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false'); }
-        function closeAddModal() { const m = document.getElementById('addSupplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
+        function openAddModal() {
+            const m = document.getElementById('addSupplierModal');
+            m.style.display = 'flex';
+            m.setAttribute('aria-hidden', 'false');
+        }
+        function closeAddModal() {
+            const m = document.getElementById('addSupplierModal');
+            m.style.display = 'none';
+            m.setAttribute('aria-hidden', 'true');
+        }
         function openEditModal(id, name, phone, email) {
             document.getElementById('editSupplierName').value = name;
             document.getElementById('editSupplierPhone').value = phone;
             document.getElementById('editSupplierEmail').value = email;
             document.getElementById('editSupplierForm').action = `/update_supplier/${id}`;
-            const m = document.getElementById('editSupplierModal'); m.style.display = 'flex'; m.setAttribute('aria-hidden', 'false');
+            const m = document.getElementById('editSupplierModal');
+            m.style.display = 'flex';
+            m.setAttribute('aria-hidden', 'false');
         }
-        function closeEditModal() { const m = document.getElementById('editSupplierModal'); m.style.display = 'none'; m.setAttribute('aria-hidden', 'true'); }
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeAddModal(); closeEditModal(); } });
+        function closeEditModal() {
+            const m = document.getElementById('editSupplierModal');
+            m.style.display = 'none';
+            m.setAttribute('aria-hidden', 'true');
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                closeAddModal();
+                closeEditModal();
+            }
+        });
     </script>
 </body>
 

@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Planos e Preços — Ponza Health</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
+  <!-- Funnel Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      /* Paleta / Tipografia (igual ao herói) */
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --bg-card: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --primary: #ffffff;
+      --primary-contrast: #000b30;
+      --secondary: #000b30;
+      --secondary-dark: #000b30;
+      --secondary-light: #000b30;
+      --secondary-glow: rgba(11, 30, 91, .15);
+      --secondary-glow-strong: rgba(11, 30, 91, .25);
+      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-base: #131d35;
+      --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+      --shadow-light: rgba(30, 41, 59, .08);
+      --shadow-medium: rgba(30, 41, 59, .12);
+      --shadow-strong: rgba(30, 41, 59, .16);
+      --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --fs-base: 16px;
+      --fs-title: 34px;
+      --fs-small: 14px;
+      --nav-h: 72px;
+      --card-radius: 16px;
+      --btn-h: 44px;
+      --btn-minw: 220px;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      margin: 0
+    }
+
+    body {
+      font-family: var(--font-family);
+      font-size: var(--fs-base);
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh
+    }
+
+    /* NAVBAR */
+    .navbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--nav-h);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-grad);
+      border-bottom: 1px solid #0f182b;
+      box-shadow: 0 4px 18px var(--shadow);
+      padding: 0 24px
+    }
+
+    .title-hero {
+      font-size: 75px;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+
+    .nav-inner {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .nav-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 20px;
+      text-decoration: none
+    }
+
+    .nav-logo img {
+      height: 75px;
+      width: auto;
+      display: block;
+      filter: brightness(0) invert(1)
+    }
+
+    .nav-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: var(--fs-small);
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      background: transparent;
+      text-decoration: none;
+      transition: .22s;
+      margin-left: 10px
+    }
+
+    .nav-actions a:hover {
+      background: var(--primary);
+      color: var(--secondary);
+      transform: translateY(-1px)
+    }
+
+    /* HERO fino */
+    .page-hero {
+      padding: calc(var(--nav-h) + 28px) 16px 26px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.92) 100%), var(--brand-grad)
+    }
+
+    .page-hero .inner {
+      max-width: 1200px;
+      margin: 0 auto
+    }
+
+    .kicker {
+      display: inline-block;
+      padding: .25rem .6rem;
+      border: 1px solid rgba(0, 11, 48, .25);
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 12px;
+      color: var(--secondary);
+      background: #fff;
+      box-shadow: 0 2px 8px var(--shadow-light)
+    }
+
+    .title {
+      font-size: var(--fs-title);
+      font-weight: 800;
+      margin: .6rem 0 .3rem
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin: 0
+    }
+
+    .meta {
+      font-size: 13px;
+      color: var(--text-muted)
+    }
+
+    /* Botões */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--btn-h);
+      min-width: var(--btn-minw);
+      padding: 0 20px;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: var(--secondary);
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 16px;
+      box-shadow: 0 8px 25px var(--secondary-glow);
+      transition: .25s;
+      text-decoration: none
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 35px var(--secondary-glow-strong);
+      background: var(--secondary-dark)
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--btn-h);
+      min-width: 140px;
+      padding: 0 18px;
+      color: var(--secondary);
+      font-weight: 600;
+      font-size: 16px;
+      background: transparent;
+      border: 2px solid var(--secondary);
+      border-radius: 999px;
+      transition: .22s;
+      text-decoration: none
+    }
+
+    .btn-outline:hover {
+      background: var(--secondary);
+      color: var(--primary);
+      transform: translateY(-1px)
+    }
+
+    /* Seções */
+    .section {
+      padding: 28px 16px
+    }
+
+    .section-inner {
+      max-width: 1200px;
+      margin: 0 auto
+    }
+
+    /* Pricing grid */
+    .pricing {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 22px;
+      align-items: stretch
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--card-radius);
+      padding: 18px;
+      box-shadow: 0 4px 12px var(--shadow-light)
+    }
+
+    .card h2,
+    .card h3 {
+      margin: .2rem 0 .6rem
+    }
+
+    .lead {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin: .2rem 0 1rem
+    }
+
+    .price {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      margin: .4rem 0 1rem
+    }
+
+    .price .currency {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--secondary)
+    }
+
+    .price .amount {
+      font-size: 52px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -.5px;
+      color: var(--secondary)
+    }
+
+    .price .per {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 6px
+    }
+
+    .badge {
+      display: inline-block;
+      padding: .25rem .55rem;
+      border: 1px solid var(--border-medium);
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: #fff
+    }
+
+    .list {
+      margin: .3rem 0 1rem 1.2rem;
+      color: var(--text-secondary)
+    }
+
+    .list li {
+      margin: .35rem 0
+    }
+
+    .muted {
+      color: var(--text-muted);
+      font-size: 13px
+    }
+
+    .note {
+      background: var(--bg-tertiary);
+      border: 1px dashed var(--border-medium);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 14px;
+      color: var(--text-secondary)
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+      justify-content: center; 
+      align-items: center;  
+    }
+
+    /* Destaques laterais */
+    .highlight {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 12px
+    }
+
+    .highlight .tile {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 2px 8px var(--shadow-light)
+    }
+
+    /* FAQ */
+    .faq {
+      max-width: 900px;
+      margin: 0 auto
+    }
+
+    details {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin: 8px 0;
+      box-shadow: 0 2px 8px var(--shadow-light)
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text-primary)
+    }
+
+    details p {
+      color: var(--text-secondary);
+      margin: 8px 0 0;
+      line-height: 1.55
+    }
+
+    /* Rodapé */
+    .contacts {
+      padding: 56px 16px 32px;
+      background: var(--brand-grad);
+      color: var(--primary)
+    }
+
+    .contacts-inner {
+      max-width: 1200px;
+      margin: 0 auto
+    }
+
+    .contacts-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr 1fr;
+      gap: 28px
+    }
+
+    .brand h3 {
+      margin: .2rem 0 .3rem;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--primary)
+    }
+
+    .brand p {
+      margin: 0;
+      color: rgba(255, 255, 255, .8);
+      line-height: 1.45
+    }
+
+    .brand img {
+      height: 90px;
+      width: auto;
+      display: block;
+      filter: brightness(0) invert(1)
+    }
+
+    .col h4 {
+      margin: 0 0 .6rem;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--primary)
+    }
+
+    .navlist {
+      list-style: none;
+      padding: 0;
+      margin: 0
+    }
+
+    .navlist li {
+      margin: .45rem 0
+    }
+
+    .navlist a {
+      color: rgba(255, 255, 255, .8);
+      text-decoration: none;
+      font-size: 14px
+    }
+
+    .navlist a:hover {
+      color: var(--primary)
+    }
+
+    .contacts-cta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px
+    }
+
+    .btn-outline-footer {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
+      min-width: 100px;
+      padding: 0 18px;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 16px;
+      background: transparent;
+      border: 2px solid rgba(255, 255, 255, .3);
+      border-radius: 999px;
+      text-decoration: none;
+      transition: .22s
+    }
+
+    .btn-outline-footer:hover {
+      background: rgba(255, 255, 255, .1);
+      border-color: var(--primary)
+    }
+
+    .divider {
+      margin: 22px 0 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3), transparent)
+    }
+
+    .bottom {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(255, 255, 255, .8);
+      font-size: 13px;
+      padding: 16px 0
+    }
+
+    .bottom a {
+      color: rgba(255, 255, 255, .8)
+    }
+
+    .bottom a:hover {
+      color: var(--primary)
+    }
+
+    @media (max-width:1000px) {
+      .pricing {
+        grid-template-columns: 1fr
+      }
+
+      .contacts-grid {
+        grid-template-columns: 1fr 1fr
+      }
+    }
+
+    @media (max-width:560px) {
+      .contacts-grid {
+        grid-template-columns: 1fr
+      }
+
+      .nav-actions a {
+        min-width: unset
+      }
+
+      .page-hero {
+        padding: calc(var(--nav-h) + 20px) 16px 20px
+      }
+
+      .btn-primary,
+      .btn-outline {
+        min-width: unset
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
+        <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
+      </a>
+      <nav class="nav-actions">
+        <a href="{{ url_for('prices') }}">Preços</a>
+        <a href="{{ url_for('register') }}">Cadastrar</a>
+        <a href="{{ url_for('login') }}">Entrar</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO FINO -->
+  <section class="page-hero" aria-label="Cabeçalho de preços">
+    <div class="inner">
+      <h1 class="title-hero">Planos e Preços</h1>
+      <p class="subtitle">Tudo que sua clínica precisa em um único plano — simples, transparente e pronto para escalar.
+      </p>
+      <p class="meta">Oferta atual: plano único com bônus do Ponza Lab</p>
+    </div>
+  </section>
+
+  <!-- BLOCO DE PREÇOS -->
+  <main class="section">
+    <div class="section-inner pricing">
+      <!-- Card principal do plano -->
+      <section class="card" aria-label="Plano único">
+        <h2>Plano Ponza Health</h2>
+        <p class="lead">Ideal para começar hoje e automatizar cadastros, agenda, cotações, estoque e análise de PDFs.
+        </p>
+
+        <div class="price" aria-label="Preço">
+          <span class="currency">R$</span>
+          <span class="amount">79,90</span>
+          <span class="per">/ mês</span>
+        </div>
+
+        <div class="stack">
+          <span class="badge">Inclui Ponza Lab</span>
+          <ul class="list">
+            <li><strong>50 análises grátis</strong> para teste do <em>Ponza Lab</em> — plataforma de análises clínicas
+              automatizadas.</li>
+            <li><strong>Envio automático por WhatsApp</strong> dos resultados para contatos configurados.</li>
+            <li>Módulos: cadastros, agenda, cotações, estoque e leitura de PDFs com referências.</li>
+            <li>Suporte no 1º mês e onboarding guiado.</li>
+          </ul>
+          <div class="cta-row">
+            <!-- Link direto para WhatsApp para assinar -->
+            <a class="btn-primary"
+              href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20quero%20assinar%20o%20Ponza%20Health%20(Plano%20de%20R%24%2079%2C90%2Fm%C3%AAs)%20e%20tirar%20d%C3%BAvidas."
+              target="_blank" rel="noopener">
+              Assinar pelo WhatsApp
+            </a>
+            <a class="btn-outline" href="{{ url_for('register') }}">Criar conta</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Destaques laterais: Indicação + Como funciona o Ponza Lab -->
+      <aside class="highlight" aria-label="Bônus e detalhes">
+        <div class="tile">
+          <h3>Programa de Indicação</h3>
+          <p>Indique o Ponza para outra clínica e, quando ela assinar:</p>
+          <ul class="list">
+            <li><strong>+50 análises grátis</strong> no seu Ponza Lab;</li>
+            <li><strong>+1 mês grátis</strong> no seu plano.</li>
+          </ul>
+          <a class="btn-outline"
+            href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20tenho%20uma%20indica%C3%A7%C3%A3o%20para%20o%20Ponza%20Health%20e%20quero%20ativar%20meu%20b%C3%B4nus."
+            target="_blank" rel="noopener">
+            Ativar bônus pelo WhatsApp
+          </a>
+        </div>
+
+        <div class="tile">
+          <h3>Como funcionam as análises grátis</h3>
+          <p>As 50 análises são um crédito promocional para testar os fluxos do Ponza Lab. Você pode:</p>
+          <ul class="list">
+            <li>Enviar PDFs de exames para leitura e comparação com referências;</li>
+            <li>Gerar sugestões de condutas/prescrições (quando configurado);</li>
+            <li>Configurar <em>envio automático</em> do PDF/resultado via WhatsApp.</li>
+          </ul>
+          <p class="muted">Quando o crédito terminar, você pode adquirir pacotes adicionais sob demanda.</p>
+        </div>
+
+        <div class="tile">
+          <h3>Dúvidas sobre cobrança</h3>
+          <p class="muted">O plano é mensal e recorrente. Você pode solicitar exportação dos seus dados e cancelamento a
+            qualquer momento. Consulte os <a href="{{ url_for('privacy_policy') }}">termos e políticas</a>.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- FAQ -->
+  <section class="section">
+    <div class="section-inner faq">
+      <h2 class="title" style="text-align:center">Perguntas frequentes</h2>
+      <details>
+        <summary>O preço de R$ 79,90 é promocional?</summary>
+        <p>Sim, é um preço de lançamento e pode ser ajustado futuramente com aviso prévio. Assinaturas ativas continuam
+          até o fim do ciclo vigente.</p>
+      </details>
+      <details>
+        <summary>O que acontece quando acabarem as 50 análises grátis?</summary>
+        <p>Você continua no plano normalmente e pode adquirir pacotes adicionais do Ponza Lab conforme a sua demanda.
+        </p>
+      </details>
+      <details>
+        <summary>Como funciona a indicação?</summary>
+        <p>Quando a clínica indicada assina, seu bônus é liberado: +50 análises grátis e +1 mês grátis no seu plano.
+          Fale conosco no WhatsApp para ativar.</p>
+      </details>
+      <details>
+        <summary>Posso cancelar a qualquer momento?</summary>
+        <p>Sim. O acesso permanece até o fim do ciclo mensal já pago. Veja detalhes nos Termos de Uso.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- RODAPÉ -->
+  <section class="contacts" aria-label="Contatos e navegação">
+    <div class="contacts-inner">
+      <div class="contacts-grid">
+        <!-- BRAND -->
+        <div class="brand">
+          <img src="{{ url_for('static', filename='images/8.svg') }}" alt="Ponza Health" />
+          <h3>Ponza Health — Automação para Clínicas</h3>
+          <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais, mais
+            eficiência.</p>
+
+          <div class="contacts-cta" style="margin-top:12px">
+            <a class="btn-outline-footer"
+              href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20quero%20assinar%20o%20Ponza%20Health%20(Plano%20de%20R%24%2079%2C90%2Fm%C3%AAs)%20e%20tirar%20d%C3%BAvidas."
+              target="_blank" rel="noopener">
+              Assinar pelo WhatsApp
+            </a>
+            <a class="btn-outline-footer" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
+            <a class="btn-outline-footer" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
+          </div>
+        </div>
+
+        <!-- COLUNA 2 -->
+        <div class="col">
+          <h4>Funcionalidades</h4>
+          <ul class="navlist">
+            <li><a href="{{ url_for('hero') }}#recursos">Prontuário eletrônico</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Controle de estoque</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Planos de tratamento</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Gestão financeira</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Teleconsulta</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Agenda múltipla</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Assinatura digital</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Protocolos</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Migração de dados</a></li>
+            <li><a href="{{ url_for('hero') }}#recursos">Automação em marketing</a></li>
+          </ul>
+        </div>
+
+        <!-- COLUNA 3 -->
+        <div class="col">
+          <h4>Institucional</h4>
+          <ul class="navlist">
+            <li><a href="{{ url_for('prices') }}">Preços</a></li>
+            <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
+            <li><a href="{{ url_for('privacy_policy') }}#contato">Contato</a></li>
+            <li><a href="#sitemap">Mapa do site</a></li>
+          </ul>
+          <h4 style="margin-top:18px">Suporte & Produtos</h4>
+          <ul class="navlist">
+            <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
+                target="_blank" rel="noopener">Fale com um consultor</a></li>
+            <li><a href="#ajuda">Central de ajuda</a></li>
+          </ul>
+        </div>
+
+        <!-- COLUNA 4 -->
+        <div class="col">
+          <h4>Conta</h4>
+          <ul class="navlist">
+            <li><a href="{{ url_for('register') }}">Criar conta</a></li>
+            <li><a href="{{ url_for('login') }}">Entrar</a></li>
+            <li><a href="{{ url_for('privacy_policy') }}">Privacidade</a></li>
+            <li><a href="{{ url_for('privacy_policy') | replace('privacy_policy','terms') }}">Termos de uso</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="bottom">
+        <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
+        <div class="navlist" style="display:flex; gap:16px; list-style:none">
+          <a href="{{ url_for('prices') }}">Preços</a>
+          <a href="{{ url_for('privacy_policy') }}">Política de privacidade</a>
+          <a href="{{ url_for('privacy_policy') | replace('privacy_policy','terms') }}">Termos de uso</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+
+</html>

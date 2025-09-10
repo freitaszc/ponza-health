@@ -203,13 +203,14 @@
 <body>
 
   <!-- Sidebar -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
+        class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
-    <a href="{{ url_for('quote_index') }}" class="menu-item active"><i class="fa fa-file-text-o"></i><span
+    <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
@@ -217,6 +218,9 @@
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
         class="label">Agenda</span></a>
+
+    <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+        class="label">Pagamentos</span></a>
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>

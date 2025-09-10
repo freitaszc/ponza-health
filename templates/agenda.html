@@ -10,33 +10,28 @@
   <!-- Funnel Sans -->
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
-  <!-- FullCalendar -->
+  <!-- FullCalendar CSS (mantido) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 
   <style>
     :root {
-      /* Tema claro padronizado */
-      --bg: #ffffff;
-      --surface: #ffffff;
+      --bg: #fff;
+      --surface: #fff;
       --surface-alt: #f8fafc;
       --border: #e5e7eb;
       --ink: #0b1220;
       --ink-dim: #475569;
-
-      /* Azul escuro padrão (gradiente + sólido) */
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-solid: #131d35;
-
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --radius: 12px;
       --btn-h: 44px;
       --btn-minw: 220px;
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
-
       --fs-base: 14px;
-      --fs-title: 32px;
+      --fs-title: 32px
     }
 
     * {
@@ -48,18 +43,16 @@
       margin: 0
     }
 
-    /* ===== Layout base (padrão Estoque) ===== */
     body {
       font-family: var(--font-family);
       background: var(--bg);
       color: var(--ink);
       min-height: 100vh;
       display: flex;
-      /* Sidebar + conteúdo lado a lado */
-      font-size: var(--fs-base);
+      font-size: var(--fs-base)
     }
 
-    /* ===== Topo direito (perfil/notify) ===== */
+    /* Topo direito */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -67,7 +60,7 @@
       z-index: 1001;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 12px
     }
 
     .icon-btn {
@@ -113,7 +106,7 @@
       justify-content: center
     }
 
-    /* ===== Sidebar (padrão Estoque) ===== */
+    /* Sidebar */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -125,8 +118,7 @@
       flex-direction: column;
       transition: width 180ms ease;
       position: sticky;
-      top: 0;
-      /* fica “grudado” à viewport */
+      top: 0
     }
 
     .sidebar-toggle {
@@ -143,9 +135,9 @@
     }
 
     .sidebar-toggle:hover {
-      background: #ffffff;
+      background: #fff;
       color: var(--brand-solid);
-      border-color: #ffffff;
+      border-color: #fff;
       transform: translateY(-1px)
     }
 
@@ -178,7 +170,7 @@
     }
 
     .sidebar a.menu-item:hover {
-      background: #ffffff;
+      background: #fff;
       color: var(--brand-solid);
       transform: translateX(4px)
     }
@@ -201,7 +193,6 @@
       color: #e5e7eb
     }
 
-    /* Estado colapsado */
     .sidebar.is-collapsed {
       width: 76px
     }
@@ -226,13 +217,13 @@
       transform: rotate(180deg)
     }
 
-    /* ===== Conteúdo ===== */
+    /* Conteúdo */
     .content {
       flex-grow: 1;
       padding: 36px;
       min-width: 0;
       position: relative;
-      background: var(--bg);
+      background: var(--bg)
     }
 
     h2 {
@@ -241,7 +232,7 @@
       color: var(--ink);
       margin: 0 0 28px;
       position: relative;
-      font-weight: 800;
+      font-weight: 800
     }
 
     h2::after {
@@ -257,7 +248,7 @@
       box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
-    /* ===== Header da agenda (cartão) ===== */
+    /* Header/ações */
     .agenda-header {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -267,15 +258,13 @@
       box-shadow: var(--shadow)
     }
 
-    /* ===== Botões topo centralizados, sem corte ===== */
     .actions-row {
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      /* quebra em múltiplas linhas quando necessário */
-      margin: 8px 0 18px;
+      margin: 8px 0 18px
     }
 
     .btn {
@@ -310,24 +299,15 @@
       background: var(--brand-grad)
     }
 
-    .btn.danger {
-      background: #dc2626;
-      border-color: #b91c1c
-    }
-
-    .btn.danger:hover {
-      filter: brightness(1.03)
-    }
-
     .btn.pill {
       height: 44px;
       min-width: 110px;
       font-weight: 800;
       letter-spacing: .2px;
-      background: #ffffff;
+      background: #fff;
       color: var(--brand-solid);
       border: 2px solid var(--brand-solid);
-      border-radius: 999px;
+      border-radius: 999px
     }
 
     .btn.pill:hover {
@@ -335,13 +315,19 @@
       color: #fff
     }
 
-    /* ===== Calendário ===== */
+    .btn.danger {
+      background: #dc2626;
+      border-color: #b91c1c
+    }
+
+    /* Calendário */
     .calendar-wrapper {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 16px;
       box-shadow: var(--shadow);
-      overflow: hidden;
+      overflow: visible;
+      min-width: 0;
     }
 
     .calendar-header {
@@ -351,7 +337,7 @@
       padding: 16px 20px;
       background: var(--surface-alt);
       border-bottom: 1px solid var(--border);
-      gap: 12px;
+      gap: 12px
     }
 
     .date-navigation {
@@ -372,7 +358,7 @@
       justify-content: center;
       cursor: pointer;
       color: var(--ink);
-      transition: .2s;
+      transition: .2s
     }
 
     .nav-btn:hover {
@@ -401,7 +387,7 @@
       font-weight: 700;
       cursor: pointer;
       color: var(--ink);
-      transition: .2s;
+      transition: .2s
     }
 
     .view-btn.active {
@@ -412,6 +398,20 @@
 
     .view-btn:hover:not(.active) {
       background: var(--surface-alt)
+    }
+
+    /* Evitar cortes / permitir encolher */
+    #calendar,
+    .fc,
+    .fc .fc-view-harness,
+    .fc .fc-scrollgrid {
+      min-width: 0
+    }
+
+    .fc .fc-view-harness,
+    .fc .fc-daygrid-body,
+    .fc .fc-daygrid-day-frame {
+      overflow: visible
     }
 
     #calendar {
@@ -436,25 +436,11 @@
       font-size: 13px !important;
       font-weight: 600 !important;
       color: #fff !important;
-      cursor: pointer !important;
+      cursor: pointer !important
     }
 
     .fc .fc-event-main {
       padding: 0 !important
-    }
-
-    .fc .fc-event-title {
-      font-weight: 600 !important
-    }
-
-    .fc .fc-event.holiday-event {
-      background: #10b981 !important;
-      color: #fff !important
-    }
-
-    .fc .fc-event.patient-event {
-      background: #60a5fa !important;
-      color: #fff !important
     }
 
     .fc .fc-col-header-cell {
@@ -497,7 +483,7 @@
       border-color: var(--border) !important
     }
 
-    /* ===== Modais ===== */
+    /* Modais base */
     .modal {
       display: none;
       position: fixed;
@@ -507,7 +493,7 @@
       align-items: center;
       z-index: 1100;
       padding: 16px;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(4px)
     }
 
     .modal-card {
@@ -520,7 +506,7 @@
       box-shadow: 0 25px 60px rgba(0, 0, 0, .20);
       padding: 32px;
       position: relative;
-      text-align: left;
+      text-align: left
     }
 
     .modal-card h3 {
@@ -547,7 +533,7 @@
       border-radius: 8px;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center
     }
 
     .modal-close:hover {
@@ -579,7 +565,7 @@
       font-size: 14px;
       outline: none;
       transition: .2s;
-      font-family: var(--font-family);
+      font-family: var(--font-family)
     }
 
     .input:focus,
@@ -588,10 +574,141 @@
       box-shadow: 0 0 0 3px rgba(19, 29, 53, .1)
     }
 
+    .textarea {
+      min-height: 90px
+    }
+
     .form-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px
+    }
+
+    /* Modal Lista de Espera (layout 2 colunas) */
+    .modal-wide .modal-card {
+      max-width: 960px;
+      padding: 24px
+    }
+
+    .wl-grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 20px
+    }
+
+    .wl-list {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 12px;
+      min-height: 320px;
+      display: flex;
+      flex-direction: column
+    }
+
+    .wl-list-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 800
+    }
+
+    .wl-items {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 12px
+    }
+
+    .wl-empty {
+      margin: 16px;
+      border-radius: 10px;
+      background: #e5f3ff;
+      color: #0b3b77;
+      padding: 14px;
+      text-align: center;
+      font-weight: 700
+    }
+
+    .wl-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      margin-bottom: 10px
+    }
+
+    .wl-item h4 {
+      margin: 0 0 6px;
+      font-size: 15px
+    }
+
+    .wl-item small {
+      color: var(--ink-dim)
+    }
+
+    .wl-actions {
+      display: flex;
+      gap: 8px
+    }
+
+    .wl-btn {
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer
+    }
+
+    .wl-btn:hover {
+      border-color: #ef4444;
+      background: #fee2e2
+    }
+
+    .wl-form {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 16px
+    }
+
+    .wl-form h4 {
+      margin: 0 0 12px;
+      color: #0b3b77
+    }
+
+    .input-icon {
+      position: relative
+    }
+
+    .input-icon input {
+      padding-right: 40px
+    }
+
+    .input-icon .search-btn {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      background: #fff;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      cursor: pointer
+    }
+
+    .input-icon .search-btn:hover {
+      background: #fafafa
+    }
+
+    .wl-submit {
+      width: 100%;
+      margin-top: 10px
     }
 
     @media (max-width:720px) {
@@ -603,7 +720,6 @@
         min-width: 100%
       }
 
-      /* no mobile, botões ocupam largura total ao quebrar */
       .form-row {
         grid-template-columns: 1fr
       }
@@ -617,26 +733,19 @@
       .date-navigation {
         justify-content: center
       }
-    }
 
-    /* Drag/Drop/Resize cursors */
-    .fc .fc-event.fc-event-draggable {
-      cursor: grab
-    }
+      .modal-wide .modal-card {
+        max-width: 100%
+      }
 
-    .fc .fc-event.fc-event-dragging {
-      cursor: grabbing;
-      opacity: .85
-    }
-
-    .fc .fc-event.fc-event-resizable {
-      cursor: ns-resize
-    }
-
-    .fc .fc-event:hover {
-      filter: brightness(1.05)
+      .wl-grid {
+        grid-template-columns: 1fr
+      }
     }
   </style>
+
+  <!-- FullCalendar JS (antes do script que o usa) -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 </head>
 
 <body>
@@ -649,12 +758,11 @@
     </button>
   </div>
 
-  <!-- Sidebar (padrão Estoque) -->
+  <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
-
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
@@ -668,17 +776,6 @@
         class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
-
-    {% if username and username|lower == 'admin' %}
-    <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
-    <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
-        class="label">Admin — Empresas</span></a>
-    <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
-        class="label">Admin — Repositório</span></a>
-    <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
-        class="label">Admin — Disponibilidade</span></a>
-    {% endif %}
-
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
@@ -688,19 +785,14 @@
   <div class="content">
     <h2>Agenda</h2>
 
-    <!-- Header da agenda -->
     <div class="agenda-header">
-      <!-- Botões centralizados (sem corte) -->
       <div class="actions-row">
         <button class="btn primary" id="newEventBtn"><i class="fa fa-plus"></i>&nbsp;Novo Agendamento</button>
-        <button class="btn"><i class="fa fa-list"></i>&nbsp;Lista de Espera</button>
-        <button class="btn"><i class="fa fa-eye"></i>&nbsp;Observações</button>
+        <button class="btn" id="waitlistBtn"><i class="fa fa-list"></i>&nbsp;Lista de Espera</button>
         <button class="btn" id="printBtn"><i class="fa fa-print"></i>&nbsp;Imprimir Agenda</button>
-        <button class="btn"><i class="fa fa-cogs"></i>&nbsp;Agendamento online</button>
       </div>
     </div>
 
-    <!-- Calendar Wrapper -->
     <div class="calendar-wrapper">
       <div class="calendar-header">
         <div class="date-navigation">
@@ -709,19 +801,16 @@
           <button class="nav-btn" id="nextBtn" title="Próximo"><i class="fa fa-chevron-right"></i></button>
           <button class="btn pill" id="todayBtn" title="Ir para hoje">HOJE</button>
         </div>
-
         <div class="view-controls">
           <button class="view-btn" onclick="changeView('dayGridMonth')">MÊS</button>
           <button class="view-btn active" onclick="changeView('timeGridWeek')">SEMANA</button>
         </div>
       </div>
-
-      <!-- Calendário -->
       <div id="calendar"></div>
     </div>
   </div>
 
-  <!-- Modal ADICIONAR Consulta -->
+  <!-- Modal ADICIONAR Consulta (dd/mm/aaaa) -->
   <div id="addModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="addTitle">
     <div class="modal-card">
       <button class="modal-close" onclick="closeModal('addModal')" aria-label="Fechar">×</button>
@@ -735,7 +824,8 @@
       <div class="form-row">
         <div class="form-group">
           <label for="add_date">Data</label>
-          <input type="date" id="add_date" class="input" required>
+          <input type="text" id="add_date" class="input" placeholder="dd/mm/aaaa" inputmode="numeric"
+            pattern="\\d{2}/\\d{2}/\\d{4}" required>
         </div>
         <div class="form-group">
           <label for="add_time">Horário</label>
@@ -783,12 +873,11 @@
     </div>
   </div>
 
-  <!-- Modal EDITAR Consulta -->
+  <!-- Modal EDITAR Consulta (dd/mm/aaaa) -->
   <div id="editModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
     <div class="modal-card">
       <button class="modal-close" onclick="closeModal('editModal')" aria-label="Fechar">×</button>
       <h3 id="editTitle">Editar Consulta</h3>
-
       <input type="hidden" id="edit_id" />
 
       <div class="form-group">
@@ -799,7 +888,8 @@
       <div class="form-row">
         <div class="form-group">
           <label for="edit_date">Data</label>
-          <input type="date" id="edit_date" class="input" required>
+          <input type="text" id="edit_date" class="input" placeholder="dd/mm/aaaa" inputmode="numeric"
+            pattern="\\d{2}/\\d{2}/\\d{4}" required>
         </div>
         <div class="form-group">
           <label for="edit_time">Horário</label>
@@ -851,13 +941,79 @@
     </div>
   </div>
 
-  <!-- Scripts utilitários -->
+  <!-- Modal LISTA DE ESPERA -->
+  <div id="waitlistModal" class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="wlTitle">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeModal('waitlistModal')" aria-label="Fechar">×</button>
+      <h3 id="wlTitle">Lista de espera</h3>
+
+      <div class="wl-grid">
+        <!-- Lista -->
+        <div class="wl-list">
+          <div class="wl-list-head">Na lista</div>
+          <div id="wlItems" class="wl-items">
+            <div class="wl-empty" id="wlEmpty">Nenhum paciente na lista de espera</div>
+          </div>
+        </div>
+
+        <!-- Formulário de adição -->
+        <div class="wl-form">
+          <h4>Adicionar à lista</h4>
+
+          <div class="form-group">
+            <label for="wl_patient">PACIENTE*</label>
+            <div class="input-icon">
+              <input id="wl_patient" class="input" type="text" placeholder="Pesquisar paciente..." autocomplete="off">
+              <button class="search-btn" type="button" onclick="/* hook de busca de pacientes */ null"><i
+                  class="fa fa-search"></i></button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="wl_billing">CONVÊNIO</label>
+            <select id="wl_billing" class="input">
+              <option value="Particular" selected>Particular</option>
+              <option value="Convênio">Convênio</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="wl_email">E-MAIL</label>
+            <input id="wl_email" class="input" type="email" placeholder="email@exemplo.com">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="wl_phone1">TEL. CELULAR</label>
+              <input id="wl_phone1" class="input" type="tel" placeholder="(__) _____-____">
+            </div>
+            <div class="form-group">
+              <label for="wl_phone2">TEL. RESIDENCIAL</label>
+              <input id="wl_phone2" class="input" type="tel" placeholder="(__) ____-____">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="wl_notes">OBSERVAÇÃO</label>
+            <input id="wl_notes" class="input" type="text" placeholder="">
+          </div>
+
+          <button class="btn wl-submit" onclick="addToWaitlist()"><i class="fa fa-plus"></i>&nbsp;ADICIONAR
+            PACIENTE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Scripts corrigidos -->
   <script>
-    // Sidebar toggle (mesmo padrão do Estoque)
+    // ===== Sidebar =====
     function toggleSidebar() {
       const s = document.getElementById('sidebar');
       s.classList.toggle('is-collapsed');
       localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
+      if (window.calendar && typeof window.calendar.updateSize === 'function') {
+        setTimeout(() => window.calendar.updateSize(), 210);
+      }
     }
     document.addEventListener('DOMContentLoaded', () => {
       if (localStorage.getItem('sidebarCollapsed') === '1') {
@@ -865,33 +1021,54 @@
       }
     });
 
-    // Abre/fecha modais
-    function openModal(id) { document.getElementById(id).style.display = 'flex' }
-    function closeModal(id) { document.getElementById(id).style.display = 'none' }
+    // ===== Modais =====
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    // Helper: local date+time -> ISO em UTC
-    function buildISO(dateStr, timeStr) {
+    // ===== Datas utilitárias (dd/mm/aaaa) =====
+    function toBR(date) { // Date -> 'dd/mm/aaaa'
+      const d = String(date.getDate()).padStart(2, '0');
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const y = String(date.getFullYear());
+      return `${d}/${m}/${y}`;
+    }
+    function parseBR(dateStr) { // 'dd/mm/aaaa' -> Date local
       if (!dateStr) return null;
-      const t = (timeStr && timeStr.length) ? timeStr : '00:00';
-      const [y, m, d] = dateStr.split('-').map(Number);
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateStr);
+      if (!m) return null;
+      const d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
+      const dt = new Date(y, mo, d);
+      return (dt && dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d) ? dt : null;
+    }
+    // IMPORTANTE: formatar como ISO LOCAL (sem 'Z') para evitar mudança de fuso/horário
+    function formatLocalISO(d) {
+      if (!d) return null;
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+    }
+    // Constrói ISO local a partir de 'dd/mm/aaaa' e 'HH:MM'
+    // Se horário estiver vazio, usamos 08:00 (slotMinTime) para não "sumir" da visão semanal
+    function buildLocalISO(dateBR, timeStr) {
+      const base = parseBR(dateBR);
+      if (!base) return null;
+      const t = (timeStr && timeStr.length) ? timeStr : '08:00';
       const [hh, mm] = t.split(':').map(Number);
-      const dt = new Date(y, m - 1, d, hh, mm, 0);
-      return dt.toISOString();
+      base.setHours(hh || 0, mm || 0, 0, 0);
+      return formatLocalISO(base);
     }
 
-    // Toggle do campo Convênio (para ambos modais)
+    // ===== Toggle de convênio =====
     function setupBillingToggle(selectEl) {
       const wrapId = selectEl.getAttribute('data-insurer-wrap');
       const wrap = document.getElementById(wrapId);
       const update = () => { if (wrap) wrap.style.display = (selectEl.value === 'convenio') ? 'block' : 'none'; };
-      selectEl.addEventListener('change', update);
-      update();
+      selectEl.addEventListener('change', update); update();
     }
 
-    // Abrir modais com preenchimento
+    // ===== Preenchimento dos modais =====
     function openAddModal(prefill) {
       document.getElementById('add_title').value = prefill?.title || '';
-      document.getElementById('add_date').value = prefill?.date || '';
+      document.getElementById('add_date').value = prefill?.dateBR || '';
       document.getElementById('add_time').value = prefill?.time || '';
       document.getElementById('add_end').value = prefill?.endTime || '';
       document.getElementById('add_notes').value = prefill?.notes || '';
@@ -904,7 +1081,7 @@
     function openEditModal(prefill) {
       document.getElementById('edit_id').value = prefill?.id || '';
       document.getElementById('edit_title').value = prefill?.title || '';
-      document.getElementById('edit_date').value = prefill?.date || '';
+      document.getElementById('edit_date').value = prefill?.dateBR || '';
       document.getElementById('edit_time').value = prefill?.time || '';
       document.getElementById('edit_end').value = prefill?.endTime || '';
       document.getElementById('edit_notes').value = prefill?.notes || '';
@@ -915,84 +1092,298 @@
       openModal('editModal');
     }
 
-    // Submeter ADIÇÃO
+    // ===== Submeter ADIÇÃO =====
     async function submitAddEvent() {
       const title = document.getElementById('add_title').value.trim();
-      const date = document.getElementById('add_date').value;
-      const time = document.getElementById('add_time').value;
-      const endTime = document.getElementById('add_end').value;
+      const dateBR = document.getElementById('add_date').value;
+      const time = document.getElementById('add_time').value;       // pode estar vazio
+      const endTime = document.getElementById('add_end').value;     // pode estar vazio
       const notes = document.getElementById('add_notes').value;
       const type = document.getElementById('add_type').value;
       const billing = document.getElementById('add_billing').value;
-      const insurer = document.getElementById('add_insurer').value.trim();
+      const insurer = (document.getElementById('add_insurer').value || '').trim();
 
-      if (!title || !date) { alert('Preencha o nome do paciente e a data.'); return; }
+      if (!title || !dateBR) { alert('Preencha o nome do paciente e a data.'); return; }
 
-      const startISO = buildISO(date, time);
-      const endISO = endTime ? buildISO(date, endTime) : null;
+      const startISO = buildLocalISO(dateBR, time); // ISO local (sem Z)
+      let endISO = endTime ? buildLocalISO(dateBR, endTime) : null;
+
+      // Se término ficou antes/igual ao início, anulamos para evitar "sumir"
+      if (endISO) {
+        const s = new Date(startISO);
+        const e = new Date(endISO);
+        if (!(e > s)) endISO = null;
+      }
+
       const payload = { title, start: startISO, end: endISO, notes, type, billing, insurer };
 
       try {
         const res = await fetch('/api/add_event', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
         const result = await res.json();
-        if (result.success) { closeModal('addModal'); calendar.refetchEvents(); }
-        else { alert('Erro: ' + (result.error || 'Erro desconhecido')); }
-      } catch (e) { alert('Falha de rede ao salvar. Tente novamente.'); }
+        if (result.success) {
+          closeModal('addModal');
+          calendar.refetchEvents();
+        } else {
+          alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+      } catch (e) {
+        alert('Falha de rede ao salvar. Tente novamente.');
+      }
     }
 
-    // Submeter EDIÇÃO
+    // ===== Submeter EDIÇÃO =====
     async function submitEditEvent() {
       const id = document.getElementById('edit_id').value || null;
       const title = document.getElementById('edit_title').value.trim();
-      const date = document.getElementById('edit_date').value;
+      const dateBR = document.getElementById('edit_date').value;
       const time = document.getElementById('edit_time').value;
       const endTime = document.getElementById('edit_end').value;
       const notes = document.getElementById('edit_notes').value;
       const type = document.getElementById('edit_type').value;
       const billing = document.getElementById('edit_billing').value;
-      const insurer = document.getElementById('edit_insurer').value.trim();
+      const insurer = (document.getElementById('edit_insurer').value || '').trim();
 
       if (!id) { alert('Evento inválido.'); return; }
-      if (!title || !date) { alert('Preencha o nome do paciente e a data.'); return; }
+      if (!title || !dateBR) { alert('Preencha o nome do paciente e a data.'); return; }
 
-      const startISO = buildISO(date, time);
-      const endISO = endTime ? buildISO(date, endTime) : null;
+      const startISO = buildLocalISO(dateBR, time);
+      let endISO = endTime ? buildLocalISO(dateBR, endTime) : null;
+
+      if (endISO) {
+        const s = new Date(startISO);
+        const e = new Date(endISO);
+        if (!(e > s)) endISO = null;
+      }
+
       const payload = { title, start: startISO, end: endISO, notes, type, billing, insurer };
 
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(id)}`, {
-          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
         const result = await res.json();
-        if (result.success) { closeModal('editModal'); calendar.refetchEvents(); }
-        else { alert('Erro: ' + (result.error || 'Erro desconhecido')); }
-      } catch (e) { alert('Falha de rede ao salvar. Tente novamente.'); }
+        if (result.success) {
+          closeModal('editModal');
+          calendar.refetchEvents();
+        } else {
+          alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+      } catch (e) {
+        alert('Falha de rede ao salvar. Tente novamente.');
+      }
     }
 
-    // Excluir (usa DELETE no backend)
+    // ===== Excluir =====
     async function deleteEvent() {
       const id = document.getElementById('edit_id').value || null;
       if (!id) { alert('Evento inválido.'); return; }
       if (!confirm('Deseja realmente excluir este agendamento?')) return;
-
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(id)}`, { method: 'DELETE' });
         const result = await res.json();
-        if (result.success) { closeModal('editModal'); calendar.refetchEvents(); }
-        else { alert('Erro ao excluir: ' + (result.error || 'Erro desconhecido')); }
-      } catch (e) { alert('Falha de rede ao excluir. Tente novamente.'); }
+        if (result.success) {
+          closeModal('editModal');
+          calendar.refetchEvents();
+        } else {
+          alert('Erro ao excluir: ' + (result.error || 'Erro desconhecido'));
+        }
+      } catch (e) {
+        alert('Falha de rede ao excluir. Tente novamente.');
+      }
     }
 
-    // Troca de visão e label do período
+    // ===== Lista de Espera =====
+    function openWaitlistModal() { loadWaitlist(); openModal('waitlistModal'); }
+
+    async function loadWaitlist() {
+      const listEl = document.getElementById('wlItems');
+      const emptyEl = document.getElementById('wlEmpty');
+      listEl.innerHTML = ''; listEl.appendChild(emptyEl); emptyEl.style.display = 'block';
+      try {
+        const res = await fetch('/api/waitlist');
+        const data = await res.json();
+        if (data && Array.isArray(data.items) && data.items.length) {
+          emptyEl.style.display = 'none';
+          for (const it of data.items) {
+            const row = document.createElement('div');
+            row.className = 'wl-item';
+            row.innerHTML = `
+            <div>
+              <h4>${it.name || 'Sem nome'}</h4>
+              <small>${it.billing || 'Particular'}${it.email ? ' • ' + it.email : ''}</small><br/>
+              <small>${[it.phone1, it.phone2].filter(Boolean).join(' • ')}</small>
+              ${it.notes ? `<div><small>${it.notes}</small></div>` : ''}
+            </div>
+            <div class="wl-actions">
+              <button class="wl-btn" title="Remover" onclick="removeFromWaitlist('${it.id}')"><i class="fa fa-trash"></i></button>
+            </div>`;
+            listEl.appendChild(row);
+          }
+        }
+      } catch (e) { /* silencia erro */ }
+    }
+    async function addToWaitlist() {
+      const payload = {
+        name: (document.getElementById('wl_patient').value || '').trim(),
+        billing: document.getElementById('wl_billing').value,
+        email: (document.getElementById('wl_email').value || '').trim(),
+        phone1: (document.getElementById('wl_phone1').value || '').trim(),
+        phone2: (document.getElementById('wl_phone2').value || '').trim(),
+        notes: (document.getElementById('wl_notes').value || '').trim()
+      };
+      if (!payload.name) { alert('Informe o nome do paciente.'); return; }
+      try {
+        const res = await fetch('/api/waitlist', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('wl_patient').value = '';
+          document.getElementById('wl_email').value = '';
+          document.getElementById('wl_phone1').value = '';
+          document.getElementById('wl_phone2').value = '';
+          document.getElementById('wl_notes').value = '';
+          loadWaitlist();
+        } else {
+          alert('Erro ao adicionar: ' + (data.error || 'Erro desconhecido'));
+        }
+      } catch (e) { alert('Falha de rede ao adicionar.'); }
+    }
+    async function removeFromWaitlist(id) {
+      if (!id) return;
+      if (!confirm('Remover paciente da lista de espera?')) return;
+      try {
+        const res = await fetch(`/api/waitlist/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) { loadWaitlist(); } else { alert('Não foi possível remover.'); }
+      } catch (e) { alert('Falha de rede ao remover.'); }
+    }
+
+    // ===== FullCalendar =====
+    let calendar;
+    document.addEventListener('DOMContentLoaded', function () {
+      const calendarEl = document.getElementById('calendar');
+
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        timeZone: 'local',                    // >>> evita mudanças de horário por fuso
+        initialView: 'timeGridWeek',
+        locale: 'pt-br',
+        headerToolbar: false,
+        nowIndicator: true,
+        slotMinTime: '08:00:00',
+        slotMaxTime: '18:00:00',
+        slotDuration: '00:15:00',
+        expandRows: true,
+        dayMaxEventRows: 3,
+        stickyHeaderDates: true,
+        height: 'auto',
+        handleWindowResize: true,
+
+        selectable: true,
+        selectMirror: true,
+        editable: true,
+        eventStartEditable: true,
+        eventDurationEditable: true,
+        dragScroll: true,
+
+        events: '/api/events',                // servidor deve devolver ISO; com timeZone: 'local', não haverá "pulo"
+        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+        dayHeaderFormat: { weekday: 'short', day: '2-digit', month: '2-digit' },
+
+        // Criar por seleção
+        select: (info) => {
+          const start = info.start, end = info.end;
+          const dateBR = toBR(start);
+          const timeStr = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+          const endStr = end ? `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` : '';
+          openAddModal({ dateBR, time: timeStr, endTime: endStr });
+          calendar.unselect();
+        },
+
+        // Editar ao clicar
+        eventClick: (info) => {
+          const ev = info.event;
+          if (ev.classNames.includes('holiday-event')) return;
+          if (!ev.id) return;
+
+          const start = ev.start, end = ev.end || null;
+          const dateBR = toBR(start);
+          const t = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+          const tEnd = end ? `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` : '';
+          openEditModal({
+            id: ev.id, title: ev.title || '', dateBR, time: t, endTime: tEnd,
+            notes: ev.extendedProps?.notes || '', type: ev.extendedProps?.type || 'consulta',
+            billing: ev.extendedProps?.billing || 'particular', insurer: ev.extendedProps?.insurer || ''
+          });
+        },
+
+        // Arrastar (muda início/fim sem trocar fuso)
+        eventDrop: async (info) => {
+          const ev = info.event;
+          if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
+          try {
+            const payload = {
+              start: ev.start ? formatLocalISO(ev.start) : null,
+              end: ev.end ? formatLocalISO(ev.end) : null
+            };
+            const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (!result.success) { info.revert(); alert('Não foi possível atualizar o evento.'); }
+          } catch (e) { info.revert(); alert('Falha de rede ao atualizar o evento.'); }
+        },
+
+        // Redimensionar (duração) sem trocar fuso
+        eventResize: async (info) => {
+          const ev = info.event;
+          if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
+          try {
+            const payload = {
+              start: ev.start ? formatLocalISO(ev.start) : null,
+              end: ev.end ? formatLocalISO(ev.end) : null
+            };
+            const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}`, {
+              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (!result.success) { info.revert(); alert('Não foi possível redimensionar o evento.'); }
+          } catch (e) { info.revert(); alert('Falha de rede ao redimensionar o evento.'); }
+        },
+
+        datesSet() { updatePeriodDisplay(); }
+      });
+
+      calendar.render();
+      updatePeriodDisplay();
+
+      // Ajustes de layout
+      window.addEventListener('resize', () => calendar.updateSize());
+      setTimeout(() => calendar.updateSize(), 0);
+
+      // Navegação e ações
+      document.getElementById('prevBtn').addEventListener('click', () => calendar.prev());
+      document.getElementById('nextBtn').addEventListener('click', () => calendar.next());
+      document.getElementById('todayBtn').addEventListener('click', () => calendar.today());
+      document.getElementById('newEventBtn').addEventListener('click', () => openAddModal());
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+      document.getElementById('waitlistBtn').addEventListener('click', openWaitlistModal);
+    });
+
     function changeView(viewName) {
       calendar.changeView(viewName);
+      setTimeout(() => calendar.updateSize(), 0);
       document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
       const idx = (viewName === 'dayGridMonth') ? 0 : 1;
-      const btns = document.querySelectorAll('.view-btn');
-      if (btns[idx]) btns[idx].classList.add('active');
+      const btns = document.querySelectorAll('.view-btn'); if (btns[idx]) btns[idx].classList.add('active');
     }
+
     function updatePeriodDisplay() {
       const view = calendar.view;
       const start = view.currentStart;
@@ -1007,147 +1398,6 @@
       }
     }
   </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <script>
-    let calendar;
-    document.addEventListener('DOMContentLoaded', function () {
-      const calendarEl = document.getElementById('calendar');
-
-      calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
-        locale: 'pt-br',
-        headerToolbar: false,
-
-        // UX
-        nowIndicator: true,
-        slotMinTime: '08:00:00',
-        slotMaxTime: '18:00:00',
-        slotDuration: '00:15:00',
-        expandRows: true,
-        dayMaxEventRows: 3,
-        stickyHeaderDates: true,
-        height: 'auto',
-
-        // Interação
-        selectable: true,
-        selectMirror: true,
-        editable: true,
-        eventStartEditable: true,
-        eventDurationEditable: true,
-        dragScroll: true,
-
-        // Fonte
-        events: '/api/events',
-
-        // Formatação
-        eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
-        dayHeaderFormat: { weekday: 'short', day: '2-digit', month: '2-digit' },
-
-        // Criar evento ao selecionar intervalo
-        select: (info) => {
-          const y = info.start.getFullYear();
-          const m = String(info.start.getMonth() + 1).padStart(2, '0');
-          const d = String(info.start.getDate()).padStart(2, '0');
-          const dateStr = `${y}-${m}-${d}`;
-
-          const timeStr = String(info.start.getHours()).padStart(2, '0') + ':' + String(info.start.getMinutes()).padStart(2, '0');
-          const endTimeStr = info.end
-            ? String(info.end.getHours()).padStart(2, '0') + ':' + String(info.end.getMinutes()).padStart(2, '0')
-            : '';
-
-          openAddModal({ date: dateStr, time: timeStr, endTime: endTimeStr });
-          calendar.unselect();
-        },
-
-        // Editar ao clicar
-        eventClick: (info) => {
-          const ev = info.event;
-          if (ev.classNames.includes('holiday-event')) return;
-
-          // Evitar editar entradas sem id (ex.: vindas de Consult)
-          if (!ev.id) return;
-
-          const start = ev.start;
-          const end = ev.end || null;
-
-          const y = start.getFullYear();
-          const m = String(start.getMonth() + 1).padStart(2, '0');
-          const d = String(start.getDate()).padStart(2, '0');
-          const dateStr = `${y}-${m}-${d}`;
-          const t = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-          const tEnd = end ? `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` : '';
-
-          openEditModal({
-            id: ev.id,
-            title: ev.title || '',
-            date: dateStr,
-            time: t,
-            endTime: tEnd,
-            notes: ev.extendedProps?.notes || '',
-            type: ev.extendedProps?.type || 'consulta',
-            billing: ev.extendedProps?.billing || 'particular',
-            insurer: ev.extendedProps?.insurer || ''
-          });
-        },
-
-        // Drag & drop
-        eventDrop: async (info) => {
-          const ev = info.event;
-          if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
-
-          try {
-            const payload = {
-              start: ev.start ? ev.start.toISOString() : null,
-              end: ev.end ? ev.end.toISOString() : null
-            };
-            const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}`, {
-              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            const result = await res.json();
-            if (!result.success) { info.revert(); alert('Não foi possível atualizar o evento.'); }
-          } catch (e) {
-            info.revert(); alert('Falha de rede ao atualizar o evento.');
-          }
-        },
-
-        // Resize
-        eventResize: async (info) => {
-          const ev = info.event;
-          if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
-
-          try {
-            const payload = {
-              start: ev.start ? ev.start.toISOString() : null,
-              end: ev.end ? ev.end.toISOString() : null
-            };
-            const res = await fetch(`/api/events/${encodeURIComponent(ev.id)}`, {
-              method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-            });
-            const result = await res.json();
-            if (!result.success) { info.revert(); alert('Não foi possível redimensionar o evento.'); }
-          } catch (e) {
-            info.revert(); alert('Falha de rede ao redimensionar o evento.');
-          }
-        },
-
-        datesSet() { updatePeriodDisplay(); }
-      });
-
-      calendar.render();
-      updatePeriodDisplay();
-
-      // Navegação
-      document.getElementById('prevBtn').addEventListener('click', () => { calendar.prev(); });
-      document.getElementById('nextBtn').addEventListener('click', () => { calendar.next(); });
-      document.getElementById('todayBtn').addEventListener('click', () => { calendar.today(); });
-
-      // Botões diversos
-      document.getElementById('newEventBtn').addEventListener('click', () => openAddModal());
-      document.getElementById('printBtn').addEventListener('click', () => window.print());
-    });
-  </script>
-
 </body>
 
 </html>

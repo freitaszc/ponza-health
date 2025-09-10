@@ -41,7 +41,7 @@ def send_pdf_whatsapp(doctor_name, patient_name, analyzed_pdf_link, original_pdf
             "to": phone_number,
             "type": "template",
             "template": {
-                "name": "relatorio_BioO3",
+                "name": "relatorio_ponzahealth",
                 "language": {"code": "pt_BR"},
                 "components": [
                     {
@@ -94,7 +94,7 @@ def send_quote_whatsapp(supplier_name, phone, quote_title, quote_items, response
         "to": phone,
         "type": "template",
         "template": {
-            "name": "cotacao_BioO3",  # <- você precisa configurar esse template no WhatsApp Business
+            "name": "ponzahealth_cotacao",
             "language": {"code": "pt_BR"},
             "components": [
                 {

@@ -6,11 +6,8 @@
     <title>Login — Ponza Health</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
-
-    <!-- Funnel Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
         rel="stylesheet" />
-
     <style>
         :root {
             --bg-primary: #ffffff;
@@ -31,6 +28,10 @@
             --btn-height: 44px;
             --btn-minw: 220px;
             --nav-h: 72px;
+            --ok: #16a34a;
+            --ok-ghost: rgba(22, 163, 74, .12);
+            --err: #dc2626;
+            --err-ghost: rgba(220, 38, 38, .10);
         }
 
         * {
@@ -192,30 +193,80 @@
         .link:hover {
             text-decoration: underline;
         }
+
+        /* FLASH */
+        .flash-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0 0 14px;
+        }
+
+        .flash {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            border-radius: 12px;
+            padding: 10px 12px;
+            border: 1px solid;
+        }
+
+        .flash-success {
+            border-color: rgba(22, 163, 74, .35);
+            background: var(--ok-ghost);
+            color: var(--text-primary);
+        }
+
+        .flash-error {
+            border-color: rgba(220, 38, 38, .35);
+            background: var(--err-ghost);
+            color: var(--text-primary);
+        }
+
+        .flash .label {
+            font-weight: 800;
+            font-size: 13px;
+            line-height: 1.2;
+            margin-right: 6px;
+            opacity: .8;
+        }
     </style>
 </head>
 
 <body>
-    <!-- NAVBAR -->
-    <header class="navbar">
-        <div class="nav-inner">
-            <a href="{{ url_for('hero') }}" class="nav-logo">
-                <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
-            </a>
-            <div class="nav-actions">
-                <a href="{{ url_for('register') }}">Cadastrar</a>
-                <a href="{{ url_for('login') }}">Entrar</a>
-            </div>
-        </div>
-    </header>
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
+        <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
+      </a>
+      <nav class="nav-actions">
+        <a href="{{ url_for('prices') }}">Preços</a>
+        <a href="{{ url_for('register') }}">Cadastrar</a>
+        <a href="{{ url_for('login') }}">Entrar</a>
+      </nav>
+    </div>
+  </header>
 
-    <!-- FORM LOGIN -->
     <main>
         <div class="container">
             <div class="card">
                 <h2>Entrar</h2>
 
-                <!-- Sem flashes e sem erro: absolutamente nada aparece aqui -->
+                <!-- FLASHES (apenas login) -->
+                {% with messages = get_flashed_messages(with_categories=True,
+                category_filter=['login_success','login_error']) %}
+                {% if messages %}
+                <div class="flash-stack" role="region" aria-live="polite" aria-label="Mensagens do sistema">
+                    {% for category, msg in messages %}
+                    <div class="flash {{ 'flash-success' if 'success' in category else 'flash-error' }}" role="alert">
+                        <span class="label">{{ 'Sucesso' if 'success' in category else 'Erro' }}:</span>
+                        <span>{{ msg|safe }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
 
                 <form method="post" action="{{ url_for('login') }}">
                     <div style="margin-bottom:12px">

@@ -45,7 +45,7 @@
       /* Tipografia e medidas */
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
       --fs-base: 16px;
-      --fs-title: 34px;
+      --fs-title: 39px;
       --fs-input: 16px;
       --fs-btn: 16px;
       --fs-small: 14px;
@@ -69,6 +69,13 @@
       color: var(--text-primary);
       background: var(--bg-primary);
       min-height: 100vh;
+    }
+
+    .title-hero {
+      font-size: 75px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0 0 10px;
     }
 
     /* NAVBAR */
@@ -491,6 +498,8 @@
       height: auto;
       border-radius: 16px;
       transition: transform 0.3s ease;
+      transform: translateX(40px);
+      /* move 40px to the right */
     }
 
     .features-img:hover {
@@ -668,6 +677,7 @@
         opacity: 0;
         transform: scale(0.9) translateY(20px);
       }
+
       100% {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -679,6 +689,7 @@
         opacity: 0;
         transform: translateY(30px);
       }
+
       100% {
         opacity: 1;
         transform: translateY(0);
@@ -744,10 +755,11 @@
   <!-- NAVBAR -->
   <header class="navbar">
     <div class="nav-inner">
-      <a href="{{ url_for('hero') }}" class="nav-logo">
-        <img src="{{ url_for('static', filename='images/7.svg') }}" alt="BioO3" />
+      <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
+        <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
       </a>
       <nav class="nav-actions">
+        <a href="{{ url_for('prices') }}">Preços</a>
         <a href="{{ url_for('register') }}">Cadastrar</a>
         <a href="{{ url_for('login') }}">Entrar</a>
       </nav>
@@ -758,8 +770,9 @@
   <main class="hero">
     <div class="section-inner hero-grid">
       <section>
-        <h1 class="title">Automatize sua clínica em dias</h1>
-        <p class="subtitle">O <strong>BioO3</strong> centraliza cadastros, estoque, cotações, leitura de PDFs e agenda
+        <h1 class="title-hero">Automatize sua clínica em dias</h1>
+        <p class="subtitle">O <strong>Ponza Health</strong> centraliza cadastros, estoque, cotações, leitura de PDFs e
+          agenda
           em um fluxo único — reduzindo retrabalho e acelerando decisões.</p>
 
         <div class="badges" aria-label="provas de valor">
@@ -785,8 +798,8 @@
 
       <!-- Nova imagem do ponzahero com fade -->
       <aside class="hero-media" aria-label="profissional de saúde">
-        <img src="static/images/ponzahero.jpg"
-          alt="Profissional de saúde em ambiente clínico moderno" class="hero-img" />
+        <img src="static/images/ponzahero.jpg" alt="Profissional de saúde em ambiente clínico moderno"
+          class="hero-img" />
       </aside>
     </div>
   </main>
@@ -795,7 +808,8 @@
   <section id="recursos" class="features">
     <div class="section-inner">
       <h2 class="title" style="text-align:center">Recursos principais</h2>
-      <p class="subtitle" style="text-align:center; max-width:820px; margin:0 auto 32px">Os módulos que fazem o BioO3
+      <p class="subtitle" style="text-align:center; max-width:820px; margin:0 auto 32px">Os módulos que fazem o Ponza
+        Health
         cuidar da sua operação, de ponta a ponta.</p>
 
       <div class="features-content">
@@ -871,8 +885,7 @@
 
         <!-- MacBook movido para cá e maior -->
         <aside class="features-media" aria-label="dashboard do sistema">
-          <img src="static/images/macponza.svg"
-            alt="MacBook Pro exibindo Ponza" class="features-img" />
+          <img src="static/images/macponza.svg" alt="MacBook Pro exibindo Ponza" class="features-img" />
         </aside>
       </div>
     </div>
@@ -912,7 +925,8 @@
   <section id="integracoes" class="section">
     <div class="section-inner">
       <h2 class="title" style="text-align:center">Integrações</h2>
-      <p class="subtitle" style="text-align:center; max-width:820px; margin:0 auto 22px">Conecte o BioO3 às ferramentas
+      <p class="subtitle" style="text-align:center; max-width:820px; margin:0 auto 22px">Conecte o Ponza Health às
+        ferramentas
         que você já usa no dia a dia.</p>
 
       <div class="integrations">
@@ -963,7 +977,7 @@
         <p>Sim. Ajuste parâmetros de referência e gatilhos de geração de prescrições.</p>
       </details>
       <details>
-        <summary>O BioO3 funciona em dispositivos móveis?</summary>
+        <summary>O Ponza Health funciona em dispositivos móveis?</summary>
         <p>Sim. A interface é responsiva e se adapta a diferentes telas.</p>
       </details>
     </div>
@@ -976,7 +990,7 @@
         <!-- BRAND -->
         <div class="brand">
           <img src="{{ url_for('static', filename='images/8.svg') }}" alt="PonzaHealth" />
-          <h3>BioO3 — Automação para Clínicas</h3>
+          <h3>Ponza Health — Automação para Clínicas</h3>
           <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais, mais
             eficiência.</p>
 
@@ -997,7 +1011,7 @@
           </div>
 
           <div class="contacts-cta">
-            <a class="btn-outline" href="mailto:contato@bioo3.com">contato@bioo3.com</a>
+            <a class="btn-outline" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
             <a class="btn-outline" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
           </div>
         </div>
@@ -1023,7 +1037,7 @@
         <div class="col">
           <h4>Institucional</h4>
           <ul class="navlist">
-            <li><a href="#quem-somos">Quem somos</a></li>
+            <li><a href="{{ url_for('about') }}">Quem somos</a></li>
             <li><a href="#equipe">Equipe</a></li>
             <li><a href="#brand">Guia da marca</a></li>
             <li><a href="#sitemap">Mapa do site</a></li>
@@ -1042,10 +1056,11 @@
 
       <div class="divider"></div>
       <div class="bottom">
-        <div>© <span id="year"></span> BioO3. Todos os direitos reservados.</div>
+        <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
         <div class="navlist" style="display:flex; gap:16px; list-style:none">
-          <a href="#privacidade" style="color:rgba(255,255,255,0.8); text-decoration:none">Política de privacidade</a>
-          <a href="#termos" style="color:rgba(255,255,255,0.8); text-decoration:none">Termos de uso</a>
+          <a href="{{ url_for('privacy_policy') }}" style="color:rgba(255,255,255,0.8); text-decoration:none">Política
+            de privacidade</a>
+          <a href="{{ url_for('terms') }}" style="color:rgba(255,255,255,0.8); text-decoration:none">Termos de uso</a>
         </div>
       </div>
     </div>

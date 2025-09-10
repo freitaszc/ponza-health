@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{{ doctor.name }} - Ponza Health</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
+    <!-- Funnel Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- CSS base -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ponza-base.css') }}">
+
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #ffffff;
+            --surface-alt: #f8fafc;
+            --border: #e5e7eb;
+            --ink: #0b1220;
+            --ink-dim: #475569;
+            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+            --brand-solid: #131d35;
+            --shadow: 0 8px 20px rgba(2, 6, 23, .06);
+            --radius: 12px;
+            --btn-h: 44px;
+            --btn-minw: 220px;
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --fs-title: 32px
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            display: flex
+        }
+
+        /* topo direito */
+        .top-profile {
+            position: fixed;
+            top: 18px;
+            right: 28px;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            gap: 12px
+        }
+
+        .icon-btn {
+            position: relative;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            box-shadow: var(--shadow);
+            transition: .15s;
+            text-decoration: none
+        }
+
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+            border-color: var(--brand-solid)
+        }
+
+        .icon-btn i {
+            color: var(--brand-solid);
+            font-size: 18px
+        }
+
+        .icon-btn .badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            border-radius: 999px;
+            background: var(--brand-solid);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        /* sidebar */
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background: var(--brand-grad);
+            padding: 28px 18px;
+            border-right: 1px solid #1f2937;
+            box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
+            display: flex;
+            flex-direction: column;
+            transition: width 180ms ease;
+            position: sticky;
+            top: 0
+        }
+
+        .sidebar-logo {
+            width: 200px;
+            display: block;
+            margin: 0 auto 18px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+            transition: width 180ms ease, margin 180ms ease
+        }
+
+        .sidebar a.menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 16px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            color: #e5e7eb;
+            text-decoration: none;
+            margin-bottom: 18px;
+            font-weight: 600;
+            transition: background .2s, color .2s, transform .12s
+        }
+
+        .sidebar a.menu-item i {
+            width: 21px;
+            text-align: center;
+            flex: 0 0 21px
+        }
+
+        .sidebar a.menu-item:hover {
+            background: #ffffff;
+            color: var(--brand-solid);
+            transform: translateX(4px)
+        }
+
+        .sidebar a.menu-item.active {
+            color: #fff;
+            background: var(--brand-grad);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
+        }
+
+        .sidebar-spacer {
+            flex: 1 1 auto
+        }
+
+        .sidebar-toggle {
+            align-self: flex-end;
+            background: rgba(255, 255, 255, .10);
+            border: 1px solid rgba(255, 255, 255, .25);
+            color: #e5e7eb;
+            padding: 6px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: .2s;
+            font-size: 12px
+        }
+
+        .sidebar-toggle:hover {
+            background: #ffffff;
+            color: var(--brand-solid);
+            border-color: #ffffff;
+            transform: translateY(-1px)
+        }
+
+        .sidebar.is-collapsed {
+            width: 76px
+        }
+
+        .sidebar.is-collapsed .sidebar-logo {
+            width: 44px;
+            margin: 0 auto 22px
+        }
+
+        .sidebar.is-collapsed .menu-item {
+            justify-content: center;
+            gap: 0;
+            padding: 12px 0;
+            margin-bottom: 14px
+        }
+
+        .sidebar.is-collapsed .menu-item .label {
+            display: none
+        }
+
+        .sidebar.is-collapsed .sidebar-toggle i {
+            transform: rotate(180deg)
+        }
+
+        /* conteúdo */
+        .content {
+            flex-grow: 1;
+            padding: 36px;
+            min-width: 0;
+            position: relative;
+            background: var(--bg)
+        }
+
+        h2 {
+            font-size: var(--fs-title);
+            text-align: center;
+            color: var(--ink);
+            margin: 0 0 28px;
+            position: relative;
+            font-weight: 800
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background: var(--brand-grad);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, .12)
+        }
+
+        /* painel / form */
+        .panel {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            max-width: 1100px;
+            margin: 0 auto;
+            border: 1px solid var(--border)
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 8px 0 18px
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px
+        }
+
+        .form-group {
+            margin-bottom: 16px
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--ink);
+            font-size: 14px
+        }
+
+        .input,
+        .textarea,
+        select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--ink);
+            font-family: var(--font-family);
+            font-size: 14px;
+            outline: none;
+            transition: .2s
+        }
+
+        .input:focus,
+        .textarea:focus,
+        select:focus {
+            border-color: var(--brand-solid);
+            box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
+        }
+
+        .textarea {
+            min-height: 110px;
+            resize: vertical
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+            justify-content: center;
+            align-items: center
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: var(--btn-h);
+            min-width: var(--btn-minw);
+            padding: 0 22px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 14px;
+            border: 1px solid var(--brand-solid);
+            cursor: pointer;
+            transition: .22s;
+            text-decoration: none;
+            color: #fff;
+            background: var(--brand-grad);
+            box-shadow: var(--shadow)
+        }
+
+        .btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
+        }
+
+        .btn.secondary {
+            background: #fff;
+            color: var(--ink);
+            border: 1px solid var(--border)
+        }
+
+        .btn.secondary:hover {
+            border-color: var(--brand-solid)
+        }
+
+        @media (max-width:900px) {
+
+            .grid-2,
+            .grid-3 {
+                grid-template-columns: 1fr
+            }
+
+            .content {
+                padding: 24px
+            }
+
+            .btn {
+                min-width: 100%
+            }
+        }
+    </style>
+
+    <script>
+        // Sidebar: toggle + persistência
+        function toggleSidebar() {
+            const s = document.getElementById('sidebar');
+            s.classList.toggle('is-collapsed');
+            localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('sidebarCollapsed') === '1') {
+                document.getElementById('sidebar')?.classList.add('is-collapsed');
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <!-- Topo direito -->
+    <div class="top-profile" aria-label="Ações do usuário">
+        <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
+                class="fa fa-user"></i></a>
+        <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
+            <i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span>
+        </button>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
+                class="fa fa-angle-double-left"></i></button>
+        <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+        <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span
+                class="label">Início</span></a>
+        <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
+                Lab</span></a>
+        <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
+                class="label">Cotações</span></a>
+        <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
+                class="label">Pacientes</span></a>
+        <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
+                class="label">Estoque</span></a>
+        <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
+                class="label">Agenda</span></a>
+        <a href="{{ url_for('doctors') }}" class="menu-item active"><i class="fa fa-stethoscope"></i><span
+                class="label">Profissionais</span></a>
+        <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+                class="label">Pagamentos</span></a>
+        <div class="sidebar-spacer"></div>
+        <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
+                class="label">Sair</span></a>
+    </div>
+
+    <!-- Conteúdo -->
+    <div class="content">
+        <h2>{{ doctor.name }}</h2>
+
+        <form class="panel" method="post" action="{{ url_for('doctor_view', doctor_id=doctor.id) }}" novalidate>
+            <div class="section-title">Dados do Profissional</div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="name">Nome completo</label>
+                    <input id="name" name="name" class="input" type="text" value="{{ doctor.name or '' }}"
+                        placeholder="Nome e sobrenome" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <input id="email" name="email" class="input" type="email" value="{{ doctor.email or '' }}"
+                        placeholder="email@exemplo.com">
+                </div>
+            </div>
+
+            <div class="grid-3">
+                <div class="form-group">
+                    <label for="crm">CRM</label>
+                    <input id="crm" name="crm" class="input" type="text" value="{{ doctor.crm or '' }}"
+                        placeholder="CRM">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Telefone</label>
+                    <input id="phone" name="phone" class="input" type="tel" value="{{ doctor.phone or '' }}"
+                        placeholder="(00) 00000-0000">
+                </div>
+                <div class="form-group">
+                    <label for="specialty">Especialidade</label>
+                    <input id="specialty" name="specialty" class="input" type="text"
+                        value="{{ doctor.specialty or '' }}" placeholder="Ex.: Dermatologia">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="btn"><i class="fa fa-save"></i>&nbsp;Salvar</button>
+                <a href="{{ url_for('doctors') }}" class="btn secondary"><i class="fa fa-times"></i>&nbsp;Cancelar</a>
+            </div>
+        </form>
+    </div>
+</body>
+
+</html>

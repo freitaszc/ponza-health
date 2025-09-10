@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Termos de Uso — Ponza Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
+    <!-- Funnel Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            /* Paleta / Tipografia (igual ao herói) */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            --primary: #ffffff;
+            --primary-contrast: #000b30;
+            --secondary: #000b30;
+            --secondary-dark: #000b30;
+            --secondary-light: #000b30;
+            --secondary-glow: rgba(11, 30, 91, .15);
+            --secondary-glow-strong: rgba(11, 30, 91, .25);
+            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+            --brand-base: #131d35;
+            --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-light: rgba(30, 41, 59, .08);
+            --shadow-medium: rgba(30, 41, 59, .12);
+            --shadow-strong: rgba(30, 41, 59, .16);
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --fs-base: 16px;
+            --fs-title: 34px;
+            --fs-small: 14px;
+            --nav-h: 72px;
+            --card-radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0
+        }
+
+        body {
+            font-family: var(--font-family);
+            font-size: var(--fs-base);
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            min-height: 100vh
+        }
+
+        /* NAVBAR */
+        .navbar {
+            position: fixed;
+            inset: 0 0 auto 0;
+            height: var(--nav-h);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-grad);
+            border-bottom: 1px solid #0f182b;
+            box-shadow: 0 4px 18px var(--shadow);
+            padding: 0 24px
+        }
+
+        .nav-inner {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .nav-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 20px;
+            text-decoration: none
+        }
+
+        .nav-logo img {
+            height: 75px;
+            width: auto;
+            display: block;
+            filter: brightness(0) invert(1)
+        }
+
+        .nav-actions a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 16px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: var(--fs-small);
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            background: transparent;
+            text-decoration: none;
+            transition: .22s;
+            margin-left: 10px
+        }
+
+        .nav-actions a:hover {
+            background: var(--primary);
+            color: var(--secondary);
+            transform: translateY(-1px)
+        }
+
+        /* HERO fino da página legal */
+        .page-hero {
+            padding: calc(var(--nav-h) + 28px) 16px 26px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.92) 100%), var(--brand-grad)
+        }
+
+        .page-hero .inner {
+            max-width: 1200px;
+            margin: 0 auto
+        }
+
+        .kicker {
+            display: inline-block;
+            padding: .25rem .6rem;
+            border: 1px solid rgba(0, 11, 48, .25);
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 12px;
+            color: var(--secondary);
+            background: #fff;
+            box-shadow: 0 2px 8px var(--shadow-light)
+        }
+
+        .title {
+            font-size: var(--fs-title);
+            font-weight: 800;
+            margin: .6rem 0 .3rem
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin: 0
+        }
+
+        .meta {
+            font-size: 13px;
+            color: var(--text-muted)
+        }
+
+        /* Estrutura legal c/ sumário fixo */
+        .section {
+            padding: 28px 16px
+        }
+
+        .section-inner {
+            max-width: 1200px;
+            margin: 0 auto
+        }
+
+        .legal {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 22px;
+            align-items: start
+        }
+
+        .toc {
+            position: sticky;
+            top: calc(var(--nav-h) + 16px);
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 14px
+        }
+
+        .toc h4 {
+            margin: .2rem 0 .4rem;
+            font-size: 15px;
+            font-weight: 800
+        }
+
+        .toc ul {
+            list-style: none;
+            padding: 0;
+            margin: 0
+        }
+
+        .toc li {
+            margin: .35rem 0
+        }
+
+        .toc a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px
+        }
+
+        .toc a:hover {
+            color: var(--secondary)
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: var(--card-radius);
+            padding: 18px;
+            box-shadow: 0 4px 12px var(--shadow-light)
+        }
+
+        .card h2,
+        .card h3 {
+            margin: .2rem 0 .6rem
+        }
+
+        .content h3 {
+            scroll-margin-top: calc(var(--nav-h) + 18px)
+        }
+
+        .content p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin: .3rem 0
+        }
+
+        .content ul {
+            margin: .3rem 0 .6rem 1.25rem;
+            color: var(--text-secondary)
+        }
+
+        .badge {
+            display: inline-block;
+            padding: .25rem .55rem;
+            border: 1px solid var(--border-medium);
+            border-radius: 999px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: #fff
+        }
+
+        .note {
+            background: var(--bg-tertiary);
+            border: 1px dashed var(--border-medium);
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 14px;
+            color: var(--text-secondary)
+        }
+
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            font-size: 13px
+        }
+
+        /* Rodapé */
+        .contacts {
+            padding: 56px 16px 32px;
+            background: var(--brand-grad);
+            color: var(--primary)
+        }
+
+        .contacts-inner {
+            max-width: 1200px;
+            margin: 0 auto
+        }
+
+        .contacts-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr;
+            gap: 28px
+        }
+
+        .brand h3 {
+            margin: .2rem 0 .3rem;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--primary)
+        }
+
+        .brand p {
+            margin: 0;
+            color: rgba(255, 255, 255, .8);
+            line-height: 1.45
+        }
+
+        .brand img {
+            height: 90px;
+            width: auto;
+            display: block;
+            filter: brightness(0) invert(1)
+        }
+
+        .col h4 {
+            margin: 0 0 .6rem;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--primary)
+        }
+
+        .navlist {
+            list-style: none;
+            padding: 0;
+            margin: 0
+        }
+
+        .navlist li {
+            margin: .45rem 0
+        }
+
+        .navlist a {
+            color: rgba(255, 255, 255, .8);
+            text-decoration: none;
+            font-size: 14px
+        }
+
+        .navlist a:hover {
+            color: var(--primary)
+        }
+
+        .contacts-cta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px
+        }
+
+        .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 44px;
+            min-width: 100px;
+            padding: 0 18px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 16px;
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, .3);
+            border-radius: 999px;
+            text-decoration: none;
+            transition: .22s
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, .1);
+            border-color: var(--primary)
+        }
+
+        .divider {
+            margin: 22px 0 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3), transparent)
+        }
+
+        .bottom {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            color: rgba(255, 255, 255, .8);
+            font-size: 13px;
+            padding: 16px 0
+        }
+
+        .bottom a {
+            color: rgba(255, 255, 255, .8)
+        }
+
+        .bottom a:hover {
+            color: var(--primary)
+        }
+
+        @media (max-width:1000px) {
+            .legal {
+                grid-template-columns: 1fr
+            }
+
+            .toc {
+                position: static
+            }
+
+            .contacts-grid {
+                grid-template-columns: 1fr 1fr
+            }
+        }
+
+        @media (max-width:560px) {
+            .contacts-grid {
+                grid-template-columns: 1fr
+            }
+
+            .nav-actions a {
+                min-width: unset
+            }
+
+            .page-hero {
+                padding: calc(var(--nav-h) + 20px) 16px 20px
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="nav-inner">
+            <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
+                <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
+            </a>
+            <nav class="nav-actions">
+                <a href="{{ url_for('prices') }}">Preços</a>
+                <a href="{{ url_for('register') }}">Cadastrar</a>
+                <a href="{{ url_for('login') }}">Entrar</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- HERO FINO -->
+    <section class="page-hero" aria-label="Cabeçalho dos Termos de Uso">
+        <div class="inner">
+            <span class="kicker">Contrato de Licença & Serviço</span>
+            <h1 class="title">Termos de Uso</h1>
+            <p class="subtitle">Regras que regem o acesso e o uso do <strong>Ponza Health</strong> — software, site e
+                serviços relacionados.</p>
+            <p class="meta">Vigência: <span id="tos-date"></span></p>
+        </div>
+    </section>
+
+    <!-- CONTEÚDO -->
+    <main class="section">
+        <div class="section-inner legal">
+            <!-- Sumário -->
+            <aside class="toc" aria-label="Sumário">
+                <h4>Conteúdo</h4>
+                <ul>
+                    <li><a href="#aceite">1. Aceite e Definições</a></li>
+                    <li><a href="#elegibilidade">2. Elegibilidade e Cadastro</a></li>
+                    <li><a href="#licenca">3. Licença de Uso e Propriedade</a></li>
+                    <li><a href="#uso-aceitavel">4. Uso Aceitável</a></li>
+                    <li><a href="#planos">5. Planos, Cobrança e Cancelamento</a></li>
+                    <li><a href="#mensageria">6. Mensageria e Integrações</a></li>
+                    <li><a href="#dados">7. Privacidade e Proteção de Dados (LGPD)</a></li>
+                    <li><a href="#suporte">8. Disponibilidade, Suporte e Atualizações</a></li>
+                    <li><a href="#conteudo">9. Conteúdos de Usuário</a></li>
+                    <li><a href="#responsabilidade">10. Isenções e Limitação de Responsabilidade</a></li>
+                    <li><a href="#indenizacao">11. Indenização</a></li>
+                    <li><a href="#suspensao">12. Suspensão e Rescisão</a></li>
+                    <li><a href="#lei-foro">13. Lei Aplicável e Foro</a></li>
+                    <li><a href="#alteracoes">14. Alterações destes Termos</a></li>
+                    <li><a href="#contato">15. Contato</a></li>
+                </ul>
+            </aside>
+
+            <!-- Texto -->
+            <div class="content">
+
+                <section id="aceite" class="card">
+                    <h2>1. Aceite e Definições</h2>
+                    <p>Ao criar uma conta, acessar ou utilizar o Ponza Health você concorda com estes Termos de Uso e
+                        com a nossa <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>. Se não
+                        concordar, não
+                        utilize o serviço.</p>
+                    <p><strong>Definições resumidas:</strong> “<em>Serviços</em>” = software, APIs, site e recursos
+                        associados; “<em>Cliente</em>” = pessoa física/jurídica titular da conta; “<em>Usuário</em>” =
+                        pessoa autorizada pelo Cliente; “<em>Dados</em>” = informações inseridas, geradas ou
+                        transmitidas via Serviços.</p>
+                </section>
+
+                <section id="elegibilidade" class="card">
+                    <h2>2. Elegibilidade e Cadastro</h2>
+                    <ul>
+                        <li>Você declara ter capacidade legal para contratar e que as informações de cadastro são
+                            verdadeiras, completas e atualizadas.</li>
+                        <li>O Cliente é responsável pela gestão de acessos dos Usuários (criação, permissões e
+                            revogação).</li>
+                        <li>Você deve manter suas credenciais em sigilo e notificar-nos sobre usos não autorizados.</li>
+                    </ul>
+                </section>
+
+                <section id="licenca" class="card">
+                    <h2>3. Licença de Uso e Propriedade</h2>
+                    <ul>
+                        <li>Concedemos ao Cliente uma <strong>licença limitada, não exclusiva, intransferível</strong>
+                            para usar os Serviços pelo prazo contratado.</li>
+                        <li>Não vendemos o software; todo o <strong>direito de propriedade intelectual</strong> sobre o
+                            Ponza permanece conosco.</li>
+                        <li>É vedado: engenharia reversa, cópia, modificação, revenda, scraping automatizado, uso para
+                            concorrer com o Ponza.</li>
+                    </ul>
+                </section>
+
+                <section id="uso-aceitavel" class="card">
+                    <h2>4. Uso Aceitável</h2>
+                    <ul>
+                        <li>Proibido inserir conteúdo ilegal, difamatório, discriminatório, ou que infrinja direitos de
+                            terceiros.</li>
+                        <li>Não contorne controles de segurança, não sobrecarregue a infraestrutura, não use o serviço
+                            para spam.</li>
+                        <li>O Cliente é responsável pelo uso dos Usuários sob sua conta e pela conformidade setorial
+                            aplicável (ex.: normas de conselhos profissionais).</li>
+                        <li><span class="badge">Aviso clínico</span> O Ponza não presta ato médico. Decisões clínicas
+                            cabem ao profissional responsável.</li>
+                    </ul>
+                </section>
+
+                <section id="planos" class="card">
+                    <h2>5. Planos, Cobrança e Cancelamento</h2>
+                    <ul>
+                        <li><strong>Assinaturas</strong>: planos mensais/anual podem ser cobrados antecipadamente.
+                            Impostos e taxas podem ser adicionados.</li>
+                        <li><strong>Reajustes</strong>: podemos atualizar preços, com aviso prévio razoável. A
+                            continuidade implica aceite do novo valor.</li>
+                        <li><strong>Cancelamento</strong>: o Cliente pode cancelar a qualquer momento; a assinatura
+                            permanece ativa até o fim do ciclo vigente. Salvo exigência legal, não há reembolso <em>pro
+                                rata</em>.</li>
+                        <li><strong>Inadimplência</strong>: atraso pode resultar em suspensão e posterior rescisão.
+                            Encargos por atraso podem ser aplicados conforme lei.</li>
+                        <li><strong>Trials</strong>: ao terminar o período de teste, a cobrança inicia se não houver
+                            cancelamento.</li>
+                        <li><strong>Exportação</strong>: mediante solicitação, fornecemos meios razoáveis para exportar
+                            dados do Cliente, observadas limitações técnicas e legais.</li>
+                    </ul>
+                </section>
+
+                <section id="mensageria" class="card">
+                    <h2>6. Mensageria e Integrações</h2>
+                    <p>Ao ativar integrações (ex.: Google Calendar, e-mail/WhatsApp), o Cliente autoriza o envio de
+                        dados mínimos necessários para o funcionamento.</p>
+                    <ul>
+                        <li>Mensagens automáticas (lembretes, cotações) devem respeitar consentimento e regras da
+                            plataforma (anti-spam).</li>
+                        <li>Serviços de terceiros possuem termos próprios; o Ponza não se responsabiliza por
+                            indisponibilidade desses provedores.</li>
+                    </ul>
+                </section>
+
+                <section id="dados" class="card">
+                    <h2>7. Privacidade e Proteção de Dados (LGPD)</h2>
+                    <p>Tratamos dados conforme a <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a> e
+                        a LGPD (Lei nº 13.709/2018). Para dados sensíveis de saúde, aplicamos controles reforçados e
+                        hipóteses legais cabíveis (art. 11), conforme configuração do Cliente.</p>
+                    <ul>
+                        <li>O Cliente é responsável por bases legais e pelo conteúdo inserido.</li>
+                        <li>Celebramos contratos com operadores (hospedagem, e-mail etc.) com obrigações de segurança e
+                            confidencialidade.</li>
+                    </ul>
+                </section>
+
+                <section id="suporte" class="card">
+                    <h2>8. Disponibilidade, Suporte e Atualizações</h2>
+                    <ul>
+                        <li>Envidamos esforços razoáveis para manter o serviço disponível e seguro. Manutenções podem
+                            ocorrer com ou sem aviso prévio em casos urgentes.</li>
+                        <li>Suporte é prestado pelos canais informados e dentro de prazos razoáveis.</li>
+                        <li>Podemos lançar <span class="badge">recursos beta</span> de forma experimental, sem
+                            garantias.</li>
+                        <li>Podemos alterar, suspender ou descontinuar funcionalidades, buscando minimizar impactos.
+                        </li>
+                    </ul>
+                </section>
+
+                <section id="conteudo" class="card">
+                    <h2>9. Conteúdos de Usuário</h2>
+                    <ul>
+                        <li>O Cliente mantém a titularidade sobre seus dados; concede ao Ponza licença para armazenar,
+                            processar e exibir os dados conforme necessário para prestar os Serviços.</li>
+                        <li>É vedado inserir material que viole direitos de terceiros (autorais, imagem, marcas).</li>
+                    </ul>
+                </section>
+
+                <section id="responsabilidade" class="card">
+                    <h2>10. Isenções e Limitação de Responsabilidade</h2>
+                    <ul>
+                        <li>Os Serviços são fornecidos “<strong>no estado em que se encontram</strong>” e
+                            “<strong>conforme disponibilidade</strong>”.</li>
+                        <li>Não garantimos ausência total de erros, interrupções ou perda de dados.</li>
+                        <li>Na máxima extensão permitida, o Ponza não se responsabiliza por <em>lucros cessantes</em>,
+                            perda de receitas, dados, nem por danos indiretos, especiais, incidentais ou consequenciais.
+                        </li>
+                        <li><strong>Teto</strong>: nossa responsabilidade total agregada está limitada ao montante
+                            efetivamente pago pelo Cliente nos 12 (doze) meses anteriores ao evento.</li>
+                    </ul>
+                </section>
+
+                <section id="indenizacao" class="card">
+                    <h2>11. Indenização</h2>
+                    <p>O Cliente concorda em indenizar o Ponza por reclamações de terceiros decorrentes do uso dos
+                        Serviços em desacordo com estes Termos, com a lei ou com direitos de terceiros.</p>
+                </section>
+
+                <section id="suspensao" class="card">
+                    <h2>12. Suspensão e Rescisão</h2>
+                    <ul>
+                        <li>Podemos suspender ou encerrar o acesso por violação destes Termos, risco de segurança, ordem
+                            legal ou inadimplência.</li>
+                        <li>O Cliente pode encerrar a conta a qualquer momento. Após rescisão, poderemos reter dados
+                            pelo prazo legal mínimo e, ao final, eliminar ou anonimizá-los.</li>
+                    </ul>
+                </section>
+
+                <section id="lei-foro" class="card">
+                    <h2>13. Lei Aplicável e Foro</h2>
+                    <p>Estes Termos são regidos pelas leis do Brasil. Fica eleito o foro de <strong>Belo
+                            Horizonte/MG</strong>, com renúncia a qualquer outro, por mais privilegiado que seja, para
+                        dirimir controvérsias decorrentes destes Termos, salvo competência legal diversa.</p>
+                </section>
+
+                <section id="alteracoes" class="card">
+                    <h2>14. Alterações destes Termos</h2>
+                    <p>Podemos atualizar estes Termos para refletir mudanças legais ou operacionais. Alterações
+                        relevantes serão comunicadas pelos canais adequados. A versão vigente é a publicada nesta
+                        página.</p>
+                </section>
+
+                <section id="contato" class="card">
+                    <h2>15. Contato</h2>
+                    <p>Fale conosco para dúvidas, solicitações ou notificações:</p>
+                    <ul class="mono">
+                        <li>E-mail: <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a></li>
+                        <li>Telefone/WhatsApp: <a href="tel:+5533984613689">+55 33 98461-3689</a></li>
+                    </ul>
+                </section>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <section class="contacts" aria-label="Contatos e navegação">
+        <div class="contacts-inner">
+            <div class="contacts-grid">
+                <div class="brand">
+                    <img src="{{ url_for('static', filename='images/8.svg') }}" alt="Ponza Health" />
+                    <h3>Ponza Health — Automação para Clínicas</h3>
+                    <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais,
+                        mais eficiência.</p>
+                    <div class="contacts-cta">
+                        <a class="btn-outline" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
+                        <a class="btn-outline" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <h4>Funcionalidades</h4>
+                    <ul class="navlist">
+                        <li><a href="{{ url_for('hero') }}#recursos">Prontuário eletrônico</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Controle de estoque</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Planos de tratamento</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Gestão financeira</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Teleconsulta</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Agenda múltipla</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Assinatura digital</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Protocolos</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Migração de dados</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Automação em marketing</a></li>
+                    </ul>
+                </div>
+
+                <div class="col">
+                    <h4>Institucional</h4>
+                    <ul class="navlist">
+                        <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
+                        <li><a href="#contato">Contato</a></li>
+                        <li><a href="#sitemap">Mapa do site</a></li>
+                    </ul>
+                    <h4 style="margin-top:18px">Suporte & Produtos</h4>
+                    <ul class="navlist">
+                        <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
+                                target="_blank">Fale com um consultor</a></li>
+                        <li><a href="#ajuda">Central de ajuda</a></li>
+                    </ul>
+                </div>
+
+                <div class="col">
+                    <h4>Conta</h4>
+                    <ul class="navlist">
+                        <li><a href="{{ url_for('register') }}">Criar conta</a></li>
+                        <li><a href="{{ url_for('login') }}">Entrar</a></li>
+                        <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
+                        <li><a href="#">Termos de uso</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="bottom">
+                <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
+                <div class="navlist" style="display:flex; gap:16px; list-style:none">
+                    <a href="{{ url_for('privacy_policy') }}">Política de privacidade</a>
+                    <a href="#">Termos de uso</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Ano no rodapé e data brasileira dos Termos
+        document.getElementById('year').textContent = new Date().getFullYear();
+        (function () {
+            const d = new Date();
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const yyyy = d.getFullYear();
+            document.getElementById('tos-date').textContent = `${dd}/${mm}/${yyyy}`;
+        })();
+    </script>
+</body>
+
+</html>
