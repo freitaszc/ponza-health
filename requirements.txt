@@ -9,5 +9,7 @@ mercadopago>=2.2
 Flask-Migrate==4.0.5
 alembic>=1.13.0
 Weasyprint
-PyPDF2==3.0.1
+PyPDF2>=3.0,<4
 itsdangerous
+Flask-Mail>=0.9.1
+requests>=2.31
