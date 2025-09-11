@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Central de Ajuda — Ponza Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
+    <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+
+    <style>
+        :root {
+            /* Enhanced color palette with medical theme */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+
+            /* Medical-inspired color scheme */
+            --primary: #ffffff;
+            --primary-contrast: #0a1628;
+            --secondary: #0a1628;
+            --secondary-dark: #081220;
+            --secondary-light: #1e293b;
+            --secondary-glow: rgba(10, 22, 40, .15);
+            --secondary-glow-strong: rgba(10, 22, 40, .25);
+
+            /* Enhanced gradients */
+            --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+            --brand-base: #0a1628;
+            --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+            --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+
+            /* Enhanced borders and shadows */
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-light: rgba(30, 41, 59, .08);
+            --shadow-medium: rgba(30, 41, 59, .12);
+            --shadow-strong: rgba(30, 41, 59, .16);
+            --shadow-glow: 0 20px 60px rgba(10, 22, 40, .1);
+
+            /* Typography and measurements */
+            --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --fs-base: 16px;
+            --fs-title: 39px;
+            --fs-hero: 75px;
+            --fs-input: 16px;
+            --fs-btn: 16px;
+            --fs-small: 14px;
+            --btn-height: 44px;
+            --btn-minw: 220px;
+            --nav-h: 72px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0
+        }
+
+        body {
+            font-family: var(--font-family);
+            font-size: var(--fs-base);
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            min-height: 100vh;
+        }
+
+        /* NAVBAR (idêntica) */
+        .navbar {
+            position: fixed;
+            inset: 0 0 auto 0;
+            height: var(--nav-h);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--brand-grad);
+            border-bottom: 1px solid #0f182b;
+            box-shadow: 0 4px 18px var(--shadow-medium);
+            padding: 0 24px;
+        }
+
+        .nav-inner {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 20px;
+            text-decoration: none;
+        }
+
+        .nav-logo img {
+            height: 75px;
+            width: auto;
+            display: block;
+            filter: brightness(0) invert(1);
+        }
+
+        .nav-actions a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding: 0 16px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: var(--fs-small);
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            background: transparent;
+            text-decoration: none;
+            transition: .22s;
+            margin-left: 10px;
+        }
+
+        .nav-actions a:hover {
+            background: var(--primary);
+            color: var(--secondary);
+            transform: translateY(-1px);
+        }
+
+        /* HERO/HEADER da ajuda */
+        .hero-help {
+            padding: calc(var(--nav-h) + 40px) 16px 22px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.90) 100%);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        /* Centraliza o conteúdo do hero e aplica o "título visual" via SVG */
+        .hero-help .section-inner {
+            text-align: center;
+        }
+
+        .hero-graphic {
+            display: block;
+            width: 650px;
+            max-width: 100%;
+            height: auto;
+            margin: 6px auto 10px;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .08));
+        }
+
+        /* H1 apenas para leitores de tela/SEO */
+        .sr-only {
+            position: absolute !important;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .section-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .title {
+            font-size: var(--fs-title);
+            font-weight: 800;
+            margin: 0 0 8px;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* Busca */
+        .search-wrap {
+            display: flex;
+            gap: 10px;
+            margin: 18px 0 0;
+        }
+
+        .search {
+            flex: 1;
+            height: 48px;
+            border-radius: 999px;
+            border: 1px solid var(--border-light);
+            padding: 0 16px;
+            font-size: var(--fs-input);
+            outline: none;
+            background: #fff;
+            box-shadow: 0 4px 14px var(--shadow-light);
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+            padding: 0 20px;
+            border-radius: 999px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            background: var(--secondary);
+            color: var(--primary);
+            font-weight: 800;
+            font-size: var(--fs-btn);
+            box-shadow: 0 8px 25px var(--secondary-glow);
+            transition: .25s;
+            text-decoration: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 12px 35px var(--secondary-glow-strong);
+        }
+
+        /* Categorias */
+        .categories {
+            background: var(--bg-secondary);
+            padding: 28px 16px;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .cat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .cat {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px var(--shadow-light);
+            transition: transform .2s ease, box-shadow .2s ease;
+            cursor: pointer;
+        }
+
+        .cat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow-medium);
+        }
+
+        .cat h3 {
+            margin: 0 0 4px;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .cat p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: var(--fs-small);
+        }
+
+        /* Resultados / FAQ */
+        .results {
+            padding: 36px 16px;
+        }
+
+        .faq {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .faq-group {
+            margin: 8px 0 20px;
+        }
+
+        .faq-title {
+            font-weight: 800;
+            margin: 12px 0;
+            color: var(--text-primary);
+        }
+
+        details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin: 8px 0;
+            box-shadow: 0 2px 8px var(--shadow-light);
+        }
+
+        summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        details p {
+            color: var(--text-secondary);
+            margin: 8px 0 0;
+            line-height: 1.5;
+        }
+
+        /* Contato / CTA rápida */
+        .help-cta {
+            margin-top: 26px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 44px;
+            padding: 0 18px;
+            color: var(--secondary);
+            font-weight: 600;
+            font-size: var(--fs-btn);
+            background: transparent;
+            border: 2px solid var(--secondary);
+            border-radius: 999px;
+            transition: .22s;
+            text-decoration: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--secondary);
+            color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        /* Rodapé (idêntico ao hero) */
+        .contacts {
+            padding: 56px 16px 32px;
+            background: var(--brand-grad);
+            color: var(--primary);
+        }
+
+        .contacts-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .contacts-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr 1fr;
+            gap: 28px;
+        }
+
+        .brand h3 {
+            margin: .2rem 0 .3rem;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .brand p {
+            margin: 0;
+            color: rgba(255, 255, 255, .8);
+            line-height: 1.45;
+        }
+
+        .brand img {
+            height: 40px;
+            width: auto;
+            display: block;
+            margin-bottom: .6rem;
+        }
+
+        .brand>img {
+            filter: brightness(0) invert(1);
+        }
+
+        .contacts .brand img {
+            height: 90px;
+            width: auto;
+        }
+
+        .social {
+            display: flex;
+            gap: 12px;
+            margin-top: .9rem;
+            flex-wrap: wrap;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(255, 255, 255, .3);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .1);
+            color: var(--primary);
+            text-decoration: none;
+            padding: 0;
+            line-height: 0;
+            overflow: hidden;
+            transition: background .2s ease;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, .2);
+        }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+            stroke: var(--primary);
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .icon-img {
+            width: 18px;
+            height: 18px;
+            display: block;
+            object-fit: contain;
+        }
+
+        .icon-btn.wa .icon-img {
+            width: 100%;
+            height: 100%;
+        }
+
+        .col h4 {
+            margin: 0 0 .6rem;
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .navlist {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .navlist li {
+            margin: .45rem 0;
+        }
+
+        .navlist a {
+            color: rgba(255, 255, 255, .8);
+            text-decoration: none;
+            font-size: 14px;
+            transition: .2s;
+        }
+
+        .navlist a:hover {
+            color: var(--primary);
+        }
+
+        .contacts-cta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .contacts .btn-outline {
+            color: var(--primary);
+            border-color: rgba(255, 255, 255, .3);
+        }
+
+        .contacts .btn-outline:hover {
+            background: rgba(255, 255, 255, .1);
+            border-color: var(--primary);
+        }
+
+        .divider {
+            margin: 22px 0 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3), transparent);
+        }
+
+        .bottom {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            color: rgba(255, 255, 255, .8);
+            font-size: 13px;
+            padding: 16px 0;
+        }
+
+        .bottom a {
+            color: rgba(255, 255, 255, .8);
+        }
+
+        .bottom a:hover {
+            color: var(--primary);
+        }
+
+        /* Responsivo */
+        @media (max-width:1100px) {
+            .cat-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width:980px) {
+            .contacts-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width:640px) {
+            .cat-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width:560px) {
+            .navbar {
+                padding: 0 16px;
+            }
+
+            .btn-primary,
+            .btn-outline {
+                min-width: unset;
+            }
+
+            .hero-help {
+                padding: calc(var(--nav-h) + 24px) 16px 18px;
+            }
+
+            .contacts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- NAVBAR (mesma da hero) -->
+    <header class="navbar">
+        <div class="nav-inner">
+            <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
+                <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
+            </a>
+            <nav class="nav-actions">
+                <a href="{{ url_for('prices') }}">Preços</a>
+                <a href="{{ url_for('register') }}">Cadastrar</a>
+                <a href="{{ url_for('login') }}">Entrar</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- TOPO DA AJUDA -->
+    <section class="hero-help" aria-label="Cabeçalho da Central de Ajuda">
+        <div class="section-inner">
+            <!-- H1 invisível para SEO e acessibilidade -->
+            <h1 class="sr-only">Central de Ajuda — Ponza Health</h1>
+            <!-- Título visual em SVG -->
+            <img class="hero-graphic" src="{{ url_for('static', filename='images/help.svg') }}"
+                alt="Central de Ajuda — Ponza Health" />
+
+            <p class="subtitle">Encontre respostas rápidas sobre cadastros, agenda, estoque, cotações e muito mais. Se
+                preferir, fale conosco no WhatsApp.</p>
+
+            <div class="search-wrap" role="search">
+                <input id="helpSearch" class="search" type="search"
+                    placeholder="Pesquisar por palavras-chave (ex.: 'cadastro de paciente', 'estoque mínimo', 'integrar calendário')"
+                    aria-label="Pesquisar na ajuda">
+                <button id="searchBtn" class="btn-primary" type="button">Pesquisar</button>
+            </div>
+
+            <div class="help-cta">
+                <a class="btn-outline"
+                    href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
+                    target="_blank" rel="noopener">Falar no WhatsApp</a>
+                <a class="btn-outline" href="mailto:contato@ponzahealth.com">Enviar e-mail</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CATEGORIAS RÁPIDAS -->
+    <section class="categories">
+        <div class="section-inner">
+            <h2 class="title" style="font-size:28px">Categorias</h2>
+            <div class="cat-grid" id="catGrid">
+                <div class="cat" data-cat="cadastros" tabindex="0" role="button"
+                    aria-label="Abrir perguntas de Cadastros">
+                    <div class="ico-pill" aria-hidden="true"
+                        style="width:42px;height:42px;border-radius:12px;border:2px solid var(--secondary);display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 4px 12px var(--secondary-glow);">
+                        <svg class="ico" viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--secondary);fill:none;stroke-width:2;">
+                            <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+                            <circle cx="12" cy="8" r="4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Cadastros</h3>
+                        <p>Pacientes, profissionais, empresas e documentos.</p>
+                    </div>
+                </div>
+
+                <div class="cat" data-cat="agenda" tabindex="0" role="button" aria-label="Abrir perguntas de Agenda">
+                    <div class="ico-pill" aria-hidden="true"
+                        style="width:42px;height:42px;border-radius:12px;border:2px solid var(--secondary);display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 4px 12px var(--secondary-glow);">
+                        <svg class="ico" viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--secondary);fill:none;stroke-width:2;">
+                            <path d="M7 3v4M17 3v4" />
+                            <rect x="3" y="7" width="18" height="14" rx="2" />
+                            <path d="M3 11h18" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Agenda</h3>
+                        <p>Consultas, confirmações e integrações.</p>
+                    </div>
+                </div>
+
+                <div class="cat" data-cat="estoque" tabindex="0" role="button" aria-label="Abrir perguntas de Estoque">
+                    <div class="ico-pill" aria-hidden="true"
+                        style="width:42px;height:42px;border-radius:12px;border:2px solid var(--secondary);display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 4px 12px var(--secondary-glow);">
+                        <svg class="ico" viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--secondary);fill:none;stroke-width:2;">
+                            <path d="M3 7l9-4 9 4v10l-9 4-9-4z" />
+                            <path d="M3 7l9 4 9-4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Estoque</h3>
+                        <p>Itens, mínimos e alertas de reposição.</p>
+                    </div>
+                </div>
+
+                <div class="cat" data-cat="cotacoes" tabindex="0" role="button"
+                    aria-label="Abrir perguntas de Cotações">
+                    <div class="ico-pill" aria-hidden="true"
+                        style="width:42px;height:42px;border-radius:12px;border:2px solid var(--secondary);display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 4px 12px var(--secondary-glow);">
+                        <svg class="ico" viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--secondary);fill:none;stroke-width:2;">
+                            <path d="M7 8h10M7 12h7" />
+                            <path d="M4 4h16v12H7l-3 3V4z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Cotações</h3>
+                        <p>Solicitações e acompanhamento.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RESULTADOS / FAQ -->
+    <main class="results">
+        <div class="section-inner faq" id="faqRoot">
+
+            <!-- Grupo: Cadastros -->
+            <div class="faq-group" data-group="cadastros">
+                <h3 class="faq-title">Cadastros</h3>
+
+                <details data-keywords="cadastro paciente foto perfil documento cpf rg editar cadastrar">
+                    <summary>Como cadastrar um paciente com foto de perfil?</summary>
+                    <p>Vá em <strong>Pacientes &rarr; Cadastrar</strong>, preencha os dados e clique em <em>Alterar Foto
+                            de Perfil</em> para enviar a imagem. Ao salvar, a foto será associada ao registro.</p>
+                </details>
+
+                <details data-keywords="editar paciente atualizar dados excluir deletar">
+                    <summary>Posso editar ou excluir um cadastro depois?</summary>
+                    <p>Sim. Acesse o paciente, clique em <strong>Editar</strong> para alterar campos ou use as opções de
+                        exclusão conforme suas permissões.</p>
+                </details>
+
+                <details data-keywords="importar planilha csv migrar dados cadastro">
+                    <summary>Como importar pacientes de uma planilha?</summary>
+                    <p>Na área de <strong>Cadastros</strong>, use a opção <em>Importar</em>. Baixe o modelo CSV,
+                        preencha e envie para criar/atualizar registros em lote.</p>
+                </details>
+            </div>
+
+            <!-- Grupo: Agenda -->
+            <div class="faq-group" data-group="agenda">
+                <h3 class="faq-title">Agenda</h3>
+
+                <details data-keywords="agenda consulta marcar confirmar lembrete whatsapp email">
+                    <summary>Como marcar e confirmar consultas automaticamente?</summary>
+                    <p>Crie o evento na <strong>Agenda</strong> e ative lembretes automáticos (e-mail/WhatsApp). O
+                        paciente recebe confirmação e você acompanha o status.</p>
+                </details>
+
+                <details data-keywords="integrar sincronizar google calendar calendário">
+                    <summary>Como integrar com o Google Calendar?</summary>
+                    <p>Em <strong>Configurações &rarr; Integrações</strong>, conecte sua conta Google e escolha os
+                        calendários. A sincronização passa a ser bidirecional.</p>
+                </details>
+            </div>
+
+            <!-- Grupo: Estoque -->
+            <div class="faq-group" data-group="estoque">
+                <h3 class="faq-title">Estoque</h3>
+
+                <details data-keywords="estoque mínimo alerta reposição notificação">
+                    <summary>Como configurar níveis mínimos e alertas?</summary>
+                    <p>No módulo <strong>Estoque</strong>, defina o nível mínimo por item. O sistema gera alertas e
+                        prioriza reposição.</p>
+                </details>
+
+                <details data-keywords="categoria item lote validade rastreio">
+                    <summary>O sistema controla categorias, lotes e validade?</summary>
+                    <p>Sim. Organize por categorias e, se ativado, acompanhe lotes e datas de validade com avisos de
+                        expiração.</p>
+                </details>
+            </div>
+
+            <!-- Grupo: Cotações -->
+            <div class="faq-group" data-group="cotacoes">
+                <h3 class="faq-title">Cotações</h3>
+
+                <details data-keywords="enviar cotação fornecedor e-mail whatsapp pdf">
+                    <summary>Como enviar uma cotação a fornecedores?</summary>
+                    <p>Acesse <strong>Cotações</strong>, crie uma solicitação e selecione os fornecedores. Você pode
+                        disparar por e-mail/WhatsApp e acompanhar respostas em um painel.</p>
+                </details>
+
+                <details data-keywords="comparar propostas aprovar reprovar histórico">
+                    <summary>Consigo comparar propostas e aprovar?</summary>
+                    <p>Sim. Visualize lado a lado por preço, prazo e condições. Aprove com um clique e gere o pedido.
+                    </p>
+                </details>
+            </div>
+
+            <!-- Ajuda geral -->
+            <div class="faq-group" data-group="geral">
+                <h3 class="faq-title">Geral</h3>
+
+                <details data-keywords="lgpd privacidade segurança dados">
+                    <summary>O Ponza Health está em conformidade com a LGPD?</summary>
+                    <p>Sim. Seguimos boas práticas de segurança e privacidade, com controles de acesso, registro de
+                        auditoria e políticas adequadas.</p>
+                </details>
+
+                <details data-keywords="suporte contato ajuda treinamento onboarding">
+                    <summary>Como falo com o suporte e peço treinamento?</summary>
+                    <p>Use o botão de WhatsApp, envie e-mail para <a
+                            href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a> ou agende um onboarding no
+                        primeiro mês sem custo.</p>
+                </details>
+            </div>
+        </div>
+    </main>
+
+    <!-- RODAPÉ -->
+    <section class="contacts" aria-label="Contatos e navegação">
+        <div class="contacts-inner">
+            <div class="contacts-grid">
+                <div class="brand">
+                    <img src="{{ url_for('static', filename='images/8.svg') }}" alt="Ponza Health" />
+                    <h3>Ponza Health — Automação para Clínicas</h3>
+                    <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais,
+                        mais
+                        eficiência.</p>
+                    <div class="contacts-cta">
+                        <a class="btn-outline" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
+                        <a class="btn-outline" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
+                    </div>
+                </div>
+
+                <div class="col">
+                    <h4>Funcionalidades</h4>
+                    <ul class="navlist">
+                        <li><a href="{{ url_for('hero') }}#recursos">Prontuário eletrônico</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Controle de estoque</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Planos de tratamento</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Gestão financeira</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Teleconsulta</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Agenda múltipla</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Assinatura digital</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Protocolos</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Migração de dados</a></li>
+                        <li><a href="{{ url_for('hero') }}#recursos">Automação em marketing</a></li>
+                    </ul>
+                </div>
+
+                <div class="col">
+                    <h4>Institucional</h4>
+                    <ul class="navlist">
+                        <li><a href="{{ url_for('about')}}">Quem somos</a></li>
+                    </ul>
+                    <h4 style="margin-top:18px">Suporte & Produtos</h4>
+                    <ul class="navlist">
+                        <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
+                                target="_blank">Fale com um consultor</a></li>
+                        <li><a href="{{ url_for('help') }}">Central de ajuda</a></li>
+                    </ul>
+                </div>
+
+                <div class="col">
+                    <h4>Conta</h4>
+                    <ul class="navlist">
+                        <li><a href="{{ url_for('register') }}">Criar conta</a></li>
+                        <li><a href="{{ url_for('login') }}">Entrar</a></li>
+                        <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
+                        <li><a href="{{ url_for('terms') }}">Termos de uso</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="bottom">
+                <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
+                <div class="navlist" style="display:flex; gap:16px; list-style:none">
+                    <a href="{{ url_for('privacy_policy') }}">Política de privacidade</a>
+                    <a href="{{ url_for('terms')}}">Termos de uso</a>
+                </div>
+            </div>
+        </div>
+    </section>
+    <script>
+        // Ano no rodapé
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        // Filtro simples de busca por keywords no <details>
+        const input = document.getElementById('helpSearch');
+        const btn = document.getElementById('searchBtn');
+        const detailsList = Array.from(document.querySelectorAll('#faqRoot details'));
+        function filterFAQ() {
+            const q = (input.value || '').trim().toLowerCase();
+            let anyOpen = false;
+            detailsList.forEach(d => {
+                const text = (d.innerText || '').toLowerCase();
+                const keys = (d.getAttribute('data-keywords') || '').toLowerCase();
+                const match = !q || text.includes(q) || keys.includes(q);
+                d.style.display = match ? '' : 'none';
+                if (q && match && !anyOpen) { d.open = true; anyOpen = true; }
+                else if (!q) { d.open = false; }
+            });
+        }
+        btn.addEventListener('click', filterFAQ);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); filterFAQ(); } });
+
+        // Clique em categoria rola e filtra por grupo
+        document.querySelectorAll('.cat').forEach(cat => {
+            cat.addEventListener('click', () => {
+                const g = cat.getAttribute('data-cat');
+                document.getElementById('helpSearch').value = ''; filterFAQ();
+                const group = document.querySelector(`.faq-group[data-group="${g}"]`);
+                if (group) { window.scrollTo({ top: group.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' }); }
+            });
+            cat.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cat.click(); } });
+        });
+    </script>
+</body>
+
+</html>

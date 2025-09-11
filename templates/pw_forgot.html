@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Recupere sua senha — Ponza Health</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-card: #ffffff;
+      --text-primary: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: rgba(2, 6, 23, .12);
+      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-base: #131d35;
+      --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+      --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --fs-base: 16px;
+      --fs-title: 34px;
+      --fs-input: 16px;
+      --fs-btn: 16px;
+      --fs-small: 14px;
+      --btn-height: 44px;
+      --btn-minw: 220px;
+      --nav-h: 72px;
+      --ok: #16a34a;
+      --ok-ghost: rgba(22, 163, 74, .12);
+      --err: #dc2626;
+      --err-ghost: rgba(220, 38, 38, .10);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      margin: 0
+    }
+
+    body {
+      font-family: var(--font-family);
+      font-size: var(--fs-base);
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh;
+    }
+
+    .hero-graphic {
+      display: block;
+      width: 300px;
+      /* Logo menor */
+      max-width: 90%;
+      height: auto;
+      margin: 4px auto 0;
+      /* Espaço inferior reduzido */
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .08));
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: calc(var(--nav-h) + 8px) 16px 32px;
+      /* Aproxima o container da logo */
+      display: flex;
+      justify-content: center;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      border-radius: 16px;
+      padding: 28px;
+      margin: 0 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      box-shadow: 0 10px 24px var(--shadow);
+    }
+
+    h2 {
+      font-weight: 800;
+      color: var(--text-primary);
+      text-align: center;
+      margin: 0 0 18px;
+      font-size: var(--fs-title);
+    }
+
+    .input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: #fff;
+      color: var(--text-primary);
+      outline: none;
+      transition: .2s;
+      font-size: var(--fs-input);
+      font-family: var(--font-family);
+    }
+
+    .input:focus {
+      border-color: var(--brand-base);
+      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--btn-height);
+      width: 100%;
+      min-width: var(--btn-minw);
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: var(--brand-grad);
+      color: #fff;
+      font-weight: 800;
+      font-size: var(--fs-btn);
+      box-shadow: 0 10px 26px rgba(19, 29, 53, .22);
+      transition: .25s;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 14px 36px rgba(19, 29, 53, .30);
+      background: var(--brand-grad-hover);
+    }
+
+    .link {
+      color: var(--brand-base);
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .link:hover {
+      text-decoration: underline
+    }
+
+    /* FLASH */
+    .flash-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+
+    .flash {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid;
+    }
+
+    .flash-success {
+      border-color: rgba(22, 163, 74, .35);
+      background: var(--ok-ghost);
+      color: var(--text-primary);
+    }
+
+    .flash-error {
+      border-color: rgba(220, 38, 38, .35);
+      background: var(--err-ghost);
+      color: var(--text-primary);
+    }
+
+    .flash .label {
+      font-weight: 800;
+      font-size: 13px;
+      line-height: 1.2;
+      margin-right: 6px;
+      opacity: .8;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <img class="hero-graphic" src="{{ url_for('static', filename='images/6.svg') }}" alt="Ilustração" />
+
+    <div class="container">
+      <div class="card">
+        <h2>Recupere sua senha</h2>
+
+        {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+        <div class="flash-stack" role="region" aria-live="polite">
+          {% for category, msg in messages %}
+          <div class="flash {{ 'flash-success' if 'success' in category else 'flash-error' }}">
+            <span class="label">{{ 'Sucesso' if 'success' in category else 'Info' }}:</span>
+            <span>{{ msg|safe }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('pw_forgot') }}">
+          <div style="margin-bottom:18px">
+            <input type="email" name="email" placeholder="Digite seu e-mail" required class="input"
+              autocomplete="email">
+          </div>
+          <button type="submit" class="btn-primary">Enviar link</button>
+        </form>
+
+        <div style="text-align:center; margin-top:16px">
+          <a href="{{ url_for('login') }}" class="link">Voltar ao login</a>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+
+</html>

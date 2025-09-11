@@ -630,18 +630,6 @@
             </td>
             <td>
               <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
-                <!-- Editar -->
-                <button type="button" class="icon-square" title="Editar Produto" aria-label="Editar Produto" onclick="openEditProductModal({
-                  id: {{ prod.id|int }},
-                  code: {{ (prod.code or '')|tojson }},
-                  name: {{ prod.name|tojson }},
-                  quantity: {{ prod.quantity|int }},
-                  purchase_price: {{ ('%.2f' % prod.purchase_price)|tojson }},
-                  sale_price: {{ ('%.2f' % prod.sale_price)|tojson }}
-                }, '{{ url_for('stock_edit', product_id=prod.id) }}')">
-                  <i class="fa fa-pencil"></i>
-                </button>
-
                 <!-- Entrada -->
                 <button class="icon-square" title="Entrada de Estoque" aria-label="Entrada de Estoque"
                   onclick="openStockMovementModal({{ prod.id|int }}, 'in')">
@@ -698,30 +686,6 @@
     </div>
   </div>
 
-  <!-- Editar Produto -->
-  <div id="editProductModal" class="modal">
-    <div class="modal-card">
-      <button class="modal-close" onclick="closeEditProductModal()">×</button>
-      <h3>Editar Produto</h3>
-      <!-- action definida no JS para /stock_edit/<id> -->
-      <form method="post" id="editProductForm" style="display:grid;gap:10px;">
-        <input class="modal-input" type="text" name="code" id="edit_code" placeholder="Código (opcional)">
-        <input class="modal-input" type="text" name="name" id="edit_name" placeholder="Nome" required>
-        <input class="modal-input" type="number" name="quantity" id="edit_quantity" placeholder="Quantidade" min="0"
-          required>
-        <input class="modal-input" type="number" name="purchase_price" id="edit_purchase_price"
-          placeholder="Preço de Compra" step="0.01" min="0" required>
-        <input class="modal-input" type="number" name="sale_price" id="edit_sale_price" placeholder="Preço de Venda"
-          step="0.01" min="0" required>
-        <div style="display:flex;gap:10px;">
-          <button type="button" class="btn btn-outline" style="flex:1;"
-            onclick="closeEditProductModal()">Cancelar</button>
-          <button type="submit" class="btn" style="flex:1;">Salvar Alterações</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Movimentação de Estoque -->
   <div id="stockMovementModal" class="modal">
     <div class="modal-card">
@@ -760,20 +724,6 @@
     function openAddProductModal() { document.getElementById('addProductModal').classList.add('is-open'); }
     function closeAddProductModal() { document.getElementById('addProductModal').classList.remove('is-open'); }
 
-    function openEditProductModal(p, actionUrl) {
-      const f = document.getElementById('editProductForm');
-      f.action = actionUrl;
-
-      document.getElementById('edit_code').value = p.code || '';
-      document.getElementById('edit_name').value = p.name || '';
-      document.getElementById('edit_quantity').value = (p.quantity != null) ? p.quantity : '';
-      document.getElementById('edit_purchase_price').value = (p.purchase_price != null) ? String(p.purchase_price) : '';
-      document.getElementById('edit_sale_price').value = (p.sale_price != null) ? String(p.sale_price) : '';
-
-      document.getElementById('editProductModal').classList.add('is-open');
-    }
-    function closeEditProductModal() { document.getElementById('editProductModal').classList.remove('is-open'); }
-
     function openStockMovementModal(productId, type) {
       const m = document.getElementById('stockMovementModal');
       m.dataset.productId = String(productId);
@@ -808,7 +758,6 @@
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') {
         closeAddProductModal();
-        closeEditProductModal();
         closeStockMovementModal();
       }
     });

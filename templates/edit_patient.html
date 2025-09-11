@@ -2,9 +2,21 @@
 <html lang="pt-br">
 
 <head>
-  <meta charset="UTF-8" />
-  <title>Cadastrar Paciente - Ponza Health</title>
-  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
+  <!-- Pre-paint fix: apply saved sidebar state BEFORE first paint -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('sidebarCollapsed') === '1') {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (e) { }
+      document.documentElement.classList.add('no-anim');
+    })();
+  </script>
+
+  <meta charset="UTF-8">
+  <title>Editar Paciente - Ponza Health</title>
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -21,6 +33,7 @@
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-solid: #131d35;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
+      --radius: 12px;
       --btn-h: 44px;
       --btn-minw: 220px;
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -41,7 +54,7 @@
       background: var(--bg);
       color: var(--ink);
       min-height: 100vh;
-      display: flex
+      display: flex;
     }
 
     .top-profile {
@@ -51,7 +64,7 @@
       z-index: 1001;
       display: flex;
       align-items: center;
-      gap: 12px
+      gap: 12px;
     }
 
     .icon-btn {
@@ -66,18 +79,18 @@
       place-items: center;
       box-shadow: var(--shadow);
       transition: transform .15s, box-shadow .15s, border-color .15s;
-      text-decoration: none
+      text-decoration: none;
     }
 
     .icon-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
-      border-color: var(--brand-solid)
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+      border-color: var(--brand-solid);
     }
 
     .icon-btn i {
       color: var(--brand-solid);
-      font-size: 18px
+      font-size: 18px;
     }
 
     .icon-btn .badge {
@@ -94,9 +107,10 @@
       font-weight: 800;
       display: flex;
       align-items: center;
-      justify-content: center
+      justify-content: center;
     }
 
+    /* Sidebar */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -108,7 +122,7 @@
       flex-direction: column;
       transition: width 180ms ease;
       position: sticky;
-      top: 0
+      top: 0;
     }
 
     .sidebar-logo {
@@ -116,7 +130,7 @@
       display: block;
       margin: 0 auto 18px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
-      transition: width 180ms, margin 180ms
+      transition: width 180ms ease, margin 180ms ease;
     }
 
     .sidebar a.menu-item {
@@ -130,37 +144,104 @@
       text-decoration: none;
       margin-bottom: 18px;
       font-weight: 600;
-      transition: background .2s, color .2s, transform .12s
+      transition: background .2s, color .2s, transform .12s;
     }
 
     .sidebar a.menu-item i {
       width: 21px;
       text-align: center;
-      flex: 0 0 21px
+      flex: 0 0 21px;
     }
 
     .sidebar a.menu-item:hover {
-      background: #ffffff;
+      background: #fff;
       color: var(--brand-solid);
-      transform: translateX(4px)
+      transform: translateX(4px);
     }
 
     .sidebar a.menu-item.active {
       color: #fff;
       background: var(--brand-grad);
-      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
     }
 
     .sidebar-spacer {
-      flex: 1 1 auto
+      flex: 1 1 auto;
     }
 
+    .sidebar a.menu-item.logout {
+      color: #e5e7eb;
+    }
+
+    .sidebar-toggle {
+      align-self: flex-end;
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background .2s, border-color .2s, transform .12s;
+      font-size: 12px;
+    }
+
+    .sidebar-toggle:hover {
+      background: #fff;
+      color: var(--brand-solid);
+      border-color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* Collapse from <html> (pre-paint) */
+    html.sidebar-collapsed .sidebar {
+      width: 76px;
+    }
+
+    html.sidebar-collapsed .sidebar .sidebar-logo {
+      width: 44px;
+      margin: 0 auto 22px;
+    }
+
+    html.sidebar-collapsed .sidebar .menu-item {
+      justify-content: center;
+      gap: 0;
+      padding: 12px 0;
+      margin-bottom: 14px;
+    }
+
+    html.sidebar-collapsed .sidebar .menu-item .label {
+      display: none;
+    }
+
+    /* Legacy mirror (element class) */
+    .sidebar.is-collapsed {
+      width: 76px;
+    }
+
+    .sidebar.is-collapsed .sidebar-logo {
+      width: 44px;
+      margin: 0 auto 22px;
+    }
+
+    .sidebar.is-collapsed .menu-item {
+      justify-content: center;
+      gap: 0;
+      padding: 12px 0;
+      margin-bottom: 14px;
+    }
+
+    .sidebar.is-collapsed .menu-item .label {
+      display: none;
+    }
+
+    /* Conteúdo */
     .content {
       flex-grow: 1;
       padding: 36px;
       min-width: 0;
       position: relative;
-      background: var(--bg)
+      background: var(--bg);
     }
 
     h2 {
@@ -169,7 +250,7 @@
       color: var(--ink);
       margin: 0 0 28px;
       position: relative;
-      font-weight: 800
+      font-weight: 800;
     }
 
     h2::after {
@@ -182,7 +263,7 @@
       height: 4px;
       background: var(--brand-grad);
       border-radius: 2px;
-      box-shadow: 0 0 8px rgba(0, 0, 0, .12)
+      box-shadow: 0 0 8px rgba(0, 0, 0, .12);
     }
 
     .panel {
@@ -192,36 +273,29 @@
       box-shadow: var(--shadow);
       max-width: 1100px;
       margin: 0 auto;
-      border: 1px solid var(--border)
+      border: 1px solid var(--border);
     }
 
     .section-title {
       font-size: 18px;
       font-weight: 800;
-      margin: 8px 0 18px
-    }
-
-    .grid-2,
-    .grid-3,
-    .grid-4 {
-      display: grid;
-      gap: 16px
+      margin: 8px 0 18px;
     }
 
     .grid-2 {
-      grid-template-columns: 1fr 1fr
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
     }
 
     .grid-3 {
-      grid-template-columns: 1fr 1fr 1fr
-    }
-
-    .grid-4 {
-      grid-template-columns: 1fr 1fr 1fr 1fr
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
     }
 
     .form-group {
-      margin-bottom: 16px
+      margin-bottom: 16px;
     }
 
     label {
@@ -229,7 +303,7 @@
       margin-bottom: 8px;
       font-weight: 600;
       color: var(--ink);
-      font-size: 14px
+      font-size: 14px;
     }
 
     .input,
@@ -244,20 +318,19 @@
       font-family: var(--font-family);
       font-size: 14px;
       outline: none;
-      transition: .2s
+      transition: .2s;
+    }
+
+    .textarea {
+      min-height: 110px;
+      resize: vertical;
     }
 
     .input:focus,
     .textarea:focus,
     select:focus {
       border-color: var(--brand-solid);
-      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
-    }
-
-    .help {
-      font-size: 12px;
-      color: var(--ink-dim);
-      margin-top: 6px
+      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
     }
 
     .actions {
@@ -266,15 +339,15 @@
       flex-wrap: wrap;
       margin-top: 18px;
       justify-content: center;
-      align-items: center
+      align-items: center;
     }
 
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 44px;
-      min-width: 220px;
+      height: var(--btn-h);
+      min-width: var(--btn-minw);
       padding: 0 22px;
       border-radius: 999px;
       font-weight: 800;
@@ -285,59 +358,28 @@
       text-decoration: none;
       color: #fff;
       background: var(--brand-grad);
-      box-shadow: var(--shadow)
+      box-shadow: var(--shadow);
     }
 
     .btn:hover {
       transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
+      box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
     }
 
     .btn.secondary {
       background: #fff;
       color: var(--ink);
-      border: 1px solid var(--border)
+      border: 1px solid var(--border);
     }
 
     .btn.secondary:hover {
-      border-color: var(--brand-solid)
+      border-color: var(--brand-solid);
     }
 
-    .btn-outline {
-      background: #fff;
-      color: var(--brand-solid);
-      border: 2px solid var(--brand-solid)
-    }
-
-    .btn-outline:hover {
-      background: var(--brand-solid);
-      color: #fff
-    }
-
-    .btn.icon-only {
-      min-width: 44px;
-      width: 44px;
-      height: 44px;
-      padding: 0;
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center
-    }
-
-    .btn.icon-only i {
-      font-size: 16px
-    }
-
-    .required::after {
-      content: " *";
-      color: #dc2626;
-      font-weight: 800
-    }
-
+    /* Avatar */
     .avatar-section {
       max-width: 1100px;
-      margin: 0 auto 16px
+      margin: 0 auto 16px;
     }
 
     .avatar-card {
@@ -349,12 +391,12 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 20px 24px;
-      box-shadow: var(--shadow)
+      box-shadow: var(--shadow);
     }
 
     .avatar-wrap {
       grid-column: 2;
-      justify-self: center
+      justify-self: center;
     }
 
     .avatar {
@@ -364,7 +406,7 @@
       object-fit: cover;
       border: 2px solid var(--border);
       background: #fff;
-      box-shadow: 0 6px 14px rgba(2, 6, 23, .08)
+      box-shadow: 0 6px 14px rgba(2, 6, 23, .08);
     }
 
     .avatar-actions {
@@ -374,80 +416,108 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 10px;
-      flex-wrap: wrap
+      flex-wrap: wrap;
     }
 
     .avatar-actions .inline-actions {
       display: flex;
       gap: 10px;
-      flex-wrap: wrap
+      flex-wrap: wrap;
+    }
+
+    .btn-outline {
+      background: #fff;
+      color: var(--brand-solid);
+      border: 2px solid var(--brand-solid);
+    }
+
+    .btn-outline:hover {
+      background: var(--brand-solid);
+      color: #fff;
+    }
+
+    .btn.icon-only {
+      min-width: 44px;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn.icon-only i {
+      font-size: 16px;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--ink-dim);
+    }
+
+    /* First paint: disable transitions */
+    html.no-anim * {
+      transition: none !important;
     }
 
     @media (max-width:900px) {
 
       .grid-2,
-      .grid-3,
-      .grid-4 {
-        grid-template-columns: 1fr
+      .grid-3 {
+        grid-template-columns: 1fr;
       }
 
       .content {
-        padding: 24px
+        padding: 24px;
       }
 
       .btn {
-        min-width: 100%
+        min-width: 100%;
       }
 
       .avatar-card {
         grid-template-columns: 1fr;
-        text-align: center
+        text-align: center;
       }
 
       .avatar-actions {
         grid-column: 1;
         justify-self: center;
-        align-items: center
+        align-items: center;
       }
     }
   </style>
 
   <script>
     function toggleSidebar() {
-      const s = document.getElementById('sidebar');
-      s.classList.toggle('is-collapsed');
-      localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
+      const root = document.documentElement;
+      const sidebar = document.getElementById('sidebar');
+      const collapsed = !root.classList.contains('sidebar-collapsed');
+      root.classList.toggle('sidebar-collapsed', collapsed);
+      sidebar?.classList.toggle('is-collapsed', collapsed);
+      try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) { }
     }
+
     document.addEventListener('DOMContentLoaded', () => {
-      if (localStorage.getItem('sidebarCollapsed') === '1') {
+      // Re-enable transitions after first paint
+      document.documentElement.classList.remove('no-anim');
+
+      // Mirror initial state onto element (compat)
+      if (document.documentElement.classList.contains('sidebar-collapsed')) {
         document.getElementById('sidebar')?.classList.add('is-collapsed');
       }
-      // preview da foto
+
+      // Avatar preview on change
       const file = document.getElementById('profile_image_file');
       if (file) {
         file.addEventListener('change', (e) => {
           const img = document.getElementById('avatar-img');
           const f = e.target.files?.[0];
-          if (img && f) { img.src = URL.createObjectURL(f); }
-        });
-      }
-      // máscara dd/mm/aaaa
-      const bd = document.getElementById('birthdate');
-      if (bd) {
-        bd.addEventListener('input', () => {
-          let v = bd.value.replace(/\D/g, '').slice(0, 8);
-          if (v.length >= 5) v = v.replace(/(\d{2})(\d{2})(\d{1,4})/, '$1/$2/$3');
-          else if (v.length >= 3) v = v.replace(/(\d{2})(\d{1,2})/, '$1/$2');
-          bd.value = v;
+          if (img && f) img.src = URL.createObjectURL(f);
         });
       }
     });
-    function validatePatientForm() {
-      const bd = document.getElementById('birthdate').value.trim();
-      const rgx = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
-      if (!rgx.test(bd)) { alert('Data de nascimento inválida. Use o formato dd/mm/aaaa.'); return false; }
-      return true;
-    }
   </script>
 </head>
 
@@ -471,7 +541,7 @@
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
-    <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
+    <a href="{{ url_for('catalog') }}" class="menu-item active"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
         class="label">Estoque</span></a>
@@ -479,6 +549,15 @@
         class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
+    {% if username and username|lower == 'admin' %}
+    <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
+    <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
+        class="label">Admin — Empresas</span></a>
+    <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
+        class="label">Admin — Repositório</span></a>
+    <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
+        class="label">Admin — Disponibilidade</span></a>
+    {% endif %}
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
@@ -486,130 +565,108 @@
 
   <!-- Conteúdo -->
   <div class="content">
-    <h2>Cadastrar Paciente</h2>
+    <h2>Editar Paciente</h2>
 
-    <!-- Avatar -->
+    <!-- Avatar (carrega foto existente ou fallback) -->
     <div class="avatar-section">
       <div class="avatar-card">
         <div class="avatar-wrap">
-          <img id="avatar-img" class="avatar" src="{{ url_for('static', filename='images/admin_profile.png') }}"
+          <img id="avatar-img" class="avatar"
+            src="{{ patient.profile_image_url or url_for('static', filename='images/user-icon.png') }}"
             alt="Foto do paciente">
         </div>
         <div class="avatar-actions">
           <div class="inline-actions" style="margin-bottom:10px;">
-            <!-- abre seletor do input dentro do form principal -->
             <label for="profile_image_file" class="btn btn-outline" title="Selecionar foto de perfil">
               <i class="fa fa-image"></i>&nbsp;Alterar Foto de Perfil
             </label>
-            <!-- Salvar: envia o form principal -->
-            <button type="submit" class="btn btn-outline icon-only" title="Salvar cadastro com foto"
-              form="patient-register-form">
+            <button type="button" class="btn btn-outline icon-only" title="Salvar foto ao enviar">
               <i class="fa fa-save"></i>
             </button>
-            <!-- Limpar preview -->
             <button type="button" class="btn btn-outline icon-only" title="Remover foto"
-              onclick="document.getElementById('avatar-img').src='{{ url_for('static', filename='images/admin_profile.png') }}'; document.getElementById('profile_image_file').value='';">
+              onclick="document.getElementById('avatar-img').src='{{ url_for('static', filename='images/user-icon.png') }}'; document.getElementById('profile_image_file').value='';">
               <i class="fa fa-trash"></i>
             </button>
           </div>
-          <div class="help">A foto é salva junto com o cadastro.</div>
+          <div class="hint">Formatos aceitos: JPG/PNG. A foto é exibida em círculo (160×160).</div>
         </div>
       </div>
     </div>
 
-    <!-- Form principal -->
-    <form id="patient-register-form" class="panel" method="post" action="{{ url_for('register_patient') }}"
-      enctype="multipart/form-data" onsubmit="return validatePatientForm()" novalidate>
+    <form class="panel" method="post" action="{{ url_for('edit_patient', patient_id=patient.id) }}"
+      enctype="multipart/form-data" novalidate>
+      <!-- input de arquivo da foto -->
       <input id="profile_image_file" name="profile_image" type="file" accept="image/*" style="display:none;">
 
-      <div class="section-title">Informações Pessoais</div>
+      <div class="section-title">Dados Pessoais</div>
       <div class="grid-2">
         <div class="form-group">
-          <label class="required" for="name">Nome completo</label>
-          <input class="input" id="name" name="name" required placeholder="Ex.: Maria Silva" />
-        </div>
-        <div class="form-group">
-          <label class="required" for="birthdate">Data de nascimento (dd/mm/aaaa)</label>
-          <input class="input" id="birthdate" name="birthdate" inputmode="numeric" placeholder="dd/mm/aaaa" required
-            autocomplete="bday">
-          <div class="help">Use o formato <strong>dd/mm/aaaa</strong>.</div>
-        </div>
-      </div>
-
-      <div class="grid-3">
-        <div class="form-group">
-          <label class="required" for="sex">Sexo</label>
-          <select class="input" id="sex" name="sex" required>
-            <option value="">Selecione...</option>
-            <option value="Feminino">Feminino</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Outro">Outro</option>
-            <option value="Prefiro não informar">Prefiro não informar</option>
-          </select>
+          <label for="name">Nome completo</label>
+          <input id="name" name="name" class="input" type="text" value="{{ patient.name }}"
+            placeholder="Nome e sobrenome" required>
         </div>
         <div class="form-group">
           <label for="email">E-mail</label>
-          <input class="input" id="email" name="email" type="email" placeholder="exemplo@email.com" />
-        </div>
-        <div class="form-group">
-          <label for="cpf">CPF</label>
-          <input class="input" id="cpf" name="cpf" placeholder="Somente números" maxlength="14" />
+          <input id="email" name="email" class="input" type="email" value="{{ patient.email }}"
+            placeholder="email@exemplo.com">
         </div>
       </div>
 
       <div class="grid-3">
         <div class="form-group">
-          <label class="required" for="phone_primary">Celular</label>
-          <input class="input" id="phone_primary" name="phone_primary" placeholder="(00) 90000-0000" required />
+          <label for="birthdate">Data de nascimento</label>
+          <!-- Mantive type="date" pois aqui você já armazena ISO; ajuste se quiser máscara dd/mm/aaaa -->
+          <input id="birthdate" name="birthdate" class="input" type="date" value="{{ patient.birthdate }}">
         </div>
         <div class="form-group">
-          <label for="phone_secondary">Celular secundário</label>
-          <input class="input" id="phone_secondary" name="phone_secondary" placeholder="(00) 90000-0000" />
+          <label for="document">Documento</label>
+          <input id="document" name="document" class="input" type="text" value="{{ patient.document }}"
+            placeholder="CPF / RG">
         </div>
         <div class="form-group">
-          <label for="notes">Observações</label>
-          <input class="input" id="notes" name="notes" placeholder="Alergias, preferências, etc." />
+          <label for="phone">Telefone</label>
+          <input id="phone" name="phone" class="input" type="tel" value="{{ patient.phone }}"
+            placeholder="(00) 00000-0000">
         </div>
       </div>
 
       <div class="section-title">Endereço</div>
-      <div class="grid-4">
-        <div class="form-group">
-          <label for="cep">CEP</label>
-          <input class="input" id="cep" name="cep" placeholder="00000-000" />
-        </div>
+      <div class="grid-3">
         <div class="form-group">
           <label for="street">Rua</label>
-          <input class="input" id="street" name="street" placeholder="Rua Exemplo" />
+          <input id="street" name="street" class="input" type="text" value="{{ patient.street }}">
         </div>
         <div class="form-group">
           <label for="number">Número</label>
-          <input class="input" id="number" name="number" placeholder="123" />
+          <input id="number" name="number" class="input" type="text" value="{{ patient.number }}">
         </div>
         <div class="form-group">
-          <label for="complement">Complemento</label>
-          <input class="input" id="complement" name="complement" placeholder="Apto, bloco..." />
+          <label for="zipcode">CEP</label>
+          <input id="zipcode" name="zipcode" class="input" type="text" value="{{ patient.zipcode }}">
         </div>
       </div>
 
-      <div class="grid-3">
-        <div class="form-group">
-          <label for="district">Bairro</label>
-          <input class="input" id="district" name="district" placeholder="Bairro" />
-        </div>
+      <div class="grid-2">
         <div class="form-group">
           <label for="city">Cidade</label>
-          <input class="input" id="city" name="city" placeholder="Cidade" />
+          <input id="city" name="city" class="input" type="text" value="{{ patient.city }}">
         </div>
         <div class="form-group">
           <label for="state">Estado</label>
-          <input class="input" id="state" name="state" placeholder="UF" maxlength="2" />
+          <input id="state" name="state" class="input" type="text" value="{{ patient.state }}">
         </div>
       </div>
 
+      <div class="section-title">Observações</div>
+      <div class="form-group">
+        <label for="notes">Observações</label>
+        <textarea id="notes" name="notes" class="textarea"
+          placeholder="Alergias, histórico, observações gerais">{{ patient.notes }}</textarea>
+      </div>
+
       <div class="actions">
-        <a class="btn secondary" href="{{ url_for('catalog') }}"><i class="fa fa-arrow-left"></i>&nbsp;Voltar</a>
-        <button class="btn" type="submit"><i class="fa fa-save"></i>&nbsp;Salvar paciente</button>
+        <button type="submit" class="btn"><i class="fa fa-save"></i>&nbsp;Salvar</button>
+        <a href="{{ url_for('catalog') }}" class="btn secondary"><i class="fa fa-times"></i>&nbsp;Cancelar</a>
       </div>
     </form>
   </div>

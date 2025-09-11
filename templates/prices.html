@@ -4,6 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>Planos e Preços — Ponza Health</title>
+  <meta name="description"
+    content="Planos e preços do Ponza Health - Software completo de gestão clínica por R$ 79,90/mês com Ponza Lab incluído" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
   <!-- Funnel Sans -->
@@ -11,7 +13,7 @@
     rel="stylesheet" />
   <style>
     :root {
-      /* Paleta / Tipografia (igual ao herói) */
+      /* Enhanced medical-inspired color palette */
       --bg-primary: #ffffff;
       --bg-secondary: #f8fafc;
       --bg-tertiary: #f1f5f9;
@@ -20,38 +22,51 @@
       --text-secondary: #475569;
       --text-muted: #64748b;
       --text-light: #94a3b8;
+
+      /* Medical-inspired color scheme */
       --primary: #ffffff;
-      --primary-contrast: #000b30;
-      --secondary: #000b30;
-      --secondary-dark: #000b30;
-      --secondary-light: #000b30;
-      --secondary-glow: rgba(11, 30, 91, .15);
-      --secondary-glow-strong: rgba(11, 30, 91, .25);
-      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
-      --brand-base: #131d35;
-      --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+      --primary-contrast: #0a1628;
+      --secondary: #0a1628;
+      --secondary-dark: #081220;
+      --secondary-light: #1e293b;
+      --secondary-glow: rgba(10, 22, 40, .15);
+      --secondary-glow-strong: rgba(10, 22, 40, .25);
+
+      /* Enhanced gradients */
+      --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+      --brand-base: #0a1628;
+      --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+      --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+
+      /* Enhanced borders and shadows */
       --border-light: #e2e8f0;
       --border-medium: #cbd5e1;
       --shadow-light: rgba(30, 41, 59, .08);
       --shadow-medium: rgba(30, 41, 59, .12);
       --shadow-strong: rgba(30, 41, 59, .16);
+      --shadow-glow: 0 20px 60px rgba(10, 22, 40, .1);
+
+      /* Typography and measurements */
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
       --fs-base: 16px;
-      --fs-title: 34px;
+      --fs-title: 36px;
+      --fs-hero: 48px;
       --fs-small: 14px;
       --nav-h: 72px;
-      --card-radius: 16px;
-      --btn-h: 44px;
+      --card-radius: 20px;
+      --btn-h: 48px;
       --btn-minw: 220px;
     }
 
     * {
-      box-sizing: border-box
+      box-sizing: border-box;
     }
 
     html,
     body {
-      margin: 0
+      margin: 0;
+      scroll-behavior: smooth;
     }
 
     body {
@@ -59,10 +74,23 @@
       font-size: var(--fs-base);
       color: var(--text-primary);
       background: var(--bg-primary);
-      min-height: 100vh
+      min-height: 100vh;
+      line-height: 1.6;
     }
 
-    /* NAVBAR */
+    .title-hero {
+      font-size: var(--fs-hero);
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ENHANCED NAVBAR */
     .navbar {
       position: fixed;
       inset: 0 0 auto 0;
@@ -72,15 +100,10 @@
       align-items: center;
       justify-content: center;
       background: var(--brand-grad);
-      border-bottom: 1px solid #0f182b;
-      box-shadow: 0 4px 18px var(--shadow);
-      padding: 0 24px
-    }
-
-    .title-hero {
-      font-size: 75px;
-      margin-top: 0;
-      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-glow);
+      padding: 0 24px;
     }
 
     .nav-inner {
@@ -88,21 +111,26 @@
       max-width: 1200px;
       display: flex;
       align-items: center;
-      justify-content: space-between
+      justify-content: space-between;
     }
 
     .nav-logo {
       display: inline-flex;
       align-items: center;
       gap: 20px;
-      text-decoration: none
+      text-decoration: none;
+      transition: transform 0.2s ease;
+    }
+
+    .nav-logo:hover {
+      transform: scale(1.05);
     }
 
     .nav-logo img {
       height: 75px;
       width: auto;
       display: block;
-      filter: brightness(0) invert(1)
+      filter: brightness(0) invert(1);
     }
 
     .nav-actions a {
@@ -118,79 +146,138 @@
       border: 2px solid var(--primary);
       background: transparent;
       text-decoration: none;
-      transition: .22s;
-      margin-left: 10px
+      transition: all 0.3s ease;
+      margin-left: 10px;
+      backdrop-filter: blur(10px);
     }
 
     .nav-actions a:hover {
       background: var(--primary);
       color: var(--secondary);
-      transform: translateY(-1px)
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
     }
 
-    /* HERO fino */
+    /* ENHANCED PAGE HERO */
     .page-hero {
-      padding: calc(var(--nav-h) + 28px) 16px 26px;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.92) 100%), var(--brand-grad)
+      padding: calc(var(--nav-h) + 48px) 16px 48px;
+      background:
+        var(--hero-overlay),
+        linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      position: relative;
+      min-height: 50vh;
+      display: flex;
+      align-items: center;
+    }
+
+    .page-hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.03) 0%, transparent 70%);
+      z-index: 1;
     }
 
     .page-hero .inner {
       max-width: 1200px;
-      margin: 0 auto
+      margin: 0 auto;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+      animation: fadeInUp 1s ease-out;
     }
 
     .kicker {
       display: inline-block;
-      padding: .25rem .6rem;
-      border: 1px solid rgba(0, 11, 48, .25);
+      padding: 8px 16px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
       border-radius: 999px;
       font-weight: 800;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--secondary);
-      background: #fff;
-      box-shadow: 0 2px 8px var(--shadow-light)
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 4px 15px var(--shadow-light);
+      backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
+      margin-bottom: 16px;
+    }
+
+    .kicker:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--shadow-medium);
     }
 
     .title {
       font-size: var(--fs-title);
       font-weight: 800;
-      margin: .6rem 0 .3rem
+      margin: 20px 0 12px;
+      line-height: 1.2;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .subtitle {
       color: var(--text-secondary);
-      margin: 0
+      margin: 0 0 16px;
+      font-size: 18px;
+      line-height: 1.6;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .meta {
-      font-size: 13px;
-      color: var(--text-muted)
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 600;
     }
 
-    /* Botões */
+    /* ENHANCED BUTTONS */
     .btn-primary {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       height: var(--btn-h);
       min-width: var(--btn-minw);
-      padding: 0 20px;
+      padding: 0 24px;
       border-radius: 999px;
       border: 2px solid transparent;
       cursor: pointer;
-      background: var(--secondary);
+      background: var(--brand-grad);
       color: var(--primary);
       font-weight: 800;
       font-size: 16px;
-      box-shadow: 0 8px 25px var(--secondary-glow);
-      transition: .25s;
-      text-decoration: none
+      box-shadow: var(--shadow-glow);
+      transition: all 0.3s ease;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .btn-primary:hover::before {
+      left: 100%;
     }
 
     .btn-primary:hover {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 12px 35px var(--secondary-glow-strong);
-      background: var(--secondary-dark)
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 15px 40px var(--secondary-glow-strong);
+      background: var(--brand-grad-hover);
     }
 
     .btn-outline {
@@ -198,276 +285,465 @@
       align-items: center;
       justify-content: center;
       height: var(--btn-h);
-      min-width: 140px;
-      padding: 0 18px;
+      min-width: 160px;
+      padding: 0 20px;
       color: var(--secondary);
-      font-weight: 600;
+      font-weight: 700;
       font-size: 16px;
       background: transparent;
       border: 2px solid var(--secondary);
       border-radius: 999px;
-      transition: .22s;
-      text-decoration: none
+      transition: all 0.3s ease;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-outline::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: var(--secondary);
+      transition: left 0.3s ease;
+      z-index: -1;
+    }
+
+    .btn-outline:hover::before {
+      left: 0;
     }
 
     .btn-outline:hover {
-      background: var(--secondary);
       color: var(--primary);
-      transform: translateY(-1px)
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--secondary-glow);
     }
 
-    /* Seções */
+    /* ENHANCED SECTIONS */
     .section {
-      padding: 28px 16px
+      padding: 64px 16px;
+      position: relative;
     }
 
     .section-inner {
       max-width: 1200px;
-      margin: 0 auto
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
     }
 
-    /* Pricing grid */
+    /* ENHANCED PRICING GRID */
     .pricing {
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 22px;
-      align-items: stretch
+      grid-template-columns: 1.4fr 1fr;
+      gap: 40px;
+      align-items: stretch;
     }
 
+    /* ENHANCED CARDS */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-light);
       border-radius: var(--card-radius);
-      padding: 18px;
-      box-shadow: 0 4px 12px var(--shadow-light)
+      padding: 40px;
+      box-shadow: 0 8px 25px var(--shadow-light);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      animation: fadeIn 0.6s ease-out;
     }
 
-    .card h2,
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: var(--medical-accent);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 20px 50px var(--shadow-medium);
+      border-color: rgba(59, 130, 246, 0.2);
+    }
+
+    .card h2 {
+      margin: 0 0 16px;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
     .card h3 {
-      margin: .2rem 0 .6rem
+      margin: 24px 0 12px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
     }
 
     .lead {
       font-size: 18px;
       color: var(--text-secondary);
-      margin: .2rem 0 1rem
+      margin: 8px 0 24px;
+      line-height: 1.6;
     }
 
+    /* ENHANCED PRICING DISPLAY */
     .price {
       display: flex;
       align-items: flex-end;
-      gap: 10px;
-      margin: .4rem 0 1rem
+      gap: 12px;
+      margin: 16px 0 24px;
+      padding: 20px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(29, 78, 216, 0.02) 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(59, 130, 246, 0.1);
     }
 
     .price .currency {
-      font-size: 22px;
+      font-size: 24px;
       font-weight: 800;
-      color: var(--secondary)
+      color: var(--secondary);
     }
 
     .price .amount {
-      font-size: 52px;
+      font-size: 56px;
       font-weight: 800;
       line-height: 1;
-      letter-spacing: -.5px;
-      color: var(--secondary)
+      letter-spacing: -1px;
+      color: var(--secondary);
+      background: var(--medical-accent);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .price .per {
-      font-size: 14px;
+      font-size: 16px;
       color: var(--text-muted);
-      margin-bottom: 6px
+      margin-bottom: 8px;
+      font-weight: 600;
     }
 
     .badge {
       display: inline-block;
-      padding: .25rem .55rem;
-      border: 1px solid var(--border-medium);
+      padding: 8px 16px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
       border-radius: 999px;
-      font-size: 12px;
-      color: var(--text-secondary);
-      background: #fff
+      font-size: 13px;
+      color: #3b82f6;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(29, 78, 216, 0.05) 100%);
+      font-weight: 800;
+      backdrop-filter: blur(10px);
+      margin-bottom: 16px;
     }
 
     .list {
-      margin: .3rem 0 1rem 1.2rem;
-      color: var(--text-secondary)
+      margin: 16px 0 24px 0;
+      color: var(--text-secondary);
+      padding: 0;
+      list-style: none;
     }
 
     .list li {
-      margin: .35rem 0
+      margin: 12px 0;
+      padding-left: 24px;
+      position: relative;
+      line-height: 1.6;
+    }
+
+    .list li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #3b82f6;
+      font-weight: 800;
+      font-size: 16px;
     }
 
     .muted {
       color: var(--text-muted);
-      font-size: 13px
+      font-size: 14px;
+      line-height: 1.5;
     }
 
     .note {
-      background: var(--bg-tertiary);
-      border: 1px dashed var(--border-medium);
-      border-radius: 12px;
-      padding: 12px;
-      font-size: 14px;
-      color: var(--text-secondary)
+      background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(59, 130, 246, 0.05) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+      font-size: 15px;
+      color: var(--text-secondary);
+      position: relative;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+
+    .note::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--medical-accent);
     }
 
     .stack {
       display: flex;
       flex-direction: column;
-      gap: 12px
+      gap: 16px;
     }
 
     .cta-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 10px;
-      justify-content: center; 
-      align-items: center;  
+      gap: 16px;
+      margin-top: 20px;
+      justify-content: center;
+      align-items: center;
     }
 
-    /* Destaques laterais */
+    /* ENHANCED HIGHLIGHTS */
     .highlight {
       display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 12px
+      grid-template-rows: repeat(3, 1fr);
+      gap: 20px;
     }
 
     .highlight .tile {
       background: var(--bg-card);
       border: 1px solid var(--border-light);
-      border-radius: 14px;
-      padding: 14px;
-      box-shadow: 0 2px 8px var(--shadow-light)
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 15px var(--shadow-light);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
 
-    /* FAQ */
+    .highlight .tile::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 60px;
+      height: 60px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+    }
+
+    .highlight .tile:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px var(--shadow-medium);
+    }
+
+    .highlight .tile h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .highlight .tile p {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 8px 0;
+    }
+
+    /* ENHANCED FAQ */
     .faq {
       max-width: 900px;
-      margin: 0 auto
+      margin: 0 auto;
     }
 
     details {
       background: var(--bg-card);
       border: 1px solid var(--border-light);
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin: 8px 0;
-      box-shadow: 0 2px 8px var(--shadow-light)
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin: 16px 0;
+      box-shadow: 0 4px 15px var(--shadow-light);
+      transition: all 0.3s ease;
+    }
+
+    details:hover {
+      box-shadow: 0 8px 25px var(--shadow-medium);
+    }
+
+    details[open] {
+      border-color: rgba(59, 130, 246, 0.3);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(59, 130, 246, 0.02) 100%);
     }
 
     summary {
       cursor: pointer;
       font-weight: 700;
-      color: var(--text-primary)
+      color: var(--text-primary);
+      font-size: 16px;
+      padding: 8px 0;
+      transition: color 0.2s ease;
+      position: relative;
+    }
+
+    summary:hover {
+      color: #3b82f6;
+    }
+
+    summary::marker {
+      color: #3b82f6;
     }
 
     details p {
       color: var(--text-secondary);
-      margin: 8px 0 0;
-      line-height: 1.55
+      margin: 16px 0 0;
+      line-height: 1.6;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-light);
     }
 
-    /* Rodapé */
+    .hero-graphic {
+      display: block;
+      width: min(600px, 90vw);
+      height: auto;
+      margin: 8px auto 16px;
+      filter: drop-shadow(0 8px 25px rgba(0, 0, 0, .08));
+      transition: transform 0.3s ease;
+    }
+
+    .hero-graphic:hover {
+      transform: scale(1.02) translateY(-4px);
+    }
+
+    /* Accessibility: H1 for SEO */
+    .sr-only {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ENHANCED FOOTER */
     .contacts {
-      padding: 56px 16px 32px;
+      padding: 80px 16px 40px;
       background: var(--brand-grad);
-      color: var(--primary)
+      color: var(--primary);
+      position: relative;
+    }
+
+    .contacts::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url("static/images/team-medical.jpg") center center / cover no-repeat;
+      opacity: 0.1;
+      z-index: 1;
     }
 
     .contacts-inner {
       max-width: 1200px;
-      margin: 0 auto
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
     }
 
     .contacts-grid {
       display: grid;
       grid-template-columns: 1.2fr 1fr 1fr 1fr;
-      gap: 28px
+      gap: 40px;
     }
 
     .brand h3 {
-      margin: .2rem 0 .3rem;
-      font-size: 22px;
+      margin: 8px 0 12px;
+      font-size: 24px;
       font-weight: 800;
-      color: var(--primary)
+      color: var(--primary);
     }
 
     .brand p {
       margin: 0;
-      color: rgba(255, 255, 255, .8);
-      line-height: 1.45
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.6;
+      font-size: 16px;
     }
 
     .brand img {
       height: 90px;
       width: auto;
       display: block;
-      filter: brightness(0) invert(1)
+      filter: brightness(0) invert(1);
+      margin-bottom: 12px;
     }
 
     .col h4 {
-      margin: 0 0 .6rem;
-      font-size: 15px;
+      margin: 0 0 16px;
+      font-size: 16px;
       font-weight: 800;
-      color: var(--primary)
+      color: var(--primary);
     }
 
     .navlist {
       list-style: none;
       padding: 0;
-      margin: 0
+      margin: 0;
     }
 
     .navlist li {
-      margin: .45rem 0
+      margin: 8px 0;
     }
 
     .navlist a {
-      color: rgba(255, 255, 255, .8);
+      color: rgba(255, 255, 255, 0.8);
       text-decoration: none;
-      font-size: 14px
+      font-size: 14px;
+      transition: all 0.2s ease;
     }
 
     .navlist a:hover {
-      color: var(--primary)
+      color: var(--primary);
+      transform: translateX(4px);
     }
 
     .contacts-cta {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
-      margin-top: 14px
+      margin-top: 20px;
     }
 
-    .btn-outline-footer {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      height: 44px;
-      min-width: 100px;
-      padding: 0 18px;
+    .contacts .btn-outline {
       color: var(--primary);
-      font-weight: 600;
-      font-size: 16px;
-      background: transparent;
-      border: 2px solid rgba(255, 255, 255, .3);
-      border-radius: 999px;
-      text-decoration: none;
-      transition: .22s
+      border-color: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
     }
 
-    .btn-outline-footer:hover {
-      background: rgba(255, 255, 255, .1);
-      border-color: var(--primary)
+    .contacts .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--primary);
     }
 
     .divider {
-      margin: 22px 0 0;
+      margin: 32px 0 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3), transparent)
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     }
 
     .bottom {
@@ -475,53 +751,165 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      color: rgba(255, 255, 255, .8);
-      font-size: 13px;
-      padding: 16px 0
+      gap: 16px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+      padding: 20px 0;
     }
 
     .bottom a {
-      color: rgba(255, 255, 255, .8)
+      color: rgba(255, 255, 255, 0.8);
+      transition: color 0.2s ease;
     }
 
     .bottom a:hover {
-      color: var(--primary)
+      color: var(--primary);
     }
 
-    @media (max-width:1000px) {
+    /* ENHANCED ANIMATIONS */
+    @keyframes fadeInUp {
+      0% {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0px);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .hero-graphic {
+      animation: fadeIn 1s ease-out, float 6s ease-in-out infinite 2s;
+    }
+
+    /* ENHANCED RESPONSIVE DESIGN */
+    @media (max-width: 1100px) {
       .pricing {
-        grid-template-columns: 1fr
+        grid-template-columns: 1fr;
+        gap: 30px;
       }
 
       .contacts-grid {
-        grid-template-columns: 1fr 1fr
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
       }
     }
 
-    @media (max-width:560px) {
-      .contacts-grid {
-        grid-template-columns: 1fr
-      }
-
-      .nav-actions a {
-        min-width: unset
+    @media (max-width: 768px) {
+      :root {
+        --fs-title: 28px;
+        --fs-hero: 36px;
       }
 
       .page-hero {
-        padding: calc(var(--nav-h) + 20px) 16px 20px
+        min-height: auto;
+        padding: calc(var(--nav-h) + 32px) 16px 32px;
+      }
+
+      .section {
+        padding: 48px 16px;
+      }
+
+      .contacts {
+        padding: 60px 16px 32px;
+      }
+
+      .card {
+        padding: 28px;
+      }
+
+      .price .amount {
+        font-size: 48px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .contacts-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-actions a {
+        padding: 0 12px;
+        font-size: 12px;
+        margin-left: 0;
+      }
+
+      .navbar {
+        padding: 0 16px;
+      }
+
+      .nav-actions {
+        gap: 8px;
       }
 
       .btn-primary,
       .btn-outline {
-        min-width: unset
+        min-width: unset;
+        width: 100%;
+      }
+
+      .cta-row {
+        flex-direction: column;
+      }
+
+      .price {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+      }
+
+      .price .amount {
+        font-size: 42px;
+      }
+    }
+
+    /* Loading animations for smooth page load */
+    .loading-shimmer {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
       }
     }
   </style>
 </head>
 
 <body>
-  <!-- NAVBAR -->
+  <!-- ENHANCED NAVBAR -->
   <header class="navbar">
     <div class="nav-inner">
       <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
@@ -535,20 +923,23 @@
     </div>
   </header>
 
-  <!-- HERO FINO -->
+  <!-- ENHANCED PAGE HERO -->
   <section class="page-hero" aria-label="Cabeçalho de preços">
     <div class="inner">
-      <h1 class="title-hero">Planos e Preços</h1>
+      <h1 class="sr-only">Planos e Preços — Ponza Health</h1>
+      <span class="kicker">Oferta de Lançamento</span>
+      <img class="hero-graphic" src="{{ url_for('static', filename='images/planos.svg') }}"
+        alt="Planos e Preços — Ponza Health">
       <p class="subtitle">Tudo que sua clínica precisa em um único plano — simples, transparente e pronto para escalar.
       </p>
-      <p class="meta">Oferta atual: plano único com bônus do Ponza Lab</p>
+      <p class="meta">Plano único com bônus do Ponza Lab incluído</p>
     </div>
   </section>
 
-  <!-- BLOCO DE PREÇOS -->
+  <!-- ENHANCED PRICING BLOCK -->
   <main class="section">
     <div class="section-inner pricing">
-      <!-- Card principal do plano -->
+      <!-- Enhanced main plan card -->
       <section class="card" aria-label="Plano único">
         <h2>Plano Ponza Health</h2>
         <p class="lead">Ideal para começar hoje e automatizar cadastros, agenda, cotações, estoque e análise de PDFs.
@@ -564,81 +955,98 @@
           <span class="badge">Inclui Ponza Lab</span>
           <ul class="list">
             <li><strong>50 análises grátis</strong> para teste do <em>Ponza Lab</em> — plataforma de análises clínicas
-              automatizadas.</li>
-            <li><strong>Envio automático por WhatsApp</strong> dos resultados para contatos configurados.</li>
-            <li>Módulos: cadastros, agenda, cotações, estoque e leitura de PDFs com referências.</li>
-            <li>Suporte no 1º mês e onboarding guiado.</li>
+              automatizadas</li>
+            <li><strong>Envio automático por WhatsApp</strong> dos resultados para contatos configurados</li>
+            <li><strong>Módulos completos:</strong> cadastros, agenda, cotações, estoque e leitura de PDFs com
+              referências</li>
+            <li><strong>Suporte dedicado</strong> no 1º mês e onboarding guiado</li>
+            <li><strong>Atualizações automáticas</strong> e novos recursos incluídos</li>
+            <li><strong>Backup automático</strong> e segurança LGPD</li>
           </ul>
           <div class="cta-row">
-            <!-- Link direto para WhatsApp para assinar -->
             <a class="btn-primary"
               href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20quero%20assinar%20o%20Ponza%20Health%20(Plano%20de%20R%24%2079%2C90%2Fm%C3%AAs)%20e%20tirar%20d%C3%BAvidas."
               target="_blank" rel="noopener">
               Assinar pelo WhatsApp
             </a>
-            <a class="btn-outline" href="{{ url_for('register') }}">Criar conta</a>
+            <a class="btn-outline" href="{{ url_for('register') }}">Criar conta gratuita</a>
           </div>
         </div>
       </section>
 
-      <!-- Destaques laterais: Indicação + Como funciona o Ponza Lab -->
+      <!-- Enhanced side highlights -->
       <aside class="highlight" aria-label="Bônus e detalhes">
         <div class="tile">
           <h3>Programa de Indicação</h3>
           <p>Indique o Ponza para outra clínica e, quando ela assinar:</p>
           <ul class="list">
-            <li><strong>+50 análises grátis</strong> no seu Ponza Lab;</li>
-            <li><strong>+1 mês grátis</strong> no seu plano.</li>
+            <li><strong>+50 análises grátis</strong> no seu Ponza Lab</li>
+            <li><strong>+1 mês grátis</strong> no seu plano</li>
           </ul>
           <a class="btn-outline"
             href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20tenho%20uma%20indica%C3%A7%C3%A3o%20para%20o%20Ponza%20Health%20e%20quero%20ativar%20meu%20b%C3%B4nus."
             target="_blank" rel="noopener">
-            Ativar bônus pelo WhatsApp
+            Ativar bônus
           </a>
         </div>
 
         <div class="tile">
-          <h3>Como funcionam as análises grátis</h3>
-          <p>As 50 análises são um crédito promocional para testar os fluxos do Ponza Lab. Você pode:</p>
+          <h3>Como funcionam as análises</h3>
+          <p>As 50 análises são um crédito promocional para testar os fluxos do Ponza Lab:</p>
           <ul class="list">
-            <li>Enviar PDFs de exames para leitura e comparação com referências;</li>
-            <li>Gerar sugestões de condutas/prescrições (quando configurado);</li>
-            <li>Configurar <em>envio automático</em> do PDF/resultado via WhatsApp.</li>
+            <li>Enviar PDFs de exames para leitura automática</li>
+            <li>Comparação com referências personalizáveis</li>
+            <li>Geração de condutas/prescrições</li>
+            <li>Envio automático via WhatsApp</li>
           </ul>
           <p class="muted">Quando o crédito terminar, você pode adquirir pacotes adicionais sob demanda.</p>
         </div>
 
         <div class="tile">
-          <h3>Dúvidas sobre cobrança</h3>
-          <p class="muted">O plano é mensal e recorrente. Você pode solicitar exportação dos seus dados e cancelamento a
-            qualquer momento. Consulte os <a href="{{ url_for('privacy_policy') }}">termos e políticas</a>.</p>
+          <h3>Informações de cobrança</h3>
+          <p class="muted">O plano é mensal e recorrente</p>
+          <p class="muted">Exportação de dados disponível a qualquer momento</p>
+          <p class="muted">Cancelamento sem burocracia</p>
+          <p class="muted">Consulte os <a href="{{ url_for('privacy_policy') }}">termos e políticas</a> para mais
+            detalhes</p>
         </div>
       </aside>
     </div>
   </main>
 
-  <!-- FAQ -->
-  <section class="section">
+  <!-- ENHANCED FAQ -->
+  <section class="section" style="background: var(--bg-secondary);">
     <div class="section-inner faq">
-      <h2 class="title" style="text-align:center">Perguntas frequentes</h2>
+      <h2 class="title" style="text-align:center; margin-bottom: 40px;">Perguntas frequentes</h2>
       <details>
         <summary>O preço de R$ 79,90 é promocional?</summary>
-        <p>Sim, é um preço de lançamento e pode ser ajustado futuramente com aviso prévio. Assinaturas ativas continuam
-          até o fim do ciclo vigente.</p>
+        <p>Sim, é um preço de lançamento especial e pode ser ajustado futuramente com aviso prévio de 30 dias.
+          Assinaturas ativas continuam com o preço atual até o fim do ciclo vigente.</p>
       </details>
       <details>
         <summary>O que acontece quando acabarem as 50 análises grátis?</summary>
-        <p>Você continua no plano normalmente e pode adquirir pacotes adicionais do Ponza Lab conforme a sua demanda.
-        </p>
+        <p>Você continua no plano normalmente com todos os outros recursos. Pode adquirir pacotes adicionais do Ponza
+          Lab conforme sua demanda, com preços acessíveis por análise.</p>
       </details>
       <details>
-        <summary>Como funciona a indicação?</summary>
-        <p>Quando a clínica indicada assina, seu bônus é liberado: +50 análises grátis e +1 mês grátis no seu plano.
-          Fale conosco no WhatsApp para ativar.</p>
+        <summary>Como funciona o programa de indicação?</summary>
+        <p>Simples: quando a clínica que você indicou assina qualquer plano, seu bônus é liberado automaticamente: +50
+          análises grátis e +1 mês grátis no seu plano. Entre em contato pelo WhatsApp para ativar.</p>
       </details>
       <details>
         <summary>Posso cancelar a qualquer momento?</summary>
-        <p>Sim. O acesso permanece até o fim do ciclo mensal já pago. Veja detalhes nos Termos de Uso.</p>
+        <p>Sim, sem burocracia. O acesso permanece ativo até o fim do ciclo mensal já pago. Não há taxas de
+          cancelamento. Veja todos os detalhes nos Termos de Uso.</p>
+      </details>
+      <details>
+        <summary>O sistema funciona no celular?</summary>
+        <p>Perfeitamente! O Ponza Health é totalmente responsivo e funciona em qualquer dispositivo - computador, tablet
+          ou smartphone. Acesse de qualquer lugar com internet.</p>
+      </details>
+      <details>
+        <summary>Meus dados ficam seguros?</summary>
+        <p>Absolutamente. Utilizamos criptografia de ponta, backups automáticos e estamos em total conformidade com a
+          LGPD. Seus dados médicos são tratados com máxima segurança.</p>
       </details>
     </div>
   </section>
@@ -647,25 +1055,18 @@
   <section class="contacts" aria-label="Contatos e navegação">
     <div class="contacts-inner">
       <div class="contacts-grid">
-        <!-- BRAND -->
         <div class="brand">
           <img src="{{ url_for('static', filename='images/8.svg') }}" alt="Ponza Health" />
           <h3>Ponza Health — Automação para Clínicas</h3>
-          <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais, mais
+          <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais,
+            mais
             eficiência.</p>
-
-          <div class="contacts-cta" style="margin-top:12px">
-            <a class="btn-outline-footer"
-              href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20quero%20assinar%20o%20Ponza%20Health%20(Plano%20de%20R%24%2079%2C90%2Fm%C3%AAs)%20e%20tirar%20d%C3%BAvidas."
-              target="_blank" rel="noopener">
-              Assinar pelo WhatsApp
-            </a>
-            <a class="btn-outline-footer" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
-            <a class="btn-outline-footer" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
+          <div class="contacts-cta">
+            <a class="btn-outline" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
+            <a class="btn-outline" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
           </div>
         </div>
 
-        <!-- COLUNA 2 -->
         <div class="col">
           <h4>Funcionalidades</h4>
           <ul class="navlist">
@@ -682,31 +1083,26 @@
           </ul>
         </div>
 
-        <!-- COLUNA 3 -->
         <div class="col">
           <h4>Institucional</h4>
           <ul class="navlist">
-            <li><a href="{{ url_for('prices') }}">Preços</a></li>
-            <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
-            <li><a href="{{ url_for('privacy_policy') }}#contato">Contato</a></li>
-            <li><a href="#sitemap">Mapa do site</a></li>
+            <li><a href="{{ url_for('about')}}">Quem somos</a></li>
           </ul>
           <h4 style="margin-top:18px">Suporte & Produtos</h4>
           <ul class="navlist">
             <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
-                target="_blank" rel="noopener">Fale com um consultor</a></li>
-            <li><a href="#ajuda">Central de ajuda</a></li>
+                target="_blank">Fale com um consultor</a></li>
+            <li><a href="{{ url_for('help') }}">Central de ajuda</a></li>
           </ul>
         </div>
 
-        <!-- COLUNA 4 -->
         <div class="col">
           <h4>Conta</h4>
           <ul class="navlist">
             <li><a href="{{ url_for('register') }}">Criar conta</a></li>
             <li><a href="{{ url_for('login') }}">Entrar</a></li>
-            <li><a href="{{ url_for('privacy_policy') }}">Privacidade</a></li>
-            <li><a href="{{ url_for('privacy_policy') | replace('privacy_policy','terms') }}">Termos de uso</a></li>
+            <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
+            <li><a href="{{ url_for('terms') }}">Termos de uso</a></li>
           </ul>
         </div>
       </div>
@@ -715,16 +1111,85 @@
       <div class="bottom">
         <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
         <div class="navlist" style="display:flex; gap:16px; list-style:none">
-          <a href="{{ url_for('prices') }}">Preços</a>
           <a href="{{ url_for('privacy_policy') }}">Política de privacidade</a>
-          <a href="{{ url_for('privacy_policy') | replace('privacy_policy','terms') }}">Termos de uso</a>
+          <a href="{{ url_for('terms')}}">Termos de uso</a>
         </div>
       </div>
     </div>
   </section>
 
   <script>
+    // Enhanced year display
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Enhanced smooth scrolling
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+
+    // Add intersection observer for animations
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, observerOptions);
+
+    // Observe elements for animation
+    document.querySelectorAll('.card, .tile, details').forEach((el, index) => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(30px)';
+      el.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+      observer.observe(el);
+    });
+
+    // Enhanced price animation
+    const priceElement = document.querySelector('.price .amount');
+    if (priceElement) {
+      let start = 0;
+      const end = 79.9;
+      const duration = 2000;
+      const startTime = performance.now();
+
+      function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const current = start + (end - start) * progress;
+        priceElement.textContent = current.toFixed(2).replace('.', ',');
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      }
+
+      // Start animation when price comes into view
+      const priceObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            requestAnimationFrame(animate);
+            priceObserver.unobserve(entry.target);
+          }
+        });
+      });
+
+      priceObserver.observe(priceElement);
+    }
   </script>
 </body>
 

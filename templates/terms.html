@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8" />
     <title>Termos de Uso — Ponza Health</title>
+    <meta name="description"
+        content="Termos de Uso do Ponza Health - Regras que regem o acesso e uso do software de gestão clínica" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
     <!-- Funnel Sans -->
@@ -11,7 +13,7 @@
         rel="stylesheet" />
     <style>
         :root {
-            /* Paleta / Tipografia (igual ao herói) */
+            /* Enhanced medical-inspired color palette */
             --bg-primary: #ffffff;
             --bg-secondary: #f8fafc;
             --bg-tertiary: #f1f5f9;
@@ -20,36 +22,48 @@
             --text-secondary: #475569;
             --text-muted: #64748b;
             --text-light: #94a3b8;
+
+            /* Medical-inspired color scheme */
             --primary: #ffffff;
-            --primary-contrast: #000b30;
-            --secondary: #000b30;
-            --secondary-dark: #000b30;
-            --secondary-light: #000b30;
-            --secondary-glow: rgba(11, 30, 91, .15);
-            --secondary-glow-strong: rgba(11, 30, 91, .25);
-            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
-            --brand-base: #131d35;
-            --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+            --primary-contrast: #0a1628;
+            --secondary: #0a1628;
+            --secondary-dark: #081220;
+            --secondary-light: #1e293b;
+            --secondary-glow: rgba(10, 22, 40, .15);
+            --secondary-glow-strong: rgba(10, 22, 40, .25);
+
+            /* Enhanced gradients */
+            --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+            --brand-base: #0a1628;
+            --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+            --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+
+            /* Enhanced borders and shadows */
             --border-light: #e2e8f0;
             --border-medium: #cbd5e1;
             --shadow-light: rgba(30, 41, 59, .08);
             --shadow-medium: rgba(30, 41, 59, .12);
             --shadow-strong: rgba(30, 41, 59, .16);
+            --shadow-glow: 0 20px 60px rgba(10, 22, 40, .1);
+
+            /* Typography and measurements */
             --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
             --fs-base: 16px;
-            --fs-title: 34px;
+            --fs-title: 36px;
             --fs-small: 14px;
             --nav-h: 72px;
-            --card-radius: 16px;
+            --card-radius: 20px;
         }
 
         * {
-            box-sizing: border-box
+            box-sizing: border-box;
         }
 
         html,
         body {
-            margin: 0
+            margin: 0;
+            scroll-behavior: smooth;
         }
 
         body {
@@ -57,7 +71,8 @@
             font-size: var(--fs-base);
             color: var(--text-primary);
             background: var(--bg-primary);
-            min-height: 100vh
+            min-height: 100vh;
+            line-height: 1.6;
         }
 
         /* NAVBAR */
@@ -70,9 +85,10 @@
             align-items: center;
             justify-content: center;
             background: var(--brand-grad);
-            border-bottom: 1px solid #0f182b;
-            box-shadow: 0 4px 18px var(--shadow);
-            padding: 0 24px
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: var(--shadow-glow);
+            padding: 0 24px;
         }
 
         .nav-inner {
@@ -80,21 +96,26 @@
             max-width: 1200px;
             display: flex;
             align-items: center;
-            justify-content: space-between
+            justify-content: space-between;
         }
 
         .nav-logo {
             display: inline-flex;
             align-items: center;
             gap: 20px;
-            text-decoration: none
+            text-decoration: none;
+            transition: transform .2s ease;
+        }
+
+        .nav-logo:hover {
+            transform: scale(1.05);
         }
 
         .nav-logo img {
             height: 75px;
             width: auto;
             display: block;
-            filter: brightness(0) invert(1)
+            filter: brightness(0) invert(1);
         }
 
         .nav-actions a {
@@ -110,235 +131,403 @@
             border: 2px solid var(--primary);
             background: transparent;
             text-decoration: none;
-            transition: .22s;
-            margin-left: 10px
+            transition: all .3s ease;
+            margin-left: 10px;
+            backdrop-filter: blur(10px);
         }
 
         .nav-actions a:hover {
             background: var(--primary);
             color: var(--secondary);
-            transform: translateY(-1px)
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 255, 255, .2);
         }
 
-        /* HERO fino da página legal */
+        /* PAGE HERO */
         .page-hero {
-            padding: calc(var(--nav-h) + 28px) 16px 26px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.92) 100%), var(--brand-grad)
+            padding: calc(var(--nav-h) + 48px) 16px 48px;
+            background: var(--hero-overlay), linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            position: relative;
+            min-height: 40vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .page-hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(59, 130, 246, .03) 0%, transparent 70%);
+            z-index: 1;
         }
 
         .page-hero .inner {
             max-width: 1200px;
-            margin: 0 auto
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+            animation: fadeInUp 1s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
         }
 
         .kicker {
             display: inline-block;
-            padding: .25rem .6rem;
-            border: 1px solid rgba(0, 11, 48, .25);
+            padding: 8px 16px;
+            border: 1px solid rgba(59, 130, 246, .3);
             border-radius: 999px;
             font-weight: 800;
-            font-size: 12px;
+            font-size: 13px;
             color: var(--secondary);
-            background: #fff;
-            box-shadow: 0 2px 8px var(--shadow-light)
+            background: rgba(255, 255, 255, .95);
+            box-shadow: 0 4px 15px var(--shadow-light);
+            backdrop-filter: blur(10px);
+            transition: all .2s ease;
+        }
+
+        .kicker:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--shadow-medium);
         }
 
         .title {
             font-size: var(--fs-title);
             font-weight: 800;
-            margin: .6rem 0 .3rem
+            margin: 20px 0 12px;
+            line-height: 1.2;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .subtitle {
             color: var(--text-secondary);
-            margin: 0
+            margin: 0 0 16px;
+            font-size: 18px;
+            line-height: 1.6;
         }
 
         .meta {
-            font-size: 13px;
-            color: var(--text-muted)
+            font-size: 14px;
+            color: var(--text-muted);
+            font-weight: 600;
         }
 
-        /* Estrutura legal c/ sumário fixo */
+        /* INLINE ICON + SUBTITLE */
+        .hero-inline {
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .terms-ico {
+            max-width: 800px;
+            width: 40vw;
+            height: auto;
+            margin: 4px auto 0;
+        }
+
+        .title,
+        .subtitle,
+        .meta {
+            text-align: center;
+        }
+
+        .page-hero .hero-inline .subtitle {
+            margin: 0;
+        }
+
+        /* SECTIONS */
         .section {
-            padding: 28px 16px
+            padding: 64px 16px;
+            position: relative;
         }
 
         .section-inner {
             max-width: 1200px;
-            margin: 0 auto
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
         }
 
+        /* LEGAL LAYOUT */
         .legal {
             display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 22px;
-            align-items: start
+            grid-template-columns: 300px 1fr;
+            gap: 40px;
+            align-items: start;
         }
 
         .toc {
             position: sticky;
-            top: calc(var(--nav-h) + 16px);
+            top: calc(var(--nav-h) + 24px);
             background: var(--bg-card);
             border: 1px solid var(--border-light);
-            border-radius: 12px;
-            padding: 14px
+            border-radius: var(--card-radius);
+            padding: 24px;
+            box-shadow: 0 8px 25px var(--shadow-light);
+            backdrop-filter: blur(10px);
+            transition: all .3s ease;
+        }
+
+        .toc:hover {
+            box-shadow: 0 15px 40px var(--shadow-medium);
         }
 
         .toc h4 {
-            margin: .2rem 0 .4rem;
-            font-size: 15px;
-            font-weight: 800
+            margin: 0 0 16px;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-primary);
         }
 
         .toc ul {
             list-style: none;
             padding: 0;
-            margin: 0
+            margin: 0;
         }
 
         .toc li {
-            margin: .35rem 0
+            margin: 8px 0;
         }
 
         .toc a {
             color: var(--text-secondary);
             text-decoration: none;
-            font-size: 14px
+            font-size: 15px;
+            font-weight: 500;
+            transition: all .2s ease;
+            display: block;
+            padding: 6px 12px;
+            border-radius: 8px;
+            position: relative;
         }
 
         .toc a:hover {
-            color: var(--secondary)
+            color: var(--secondary);
+            background: rgba(59, 130, 246, .05);
+            transform: translateX(4px);
+        }
+
+        .toc a::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 3px;
+            height: 0;
+            background: var(--medical-accent);
+            transform: translateY(-50%);
+            transition: height .2s ease;
+        }
+
+        .toc a:hover::before {
+            height: 60%;
         }
 
         .content {
             display: flex;
             flex-direction: column;
-            gap: 16px
+            gap: 24px;
         }
 
+        /* CARDS */
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border-light);
             border-radius: var(--card-radius);
-            padding: 18px;
-            box-shadow: 0 4px 12px var(--shadow-light)
+            padding: 32px;
+            box-shadow: 0 8px 25px var(--shadow-light);
+            transition: all .3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .card h2,
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--medical-accent);
+            transform: scaleX(0);
+            transition: transform .3s ease;
+        }
+
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px var(--shadow-medium);
+            border-color: rgba(59, 130, 246, .2);
+        }
+
+        .card h2 {
+            margin: 0 0 16px;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
         .card h3 {
-            margin: .2rem 0 .6rem
-        }
-
-        .content h3 {
-            scroll-margin-top: calc(var(--nav-h) + 18px)
+            margin: 24px 0 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            scroll-margin-top: calc(var(--nav-h) + 24px);
         }
 
         .content p {
             color: var(--text-secondary);
-            line-height: 1.6;
-            margin: .3rem 0
+            line-height: 1.7;
+            margin: 12px 0;
+            font-size: 16px;
         }
 
         .content ul {
-            margin: .3rem 0 .6rem 1.25rem;
-            color: var(--text-secondary)
+            margin: 16px 0 20px 24px;
+            color: var(--text-secondary);
+        }
+
+        .content li {
+            margin: 8px 0;
+            line-height: 1.6;
         }
 
         .badge {
             display: inline-block;
-            padding: .25rem .55rem;
-            border: 1px solid var(--border-medium);
+            padding: 6px 12px;
+            border: 1px solid rgba(59, 130, 246, .3);
             border-radius: 999px;
             font-size: 12px;
-            color: var(--text-secondary);
-            background: #fff
+            color: #3b82f6;
+            background: rgba(59, 130, 246, .1);
+            font-weight: 700;
+            backdrop-filter: blur(10px);
         }
 
         .note {
-            background: var(--bg-tertiary);
-            border: 1px dashed var(--border-medium);
-            border-radius: 12px;
-            padding: 12px;
-            font-size: 14px;
-            color: var(--text-secondary)
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(59, 130, 246, .05) 100%);
+            border: 1px solid rgba(59, 130, 246, .2);
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 15px;
+            color: var(--text-secondary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .note::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--medical-accent);
         }
 
         .mono {
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-            font-size: 13px
+            font-size: 14px;
+            background: rgba(59, 130, 246, .1);
+            padding: 2px 6px;
+            border-radius: 4px;
         }
 
-        /* Rodapé */
+        /* FOOTER */
         .contacts {
-            padding: 56px 16px 32px;
+            padding: 80px 16px 40px;
             background: var(--brand-grad);
-            color: var(--primary)
+            color: var(--primary);
+            position: relative;
+        }
+
+        .contacts::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("static/images/team-medical.jpg") center/cover no-repeat;
+            opacity: .1;
+            z-index: 1;
         }
 
         .contacts-inner {
             max-width: 1200px;
-            margin: 0 auto
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
         }
 
         .contacts-grid {
             display: grid;
             grid-template-columns: 1.2fr 1fr 1fr 1fr;
-            gap: 28px
+            gap: 40px;
         }
 
         .brand h3 {
-            margin: .2rem 0 .3rem;
-            font-size: 22px;
+            margin: 8px 0 12px;
+            font-size: 24px;
             font-weight: 800;
-            color: var(--primary)
+            color: var(--primary);
         }
 
         .brand p {
             margin: 0;
-            color: rgba(255, 255, 255, .8);
-            line-height: 1.45
+            color: rgba(255, 255, 255, .9);
+            line-height: 1.6;
+            font-size: 16px;
         }
 
         .brand img {
             height: 90px;
             width: auto;
             display: block;
-            filter: brightness(0) invert(1)
+            margin-bottom: 12px;
+            filter: brightness(0) invert(1);
         }
 
         .col h4 {
-            margin: 0 0 .6rem;
-            font-size: 15px;
+            margin: 0 0 16px;
+            font-size: 16px;
             font-weight: 800;
-            color: var(--primary)
+            color: var(--primary);
         }
 
         .navlist {
             list-style: none;
             padding: 0;
-            margin: 0
+            margin: 0;
         }
 
         .navlist li {
-            margin: .45rem 0
+            margin: 8px 0;
         }
 
         .navlist a {
             color: rgba(255, 255, 255, .8);
             text-decoration: none;
-            font-size: 14px
+            font-size: 14px;
+            transition: all .2s ease;
         }
 
         .navlist a:hover {
-            color: var(--primary)
+            color: var(--primary);
+            transform: translateX(4px);
         }
 
         .contacts-cta {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
-            margin-top: 14px
+            margin-top: 20px;
         }
 
         .btn-outline {
@@ -346,27 +535,29 @@
             align-items: center;
             justify-content: center;
             height: 44px;
-            min-width: 100px;
-            padding: 0 18px;
+            min-width: 140px;
+            padding: 0 20px;
             color: var(--primary);
-            font-weight: 600;
+            font-weight: 700;
             font-size: 16px;
             background: transparent;
             border: 2px solid rgba(255, 255, 255, .3);
             border-radius: 999px;
             text-decoration: none;
-            transition: .22s
+            transition: all .3s ease;
+            backdrop-filter: blur(10px);
         }
 
         .btn-outline:hover {
             background: rgba(255, 255, 255, .1);
-            border-color: var(--primary)
+            border-color: var(--primary);
+            transform: translateY(-2px);
         }
 
         .divider {
-            margin: 22px 0 0;
+            margin: 32px 0 0;
             height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3), transparent)
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3), transparent);
         }
 
         .bottom {
@@ -374,45 +565,147 @@
             flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            gap: 16px;
             color: rgba(255, 255, 255, .8);
-            font-size: 13px;
-            padding: 16px 0
+            font-size: 14px;
+            padding: 20px 0;
         }
 
         .bottom a {
-            color: rgba(255, 255, 255, .8)
+            color: rgba(255, 255, 255, .8);
+            transition: color .2s ease;
         }
 
         .bottom a:hover {
-            color: var(--primary)
+            color: var(--primary);
         }
 
-        @media (max-width:1000px) {
+        /* ANIMATIONS */
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            animation: fadeIn .6s ease-out;
+        }
+
+        .card:nth-child(even) {
+            animation-delay: .1s;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1100px) {
             .legal {
-                grid-template-columns: 1fr
+                grid-template-columns: 1fr;
+                gap: 30px;
             }
 
             .toc {
-                position: static
+                position: static;
+                order: -1;
             }
 
             .contacts-grid {
-                grid-template-columns: 1fr 1fr
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
             }
         }
 
-        @media (max-width:560px) {
-            .contacts-grid {
-                grid-template-columns: 1fr
-            }
-
-            .nav-actions a {
-                min-width: unset
+        @media (max-width: 768px) {
+            :root {
+                --fs-title: 28px;
             }
 
             .page-hero {
-                padding: calc(var(--nav-h) + 20px) 16px 20px
+                min-height: auto;
+                padding: calc(var(--nav-h) + 32px) 16px 32px;
+            }
+
+            .section {
+                padding: 48px 16px;
+            }
+
+            .contacts {
+                padding: 60px 16px 32px;
+            }
+
+            .card {
+                padding: 24px;
+            }
+
+            .toc {
+                padding: 20px;
+            }
+
+            .hero-inline {
+                justify-content: center;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .contacts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-actions a {
+                padding: 0 12px;
+                font-size: 12px;
+                margin-left: 0;
+            }
+
+            .navbar {
+                padding: 0 16px;
+            }
+
+            .nav-actions {
+                gap: 8px;
+            }
+
+            .hero-inline {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .terms-ico {
+                width: 60px;
+            }
+        }
+
+        /* Loading shimmer */
+        .loading-shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
             }
         }
     </style>
@@ -433,21 +726,26 @@
         </div>
     </header>
 
-    <!-- HERO FINO -->
+    <!-- PAGE HERO -->
     <section class="page-hero" aria-label="Cabeçalho dos Termos de Uso">
         <div class="inner">
-            <span class="kicker">Contrato de Licença & Serviço</span>
-            <h1 class="title">Termos de Uso</h1>
-            <p class="subtitle">Regras que regem o acesso e o uso do <strong>Ponza Health</strong> — software, site e
-                serviços relacionados.</p>
+            <span class="kicker">Contrato de Licença &amp; Serviço</span>
+
+            <div class="hero-inline" role="group" aria-label="Resumo dos termos">
+                <img src="{{ url_for('static', filename='images/terms.svg') }}" alt="Ícone de Termos de Uso"
+                    class="terms-ico" />
+                <p class="subtitle">Regras que regem o acesso e o uso do <strong>Ponza Health</strong> — software, site
+                    e serviços relacionados.</p>
+            </div>
+
             <p class="meta">Vigência: <span id="tos-date"></span></p>
         </div>
     </section>
 
-    <!-- CONTEÚDO -->
+    <!-- CONTENT -->
     <main class="section">
         <div class="section-inner legal">
-            <!-- Sumário -->
+            <!-- TOC -->
             <aside class="toc" aria-label="Sumário">
                 <h4>Conteúdo</h4>
                 <ul>
@@ -469,18 +767,16 @@
                 </ul>
             </aside>
 
-            <!-- Texto -->
+            <!-- MAIN TEXT -->
             <div class="content">
-
                 <section id="aceite" class="card">
                     <h2>1. Aceite e Definições</h2>
                     <p>Ao criar uma conta, acessar ou utilizar o Ponza Health você concorda com estes Termos de Uso e
                         com a nossa <a href="{{ url_for('privacy_policy') }}">Política de Privacidade</a>. Se não
-                        concordar, não
-                        utilize o serviço.</p>
-                    <p><strong>Definições resumidas:</strong> “<em>Serviços</em>” = software, APIs, site e recursos
-                        associados; “<em>Cliente</em>” = pessoa física/jurídica titular da conta; “<em>Usuário</em>” =
-                        pessoa autorizada pelo Cliente; “<em>Dados</em>” = informações inseridas, geradas ou
+                        concordar, não utilize o serviço.</p>
+                    <p><strong>Definições resumidas:</strong> "<em>Serviços</em>" = software, APIs, site e recursos
+                        associados; "<em>Cliente</em>" = pessoa física/jurídica titular da conta; "<em>Usuário</em>" =
+                        pessoa autorizada pelo Cliente; "<em>Dados</em>" = informações inseridas, geradas ou
                         transmitidas via Serviços.</p>
                 </section>
 
@@ -589,8 +885,8 @@
                 <section id="responsabilidade" class="card">
                     <h2>10. Isenções e Limitação de Responsabilidade</h2>
                     <ul>
-                        <li>Os Serviços são fornecidos “<strong>no estado em que se encontram</strong>” e
-                            “<strong>conforme disponibilidade</strong>”.</li>
+                        <li>Os Serviços são fornecidos "<strong>no estado em que se encontram</strong>" e
+                            "<strong>conforme disponibilidade</strong>".</li>
                         <li>Não garantimos ausência total de erros, interrupções ou perda de dados.</li>
                         <li>Na máxima extensão permitida, o Ponza não se responsabiliza por <em>lucros cessantes</em>,
                             perda de receitas, dados, nem por danos indiretos, especiais, incidentais ou consequenciais.
@@ -633,9 +929,10 @@
                 <section id="contato" class="card">
                     <h2>15. Contato</h2>
                     <p>Fale conosco para dúvidas, solicitações ou notificações:</p>
-                    <ul class="mono">
-                        <li>E-mail: <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a></li>
-                        <li>Telefone/WhatsApp: <a href="tel:+5533984613689">+55 33 98461-3689</a></li>
+                    <ul>
+                        <li>E-mail: <a href="mailto:contato@ponzahealth.com" class="mono">contato@ponzahealth.com</a>
+                        </li>
+                        <li>Telefone/WhatsApp: <a href="tel:+5533984613689" class="mono">+55 33 98461-3689</a></li>
                     </ul>
                 </section>
 
@@ -651,7 +948,8 @@
                     <img src="{{ url_for('static', filename='images/8.svg') }}" alt="Ponza Health" />
                     <h3>Ponza Health — Automação para Clínicas</h3>
                     <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais,
-                        mais eficiência.</p>
+                        mais
+                        eficiência.</p>
                     <div class="contacts-cta">
                         <a class="btn-outline" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
                         <a class="btn-outline" href="tel:+5533984613689">+55&nbsp;33&nbsp;98461-3689</a>
@@ -677,15 +975,13 @@
                 <div class="col">
                     <h4>Institucional</h4>
                     <ul class="navlist">
-                        <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
-                        <li><a href="#contato">Contato</a></li>
-                        <li><a href="#sitemap">Mapa do site</a></li>
+                        <li><a href="{{ url_for('about')}}">Quem somos</a></li>
                     </ul>
                     <h4 style="margin-top:18px">Suporte & Produtos</h4>
                     <ul class="navlist">
                         <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
                                 target="_blank">Fale com um consultor</a></li>
-                        <li><a href="#ajuda">Central de ajuda</a></li>
+                        <li><a href="{{ url_for('help') }}">Central de ajuda</a></li>
                     </ul>
                 </div>
 
@@ -695,7 +991,7 @@
                         <li><a href="{{ url_for('register') }}">Criar conta</a></li>
                         <li><a href="{{ url_for('login') }}">Entrar</a></li>
                         <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
-                        <li><a href="#">Termos de uso</a></li>
+                        <li><a href="{{ url_for('terms') }}">Termos de uso</a></li>
                     </ul>
                 </div>
             </div>
@@ -705,22 +1001,50 @@
                 <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
                 <div class="navlist" style="display:flex; gap:16px; list-style:none">
                     <a href="{{ url_for('privacy_policy') }}">Política de privacidade</a>
-                    <a href="#">Termos de uso</a>
+                    <a href="{{ url_for('terms')}}">Termos de uso</a>
                 </div>
             </div>
         </div>
     </section>
-
     <script>
-        // Ano no rodapé e data brasileira dos Termos
+        // Year and date
         document.getElementById('year').textContent = new Date().getFullYear();
         (function () {
             const d = new Date();
             const dd = String(d.getDate()).padStart(2, '0');
             const mm = String(d.getMonth() + 1).padStart(2, '0');
             const yyyy = d.getFullYear();
-            document.getElementById('tos-date').textContent = `${dd}/${mm}/${yyyy}`;
+            const el = document.getElementById('tos-date');
+            if (el) el.textContent = `${dd}/${mm}/${yyyy}`;
         })();
+
+        // Smooth scrolling
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                const href = this.getAttribute('href');
+                if (!href || href === '#') return;
+                e.preventDefault();
+                const target = document.querySelector(href);
+                if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+
+        // Intersection animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        document.querySelectorAll('.card').forEach((el, index) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(30px)';
+            el.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+            observer.observe(el);
+        });
     </script>
 </body>
 

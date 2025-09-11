@@ -11,6 +11,7 @@
     rel="stylesheet" />
   <style>
     :root {
+      /* Enhanced color palette with medical theme */
       --bg-primary: #ffffff;
       --bg-secondary: #f8fafc;
       --bg-tertiary: #f1f5f9;
@@ -19,27 +20,42 @@
       --text-secondary: #475569;
       --text-muted: #64748b;
       --text-light: #94a3b8;
+
+      /* Medical-inspired color scheme */
       --primary: #ffffff;
-      --primary-contrast: #000b30;
-      --secondary: #000b30;
-      --secondary-dark: #000b30;
-      --secondary-light: #000b30;
-      --secondary-glow: rgba(11, 30, 91, .15);
-      --secondary-glow-strong: rgba(11, 30, 91, .25);
-      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
-      --brand-base: #131d35;
-      --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+      --primary-contrast: #0a1628;
+      --secondary: #0a1628;
+      --secondary-dark: #081220;
+      --secondary-light: #1e293b;
+      --secondary-glow: rgba(10, 22, 40, .15);
+      --secondary-glow-strong: rgba(10, 22, 40, .25);
+
+      /* Enhanced gradients */
+      --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+      --brand-base: #0a1628;
+      --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+      --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+
+      /* Enhanced borders and shadows */
       --border-light: #e2e8f0;
       --border-medium: #cbd5e1;
       --shadow-light: rgba(30, 41, 59, .08);
       --shadow-medium: rgba(30, 41, 59, .12);
       --shadow-strong: rgba(30, 41, 59, .16);
+      --shadow-glow: 0 20px 60px rgba(10, 22, 40, .1);
+
+      /* Typography and measurements */
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
       --fs-base: 16px;
-      --fs-title: 34px;
+      --fs-title: 39px;
+      --fs-hero: 75px;
+      --fs-input: 16px;
+      --fs-btn: 16px;
       --fs-small: 14px;
+      --btn-height: 44px;
+      --btn-minw: 220px;
       --nav-h: 72px;
-      --card-radius: 16px;
     }
 
     * {
@@ -143,15 +159,14 @@
       box-shadow: 0 2px 8px var(--shadow-light)
     }
 
-    .title {
-      font-size: var(--fs-title);
-      font-weight: 800;
-      margin: .6rem 0 .3rem
-    }
-
     .subtitle {
       color: var(--text-secondary);
       margin: 0
+    }
+
+    .meta {
+      font-size: 13px;
+      color: var(--text-muted)
     }
 
     /* Conteúdo Legal */
@@ -415,6 +430,252 @@
         padding: calc(var(--nav-h) + 20px) 16px 20px
       }
     }
+
+    /* --- título visual em SVG no hero --- */
+    .hero-graphic {
+      display: block;
+      width: 900px;
+      height: auto;
+      margin: 6px auto 10px;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .08));
+    }
+
+    /* H1 apenas para leitores de tela/SEO */
+    .sr-only {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ENHANCED RESPONSIVE DESIGN */
+    @media (max-width: 1100px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        text-align: center;
+      }
+
+      .features-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .features-media {
+        order: -1;
+      }
+
+      .features-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .contacts-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+      }
+
+      .steps {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      :root {
+        --fs-hero: 48px;
+        --fs-title: 32px;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: calc(var(--nav-h) + 32px) 16px 32px;
+      }
+
+      .section {
+        padding: 48px 16px;
+      }
+
+      .features {
+        padding: 60px 16px;
+      }
+
+      .contacts {
+        padding: 60px 16px 32px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .integrations {
+        grid-template-columns: 1fr;
+      }
+
+      .contacts-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .btn-primary,
+      .btn-outline {
+        min-width: unset;
+        width: 100%;
+      }
+
+      .navbar {
+        padding: 0 16px;
+      }
+
+      .badges {
+        justify-content: center;
+      }
+
+      .nav-actions {
+        gap: 8px;
+      }
+
+      .nav-actions a {
+        padding: 0 12px;
+        font-size: 12px;
+        margin-left: 0;
+      }
+    }
+
+    /* Loading animations for images */
+    .loading-shimmer {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: -200% 0;
+      }
+
+      100% {
+        background-position: 200% 0;
+      }
+    }
+
+    .navlist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .navlist li {
+      margin: 8px 0;
+    }
+
+    .navlist a {
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .navlist a:hover {
+      color: var(--primary);
+      transform: translateX(4px);
+    }
+
+    /* ENHANCED NAVBAR */
+    .navbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      height: var(--nav-h);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--brand-grad);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-glow);
+      padding: 0 24px;
+    }
+
+    .nav-inner {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 20px;
+      text-decoration: none;
+      transition: transform 0.2s ease;
+    }
+
+    .nav-logo:hover {
+      transform: scale(1.05);
+    }
+
+    .nav-logo img {
+      height: 75px;
+      width: auto;
+      display: block;
+      filter: brightness(0) invert(1);
+    }
+
+    .nav-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: var(--fs-small);
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      background: transparent;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      margin-left: 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-actions a:hover {
+      background: var(--primary);
+      color: var(--secondary);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
+    }
+
+    /* ENHANCED BUTTONS */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--btn-height);
+      min-width: var(--btn-minw);
+      padding: 0 24px;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: var(--brand-grad);
+      color: var(--primary);
+      font-weight: 800;
+      font-size: var(--fs-btn);
+      box-shadow: var(--shadow-glow);
+      transition: all 0.3s ease;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+    }
   </style>
 </head>
 
@@ -435,9 +696,11 @@
 
   <!-- HERO FINO -->
   <section class="page-hero" aria-label="Cabeçalho da política de privacidade">
-    <div class="inner">
+    <div class="inner" style="text-align:center">
       <span class="kicker">Conformidade LGPD</span>
-      <h1 class="title">Política de Privacidade</h1>
+      <h1 class="sr-only">Política de Privacidade — Ponza Health</h1>
+      <img class="hero-graphic" src="{{ url_for('static', filename='images/privacy.svg') }}"
+        alt="Política de Privacidade — Ponza Health">
       <p class="subtitle">
         Esta política explica como o <strong>Ponza Health</strong> coleta, usa, compartilha e protege dados pessoais
         no contexto dos nossos sites, produtos e serviços.
@@ -474,12 +737,10 @@
         <section id="quem-somos" class="card">
           <h2>1. Quem somos</h2>
           <p>
-            Ponza Health (“<strong>Ponza</strong>”, “<strong>nós</strong>” ou “<strong>nosso</strong>”) é a controladora
-            de dados pessoais
-            tratados no âmbito dos nossos produtos e serviços para clínicas e profissionais de saúde.
-            Esta política se aplica aos nossos sites e às funcionalidades disponibilizadas aos clientes.
+            Ponza Health é a controladora de dados pessoais tratados no âmbito dos nossos produtos e serviços
+            para clínicas e profissionais de saúde. Esta política se aplica aos nossos sites e às funcionalidades
+            disponibilizadas aos clientes.
           </p>
-          <p class="note">Aviso: este documento tem caráter informativo e não constitui aconselhamento jurídico.</p>
         </section>
 
         <section id="quais-dados" class="card">
@@ -491,8 +752,7 @@
           <p>
             Informações inseridas por usuários autorizados (ex.: cadastros de pacientes, profissionais, agenda,
             cotações, estoque, arquivos PDF). Quando envolverem <strong>dados sensíveis</strong> (dados de saúde),
-            o tratamento ocorre sob controles reforçados e conforme as instruções do cliente (controlador conjunto
-            ou independente, conforme o caso de uso).
+            o tratamento ocorre sob controles reforçados e conforme as instruções do cliente.
           </p>
 
           <h3>2.3. Dados técnicos</h3>
@@ -513,27 +773,15 @@
             <li><strong>Obrigação legal/regulatória</strong>: guarda de logs, respostas a autoridades, compliance.</li>
             <li><strong>Proteção da vida/saúde</strong>: quando estritamente necessário em emergências.</li>
           </ul>
-          <p>
-            Para <strong>dados sensíveis de saúde</strong>, utilizamos as hipóteses da LGPD aplicáveis
-            (art. 11), como tutela da saúde por profissionais e serviços de saúde, e/ou consentimento do titular,
-            conforme a configuração definida pelo cliente.
-          </p>
         </section>
 
         <section id="compartilhamento" class="card">
           <h2>4. Compartilhamento e operadores</h2>
           <p>
             Não vendemos seus dados. Compartilhamos apenas com <strong>operadores</strong> que nos auxiliam a prestar o
-            serviço (ex.:
-            hospedagem, envio de e-mails, suporte, análises agregadas), sempre sob contrato e com obrigações de
-            segurança
-            e confidencialidade. Integrações <em>opcionais</em> ativadas por você (p.ex., Google Calendar;
-            e-mail/WhatsApp)
-            receberão dados somente na medida necessária para funcionar.
-          </p>
-          <p>
-            Poderemos divulgar informações quando exigido por lei, ordem judicial ou autoridades competentes, ou para
-            proteger direitos, propriedade e segurança do Ponza e dos usuários.
+            serviço (ex.: hospedagem, envio de e-mails, suporte, análises agregadas), sempre sob contrato e com
+            obrigações de segurança e confidencialidade. Integrações <em>opcionais</em> ativadas por você receberão
+            dados somente na medida necessária para funcionar.
           </p>
         </section>
 
@@ -547,80 +795,60 @@
             <li><span class="badge">Necessários</span> sessão, autenticação, prevenção de fraude.</li>
             <li><span class="badge">Desempenho</span> métricas agregadas e anônimas de uso (quando ativadas).</li>
           </ul>
-          <p>
-            Você pode gerenciar cookies no navegador. A remoção de cookies necessários pode prejudicar funcionalidades
-            de login e navegação autenticada.
-          </p>
         </section>
 
         <section id="retencao" class="card">
           <h2>6. Retenção e descarte</h2>
           <p>
-            Mantemos dados pessoais apenas pelo tempo necessário para cumprir as finalidades desta política e obrigações
-            legais/contratuais. Após o término, dados são eliminados ou anonimizados de forma segura, observando
-            prazos legais de guarda (ex.: logs).
+            Mantemos dados pessoais apenas pelo tempo necessário para cumprir as finalidades desta política e
+            obrigações legais/contratuais. Após o término, dados são eliminados ou anonimizados de forma segura.
           </p>
         </section>
 
         <section id="seguranca" class="card">
           <h2>7. Segurança da informação</h2>
-          <p>
-            Adotamos medidas técnicas e administrativas para proteger dados contra acessos não autorizados, incidentes e
-            destruição acidental ou ilícita, incluindo:
-          </p>
           <ul>
             <li>Criptografia em trânsito (HTTPS/TLS) e em repouso quando aplicável;</li>
             <li>Controles de acesso por perfil e registro de atividades relevantes (logs);</li>
             <li>Backups e segregação de ambientes;</li>
             <li>Boas práticas de desenvolvimento seguro e correções contínuas.</li>
           </ul>
-          <p class="note">
-            Nenhum sistema é 100% imune. Em caso de incidente com risco relevante, comunicaremos conforme a LGPD.
-          </p>
+          <p class="note">Nenhum sistema é 100% imune. Em caso de incidente com risco relevante, comunicaremos conforme
+            a LGPD.</p>
         </section>
 
         <section id="direitos" class="card">
           <h2>8. Seus direitos (LGPD)</h2>
-          <p>Você pode exercer, a qualquer momento, os direitos previstos na LGPD, como:</p>
           <ul>
             <li>Confirmação da existência de tratamento e <strong>acesso</strong> aos dados;</li>
             <li><strong>Correção</strong> de dados incompletos, inexatos ou desatualizados;</li>
             <li><strong>Anonimização, bloqueio ou eliminação</strong> de dados desnecessários ou excessivos;</li>
-            <li><strong>Portabilidade</strong> a outro fornecedor (observados segredos comercial e industrial);</li>
+            <li><strong>Portabilidade</strong> a outro fornecedor, observados segredos comercial e industrial;</li>
             <li><strong>Eliminação</strong> dos dados tratados com consentimento;</li>
-            <li>Informação sobre <strong>compartilhamentos</strong> e sobre a possibilidade de <strong>não
-                consentir</strong> quando aplicável;</li>
-            <li><strong>Revogação do consentimento</strong> e <strong>oposição</strong> a tratamentos irregulares;</li>
-            <li><strong>Revisão</strong> de decisões automatizadas quando cabível.</li>
+            <li>Informação sobre <strong>compartilhamentos</strong> e possibilidade de <strong>não consentir</strong>
+              quando aplicável;</li>
+            <li><strong>Revogação do consentimento</strong> e <strong>oposição</strong> a tratamentos irregulares.</li>
           </ul>
-          <p>Para solicitar, use os canais no item <a href="#contato">Contato e DPO</a>. Responderemos dentro de prazos
+          <p>Para solicitar, use os canais no item <a href="#contato">Contato</a>. Responderemos dentro de prazos
             razoáveis.</p>
         </section>
 
         <section id="transferencias" class="card">
           <h2>9. Transferências internacionais</h2>
-          <p>
-            Alguns provedores podem estar localizados fora do Brasil. Nesses casos, adotamos mecanismos permitidos pela
-            LGPD (ex.: cláusulas contratuais, observância a normas globais de proteção de dados e requisitos de
-            segurança).
-          </p>
+          <p>Alguns provedores podem estar fora do Brasil; adotamos mecanismos previstos na LGPD para essas
+            transferências.</p>
         </section>
 
         <section id="criancas" class="card">
           <h2>10. Crianças e adolescentes</h2>
-          <p>
-            O uso da plataforma por menores de 18 anos ocorre apenas por meio de profissionais/organizações de saúde
-            devidamente autorizados, observando-se consentimento e requisitos legais quando necessário.
-          </p>
+          <p>O uso por menores ocorre apenas via profissionais/organizações autorizados, com consentimento quando
+            necessário.</p>
         </section>
 
         <section id="contato" class="card">
-          <h2>11. Contato e DPO</h2>
-          <p>
-            Para exercer direitos, tirar dúvidas ou reportar incidentes, fale conosco:
-          </p>
+          <h2>11. Contato</h2>
+          <p>Para exercer direitos, tirar dúvidas ou reportar incidentes, fale conosco:</p>
           <ul class="mono">
-            <li>E-mail (DPO): <a href="mailto:privacidade@ponzahealth.com">privacidade@ponzahealth.com</a></li>
             <li>Suporte: <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a> — <a
                 href="tel:+5533984613689">+55 33 98461-3689</a></li>
           </ul>
@@ -628,25 +856,23 @@
 
         <section id="mudancas" class="card">
           <h2>12. Mudanças nesta política</h2>
-          <p>
-            Podemos atualizar este documento para refletir ajustes legais, técnicos ou operacionais. Quando mudanças
-            relevantes ocorrerem, avisaremos pelos canais adequados. A versão vigente é sempre a <strong>publicada nesta
-              página</strong>.
-          </p>
+          <p>Podemos atualizar este documento para refletir ajustes legais, técnicos ou operacionais. A versão vigente é
+            a publicada nesta página.</p>
         </section>
 
       </div>
     </div>
   </main>
 
-  <!-- RODAPÉ (igual ao herói) -->
+  <!-- RODAPÉ -->
   <section class="contacts" aria-label="Contatos e navegação">
     <div class="contacts-inner">
       <div class="contacts-grid">
         <div class="brand">
           <img src="{{ url_for('static', filename='images/8.svg') }}" alt="Ponza Health" />
           <h3>Ponza Health — Automação para Clínicas</h3>
-          <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais, mais
+          <p>Software de gestão clínica, estoque, cotações, análise de PDFs e agenda. Menos tarefas manuais,
+            mais
             eficiência.</p>
           <div class="contacts-cta">
             <a class="btn-outline" href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
@@ -673,15 +899,13 @@
         <div class="col">
           <h4>Institucional</h4>
           <ul class="navlist">
-            <li><a href="#quem-somos">Quem somos</a></li>
-            <li><a href="#contato">Contato</a></li>
-            <li><a href="#sitemap">Mapa do site</a></li>
+            <li><a href="{{ url_for('about')}}">Quem somos</a></li>
           </ul>
           <h4 style="margin-top:18px">Suporte & Produtos</h4>
           <ul class="navlist">
             <li><a href="https://wa.me/5533984613689?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Ponza%20Health"
                 target="_blank">Fale com um consultor</a></li>
-            <li><a href="#ajuda">Central de ajuda</a></li>
+            <li><a href="{{ url_for('help') }}">Central de ajuda</a></li>
           </ul>
         </div>
 
@@ -691,7 +915,7 @@
             <li><a href="{{ url_for('register') }}">Criar conta</a></li>
             <li><a href="{{ url_for('login') }}">Entrar</a></li>
             <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
-            <li><a href="#termos">Termos de uso</a></li>
+            <li><a href="{{ url_for('terms') }}">Termos de uso</a></li>
           </ul>
         </div>
       </div>
@@ -701,7 +925,7 @@
         <div>© <span id="year"></span> Ponza Health. Todos os direitos reservados.</div>
         <div class="navlist" style="display:flex; gap:16px; list-style:none">
           <a href="{{ url_for('privacy_policy') }}">Política de privacidade</a>
-          <a href="#termos">Termos de uso</a>
+          <a href="{{ url_for('terms')}}">Termos de uso</a>
         </div>
       </div>
     </div>

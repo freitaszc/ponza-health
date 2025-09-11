@@ -10,28 +10,51 @@
         rel="stylesheet" />
     <style>
         :root {
+            /* Enhanced color palette with medical theme */
             --bg-primary: #ffffff;
-            --bg-card: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --bg-card: #dfdede;
             --text-primary: #1e293b;
+            --text-secondary: #475569;
             --text-muted: #64748b;
-            --border: #e2e8f0;
-            --shadow: rgba(2, 6, 23, .12);
-            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
-            --brand-base: #131d35;
-            --brand-grad-hover: linear-gradient(180deg, #0f182b 0%, #0c1526 100%);
+            --text-light: #94a3b8;
+
+            /* Medical-inspired color scheme */
+            --primary: #ffffff;
+            --primary-contrast: #0a1628;
+            --secondary: #0a1628;
+            --secondary-dark: #081220;
+            --secondary-light: #1e293b;
+            --secondary-glow: rgba(10, 22, 40, .15);
+            --secondary-glow-strong: rgba(10, 22, 40, .25);
+
+            /* Enhanced gradients */
+            --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+            --brand-base: #0a1628;
+            --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+            --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
+
+            /* Enhanced borders and shadows */
+            --border-light: #e2e8f0;
+            --border-medium: #cbd5e1;
+            --shadow-light: rgba(30, 41, 59, .08);
+            --shadow-medium: rgba(30, 41, 59, .12);
+            --shadow-strong: rgba(30, 41, 59, .16);
+            --shadow-glow: 0 20px 60px rgba(10, 22, 40, .1);
+
+            /* Typography and measurements */
             --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
             --fs-base: 16px;
-            --fs-title: 34px;
+            --fs-title: 39px;
+            --fs-hero: 75px;
             --fs-input: 16px;
             --fs-btn: 16px;
             --fs-small: 14px;
             --btn-height: 44px;
             --btn-minw: 220px;
             --nav-h: 72px;
-            --ok: #16a34a;
-            --ok-ghost: rgba(22, 163, 74, .12);
-            --err: #dc2626;
-            --err-ghost: rgba(220, 38, 38, .10);
         }
 
         * {
@@ -51,6 +74,7 @@
             min-height: 100vh;
         }
 
+        /* NAVBAR */
         .navbar {
             position: fixed;
             inset: 0 0 auto 0;
@@ -110,6 +134,7 @@
             transform: translateY(-1px);
         }
 
+        /* LAYOUT */
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -120,7 +145,7 @@
 
         .card {
             width: 100%;
-            max-width: 420px;
+            max-width: 520px;
             border-radius: 16px;
             padding: 28px;
             margin: 0 12px;
@@ -129,15 +154,81 @@
             box-shadow: 0 10px 24px var(--shadow);
         }
 
-        h2 {
+        /* TITLES */
+        h1,
+        h2,
+        h3 {
             font-weight: 800;
             color: var(--text-primary);
             text-align: center;
-            margin: 0 0 18px;
-            font-size: var(--fs-title);
+            text-shadow: none;
+            margin: 0;
         }
 
-        .input {
+        h2 {
+            font-size: var(--fs-title);
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            text-align: center;
+            margin: 0 0 18px;
+        }
+
+        /* FLASHES */
+        .flash-stack {
+            display: grid;
+            gap: 10px;
+            margin: 0 0 14px;
+        }
+
+        .flash {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            border: 1px solid transparent;
+        }
+
+        .flash .label {
+            font-weight: 800;
+        }
+
+        .flash-success {
+            background: #ecfdf5;
+            border-color: #bbf7d0;
+            color: #065f46;
+        }
+
+        .flash-error {
+            background: #fff1f2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+
+        /* FORM */
+        form.auth-form {
+            display: grid;
+            gap: 14px;
+        }
+
+        .field label {
+            display: block;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .input,
+        .select {
             width: 100%;
             padding: 12px 14px;
             border-radius: 10px;
@@ -150,9 +241,45 @@
             font-family: var(--font-family);
         }
 
-        .input:focus {
+        .input:focus,
+        .select:focus {
             border-color: var(--brand-base);
             box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
+        }
+
+        .input-with-btn {
+            position: relative;
+        }
+
+        .icon-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 32px;
+            min-width: 36px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #fff;
+            cursor: pointer;
+            transition: .2s;
+        }
+
+        .icon-btn:hover {
+            border-color: #cbd5e1;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+            stroke: #475569;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: block;
         }
 
         .btn-primary {
@@ -171,6 +298,7 @@
             font-size: var(--fs-btn);
             box-shadow: 0 10px 26px rgba(19, 29, 53, .22);
             transition: .25s;
+            margin-top: 4px;
         }
 
         .btn-primary:hover {
@@ -194,59 +322,32 @@
             text-decoration: underline;
         }
 
-        /* FLASH */
-        .flash-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin: 0 0 14px;
+        .hidden {
+            display: none;
         }
 
-        .flash {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            border-radius: 12px;
-            padding: 10px 12px;
-            border: 1px solid;
-        }
-
-        .flash-success {
-            border-color: rgba(22, 163, 74, .35);
-            background: var(--ok-ghost);
-            color: var(--text-primary);
-        }
-
-        .flash-error {
-            border-color: rgba(220, 38, 38, .35);
-            background: var(--err-ghost);
-            color: var(--text-primary);
-        }
-
-        .flash .label {
-            font-weight: 800;
-            font-size: 13px;
-            line-height: 1.2;
-            margin-right: 6px;
-            opacity: .8;
+        @media (max-width: 480px) {
+            .card {
+                padding: 22px;
+            }
         }
     </style>
 </head>
 
 <body>
-  <!-- NAVBAR -->
-  <header class="navbar">
-    <div class="nav-inner">
-      <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
-        <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
-      </a>
-      <nav class="nav-actions">
-        <a href="{{ url_for('prices') }}">Preços</a>
-        <a href="{{ url_for('register') }}">Cadastrar</a>
-        <a href="{{ url_for('login') }}">Entrar</a>
-      </nav>
-    </div>
-  </header>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="nav-inner">
+            <a href="{{ url_for('hero') }}" class="nav-logo" aria-label="Ir para a página inicial">
+                <img src="{{ url_for('static', filename='images/7.svg') }}" alt="Ponza Health" />
+            </a>
+            <nav class="nav-actions">
+                <a href="{{ url_for('prices') }}">Preços</a>
+                <a href="{{ url_for('register') }}">Cadastrar</a>
+                <a href="{{ url_for('login') }}">Entrar</a>
+            </nav>
+        </div>
+    </header>
 
     <main>
         <div class="container">
@@ -283,6 +384,11 @@
                 <div style="text-align:center; margin-top:16px">
                     <span class="muted">Não tem conta?</span>
                     <a href="{{ url_for('register') }}" class="link" style="margin-left:6px">Cadastre-se</a>
+                </div>
+
+                <!-- Link centralizado -->
+                <div style="text-align:center; margin-top:20px">
+                    <a href="{{ url_for('pw_forgot') }}" class="muted">Esqueci minha senha</a>
                 </div>
             </div>
         </div>
