@@ -635,7 +635,29 @@
 
   <div class="content">
     <h2>Bem-vindo(a) {{ username }}</h2>
-
+  
+    {% if trial_active %}
+    <div style="
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #c2410c;
+      padding: 14px 18px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 16px;
+      margin: 0 auto 24px;
+      max-width: 900px;
+      box-shadow: var(--shadow);
+    ">
+      Você está no <strong>período de teste</strong>.  
+      <a href="{{ url_for('payments') }}" style="color: #b91c1c; text-decoration: underline;">
+        Faça a compra do serviço
+      </a>
+      para continuar com acesso após o fim do teste.
+    </div>
+    {% endif %}
+  
     <!-- DONUTS + CONSULTAS -->
     <div class="donuts-grid">
       <div class="compact-card">

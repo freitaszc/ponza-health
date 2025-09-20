@@ -154,29 +154,12 @@
       box-shadow: 0 10px 24px var(--shadow);
     }
 
-    /* TITLES */
-    h1,
-    h2,
-    h3 {
-      font-weight: 800;
-      color: var(--text-primary);
-      text-align: center;
-      text-shadow: none;
-      margin: 0;
-    }
-
     h2 {
       font-size: var(--fs-title);
       margin-bottom: 6px;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
       text-align: center;
-      margin: 0 0 18px;
     }
 
-    /* FLASHES */
     .flash-stack {
       display: grid;
       gap: 10px;
@@ -184,23 +167,16 @@
     }
 
     .flash {
-      display: flex;
-      gap: 8px;
-      align-items: center;
       border-radius: 10px;
       padding: 10px 12px;
       font-size: 14px;
       border: 1px solid transparent;
     }
 
-    .flash .label {
-      font-weight: 800;
-    }
-
     .flash-success {
-      background: #ecfdf5;
-      border-color: #bbf7d0;
-      color: #065f46;
+      background: #ffffff;
+      border-color: #5472ae;
+      color: #06155f;
     }
 
     .flash-error {
@@ -209,7 +185,6 @@
       color: #991b1b;
     }
 
-    /* FORM */
     form.auth-form {
       display: grid;
       gap: 14px;
@@ -221,14 +196,7 @@
       margin-bottom: 6px;
     }
 
-    .hint {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    .input,
-    .select {
+    .input {
       width: 100%;
       padding: 12px 14px;
       border-radius: 10px;
@@ -236,50 +204,8 @@
       background: #fff;
       color: var(--text-primary);
       outline: none;
-      transition: .2s;
       font-size: var(--fs-input);
       font-family: var(--font-family);
-    }
-
-    .input:focus,
-    .select:focus {
-      border-color: var(--brand-base);
-      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
-    }
-
-    .input-with-btn {
-      position: relative;
-    }
-
-    .icon-btn {
-      position: absolute;
-      right: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 32px;
-      min-width: 36px;
-      display: inline-grid;
-      place-items: center;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #fff;
-      cursor: pointer;
-      transition: .2s;
-    }
-
-    .icon-btn:hover {
-      border-color: #cbd5e1;
-    }
-
-    .icon {
-      width: 20px;
-      height: 20px;
-      stroke: #475569;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      display: block;
     }
 
     .btn-primary {
@@ -310,26 +236,8 @@
     .muted {
       color: var(--text-muted);
       font-size: var(--fs-small);
-    }
-
-    .link {
-      color: var(--brand-base);
-      text-decoration: none;
-      font-weight: 800;
-    }
-
-    .link:hover {
-      text-decoration: underline;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    @media (max-width: 480px) {
-      .card {
-        padding: 22px;
-      }
+      text-align: center;
+      margin-top: 12px;
     }
   </style>
 </head>
@@ -352,117 +260,52 @@
   <main>
     <div class="container">
       <div class="card">
-        <h2>Criar conta</h2>
+        <h2>Criar Conta</h2>
 
-        <!-- FLASHES (apenas cadastro) -->
-        {% with messages = get_flashed_messages(with_categories=True,
-        category_filter=['register_success','register_error']) %}
+        <!-- Aviso sobre o período de teste -->
+        <div class="flash flash-success" style="margin-bottom:16px; text-align: center;">
+          <strong>Teste gratuito de 14 dias:</strong>
+          Ao criar sua conta, você terá <strong>14 dias de acesso gratuito</strong> a todas as funcionalidades.
+          Após esse período, será necessário assinar o plano de <strong>R$ 79,90/mês</strong> para continuar.
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        <div class="flash-stack" role="region" aria-live="polite" aria-label="Mensagens do sistema">
-          {% for category, msg in messages %}
-          <div class="flash {{ 'flash-success' if 'success' in category else 'flash-error' }}" role="alert">
-            <span class="label">{{ 'Sucesso' if 'success' in category else 'Erro' }}:</span>
-            <span>{{ msg|safe }}</span>
+        <div class="flash-stack">
+          {% for category, message in messages %}
+          <div class="flash flash-{{ 'error' if 'error' in category else 'success' }}">
+            {{ message }}
           </div>
           {% endfor %}
         </div>
         {% endif %}
         {% endwith %}
 
-        <!-- FORM CADASTRO -->
-        <form method="post" action="{{ url_for('register') }}" class="auth-form" novalidate>
+        <form class="auth-form" action="{{ url_for('register') }}" method="post">
           <div class="field">
-            <label for="username">Usuário</label>
-            <input id="username" type="text" class="input" name="username" required autofocus>
+            <label for="username">Nome de usuário</label>
+            <input id="username" name="username" type="text" class="input" required autofocus>
           </div>
-
           <div class="field">
             <label for="email">E-mail</label>
-            <input id="email" type="email" class="input" name="email" required>
+            <input id="email" name="email" type="email" class="input" required>
           </div>
-
           <div class="field">
             <label for="password">Senha</label>
-            <div class="input-with-btn">
-              <input id="password" type="password" class="input" name="password" placeholder="Mínimo de 8 caracteres"
-                minlength="8" required>
-              <button type="button" class="icon-btn" data-target="password" aria-label="Mostrar senha"
-                aria-pressed="false">
-                <!-- Eye (show) -->
-                <svg class="icon icon-eye" viewBox="0 0 24 24">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <!-- Eye-off (hide) -->
-                <svg class="icon icon-eye-off hidden" viewBox="0 0 24 24">
-                  <path d="M3 3l18 18" />
-                  <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.2" />
-                  <path
-                    d="M9.9 4.2A11.4 11.4 0 0 1 12 4c7 0 11 8 11 8a20.8 20.8 0 0 1-5.1 5.6M6.1 6.1A20.5 20.5 0 0 0 1 12s4 7 11 7c1.3 0 2.5-.2 3.5-.5" />
-                </svg>
-              </button>
-            </div>
-            <div class="hint">Use ao menos 8 caracteres.</div>
+            <input id="password" name="password" type="password" class="input" required>
           </div>
-
           <div class="field">
             <label for="confirm">Confirmar senha</label>
-            <div class="input-with-btn">
-              <input id="confirm" type="password" class="input" name="confirm" placeholder="Repita a senha"
-                minlength="8" required>
-              <button type="button" class="icon-btn" data-target="confirm" aria-label="Mostrar senha"
-                aria-pressed="false">
-                <svg class="icon icon-eye" viewBox="0 0 24 24">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                <svg class="icon icon-eye-off hidden" viewBox="0 0 24 24">
-                  <path d="M3 3l18 18" />
-                  <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-1.2" />
-                  <path
-                    d="M9.9 4.2A11.4 11.4 0 0 1 12 4c7 0 11 8 11 8a20.8 20.8 0 0 1-5.1 5.6M6.1 6.1A20.5 20.5 0 0 0 1 12s4 7 11 7c1.3 0 2.5-.2 3.5-.5" />
-                </svg>
-              </button>
-            </div>
+            <input id="confirm" name="confirm" type="password" class="input" required>
           </div>
-
-          <button type="submit" class="btn-primary">Cadastrar</button>
+          <button type="submit" class="btn-primary">Cadastrar e iniciar teste</button>
+          <p class="muted">Já tem conta?
+            <a href="{{ url_for('login') }}" class="link">Entrar</a>
+          </p>
         </form>
-
-        <div style="text-align:center; margin-top:16px">
-          <span class="muted">Já tem conta?</span>
-          <a href="{{ url_for('login') }}" class="link" style="margin-left:6px">Entrar</a>
-        </div>
       </div>
     </div>
   </main>
-
-  <script>
-    // Toggle mostrar/ocultar senha com ícones clássicos (eye / eye-off)
-    document.addEventListener('click', function (e) {
-      const btn = e.target.closest('.icon-btn');
-      if (!btn) return;
-
-      const id = btn.getAttribute('data-target');
-      const input = document.getElementById(id);
-      if (!input) return;
-
-      const wasHidden = input.type === 'password';
-      input.type = wasHidden ? 'text' : 'password';
-
-      // Atualiza ícones
-      const eye = btn.querySelector('.icon-eye');
-      const eyeOff = btn.querySelector('.icon-eye-off');
-      if (eye && eyeOff) {
-        eye.classList.toggle('hidden', wasHidden);      // ao mostrar, some o "eye"
-        eyeOff.classList.toggle('hidden', !wasHidden);  // ao mostrar, aparece o "eye-off"
-      }
-
-      // Acessibilidade
-      btn.setAttribute('aria-pressed', wasHidden ? 'true' : 'false');
-      btn.setAttribute('aria-label', wasHidden ? 'Ocultar senha' : 'Mostrar senha');
-    }, false);
-  </script>
 </body>
 
 </html>

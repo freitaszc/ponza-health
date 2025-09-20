@@ -2,6 +2,7 @@ import os
 import re
 import secrets
 from io import BytesIO
+from mercado_pago import generate_subscription_link
 from weasyprint import HTML
 from functools import wraps
 from typing import Any, Optional, Callable, cast
@@ -442,13 +443,51 @@ def get_logged_user() -> Optional[User]:
     return User.query.get(uid) if uid else None
 
 def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Decorator de login que também valida trial / assinatura.
+    Regras:
+      - Usuário com username "admin" tem acesso vitalício (bypass).
+      - Se user.plan_status == 'paid' e plan_expires_at >= agora => permitido.
+      - Se user.trial_until >= agora => permitido.
+      - Caso contrário redireciona para a página de planos (/planos) para pagamento.
+    """
     @wraps(f)
     def wrapper(*args, **kwargs):
         u = get_logged_user()
         if not u:
             return redirect(url_for('login'))
         g.user = u
-        return f(*args, **kwargs)
+
+        # Admin sempre permite (acesso vitalício)
+        try:
+            uname = getattr(u, "username", "") or ""
+        except Exception:
+            uname = ""
+
+        if uname.lower() == "admin":
+            # admin tem acesso vitalício
+            return f(*args, **kwargs)
+
+        # verificar se está em trial válido
+        now = datetime.utcnow()
+        trial_until = getattr(u, "trial_until", None)
+        plan_status = getattr(u, "plan_status", None)
+        plan_expires = getattr(u, "plan_expires_at", None)
+
+        # Usuário pago com plan_expires_at em futuro
+        if plan_status == "paid":
+            if (plan_expires is None) or (plan_expires and plan_expires >= now):
+                return f(*args, **kwargs)
+
+        # Usuário em trial válido
+        if trial_until and trial_until >= now:
+            return f(*args, **kwargs)
+
+        # Caso contrário: sem trial válido nem pagamento -> bloquear acesso
+        # Redireciona para a página de planos / preços (página de compra)
+        flash("Seu período de teste de 14 dias expirou. Faça a assinatura para continuar usando o sistema.", "trial_expired")
+        return redirect(url_for('prices'))
+
     return wrapper
 
 def current_user() -> User:
@@ -507,6 +546,12 @@ def _first(form, *keys, default=""):
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    """
+    Registro de novos usuários:
+     - cria usuário
+     - define trial_until = agora + 14 dias
+     - define plan_status = 'trial'
+    """
     if request.method == 'POST':
         # aceita vários nomes de campo comuns
         username = _first(request.form, 'username', 'name', 'user')
@@ -540,12 +585,20 @@ def register():
             flash('E-mail já cadastrado.', 'register_error')
             return redirect(url_for('register'))
 
+        # cria o usuário (hash da senha)
         user = User(username=username, email=email, password_hash=generate_password_hash(password))
+
+        # define trial de 14 dias imediatamente
+        now = datetime.utcnow()
+        user.trial_until = now + timedelta(days=14)
+        user.plan_status = "trial"
+        user.plan_expires_at = None
+
         db.session.add(user)
         db.session.commit()
 
         # sucesso aparece na tela de login
-        flash('Cadastro realizado com sucesso. Faça seu login.', 'login_success')
+        flash('Cadastro realizado com sucesso. Você recebeu 14 dias de teste gratuito. Faça seu login.', 'login_success')
         return redirect(url_for('login'))
 
     return render_template('register.html')
@@ -843,7 +896,8 @@ def index():
         quotes_responded=quotes_responded,
         quotes_pending=quotes_pending,
         quotes_items=quotes_items,
-        notifications_unread=0
+        notifications_unread=0,
+        trial_active=u.trial_until and u.trial_until >= datetime.utcnow(),
     )
 
 # ------------------------------------------------------------------------------
@@ -852,33 +906,31 @@ def index():
 @app.route('/purchase', methods=['GET', 'POST'])
 @login_required
 def purchase():
+    """
+    Mantém a lógica de compra de pacotes, mas renderiza a página unificada
+    e processa POST de pacotes normalmente.
+    """
     if request.method == 'POST':
         pacote = request.form.get('package', '')
-        valor  = {'50': 120, '150': 300, '500': 950}.get(pacote)
+        valor = {'50': 120, '150': 300, '500': 950}.get(pacote)
         if not valor:
             flash('Selecione um pacote válido.', 'warning')
-            return redirect(url_for('purchase'))
-        try:
-            from mercado_pago import generate_payment_link
-            link = generate_payment_link(pacote, valor)
-        except Exception:
-            link = None
-        return redirect(link or url_for('purchase'))
-    try:
-        return render_template('purchase.html')
-    except TemplateNotFound:
-        return render_template_string("""
-        <h1>Comprar créditos</h1>
-        <form method="post">
-            <select name="package">
-                <option value="50">50</option>
-                <option value="150">150</option>
-                <option value="500">500</option>
-            </select>
-            <button type="submit">Comprar</button>
-        </form>
-        <p><a href="{{ url_for('index') }}">Voltar</a></p>
-        """)
+            return redirect(url_for('payments'))
+        from mercado_pago import generate_payment_link
+        link = generate_payment_link(pacote, valor)
+        return redirect(link or url_for('payments'))
+    
+    return render_template('purchase.html', notifications_unread=0)
+
+@app.route('/payments', methods=['GET'])
+@login_required
+def payments():
+    """
+    Página única que permite:
+    - Comprar pacotes de análises
+    - Assinar plano mensal
+    """
+    return render_template('purchase.html', notifications_unread=0)
 
 # ------------------------------------------------------------------------------
 # Conta
@@ -886,7 +938,97 @@ def purchase():
 @app.route('/account')
 @login_required
 def account():
-    return render_template('account.html')
+    """
+    Página da conta: mostra status do plano, dias restantes do trial e botão para assinar.
+    """
+    u = current_user()
+    now = datetime.utcnow()
+
+    # calcular dados do trial
+    trial_until = getattr(u, "trial_until", None)
+    if trial_until:
+        remaining_td = trial_until - now
+        remaining_days = max(0, remaining_td.days)
+        trial_active = (trial_until >= now)
+    else:
+        remaining_days = 0
+        trial_active = False
+
+    # status pago?
+    plan_status = getattr(u, "plan_status", None) or "inactive"
+    plan_expires_at = getattr(u, "plan_expires_at", None)
+    is_paid_active = False
+    if plan_status == "paid":
+        if (plan_expires_at is None) or (plan_expires_at and plan_expires_at >= now):
+            is_paid_active = True
+
+    # admin bypass
+    is_admin = (getattr(u, "username", "").lower() == "admin")
+
+    return render_template(
+        'account.html',
+        user=u,
+        trial_active=trial_active,
+        trial_remaining_days=remaining_days,
+        plan_status=plan_status,
+        plan_expires_at=plan_expires_at,
+        is_paid_active=is_paid_active,
+        is_admin=is_admin
+    )
+
+@app.route('/subscribe', methods=['GET', 'POST'])
+@login_required
+def subscribe():
+    """
+    Fluxo simples de assinatura:
+      - GET: mostra página de preços (ou redireciona para /planos)
+      - POST: marca usuário como 'paid' e define plan_expires_at = agora + 30 dias
+    Observação: aqui é o lugar para integrar MercadoPago / Stripe / gateway real.
+    """
+    u = current_user()
+    now = datetime.utcnow()
+
+    # Se vier POST -> "confirmar pagamento" (simulação)
+    if request.method == "POST":
+        # Aqui você integraria com MercadoPago/Stripe.
+        # Simulação: marcar como pago por 30 dias
+        u.plan_status = "paid"
+        u.plan_expires_at = now + timedelta(days=30)
+        # remover trial (opcional)
+        u.trial_until = None
+        db.session.commit()
+        flash("Pagamento registrado. Obrigado! Sua assinatura foi ativada por 30 dias.", "success")
+        return redirect(url_for('account'))
+
+    # GET -> renderizar a página de preços / checkout
+    # Se já está pago, redireciona para a conta
+    if (u.plan_status == "paid") and (not u.plan_expires_at or u.plan_expires_at >= now):
+        flash("Sua assinatura já está ativa.", "info")
+        return redirect(url_for('account'))
+
+    # renderiza a página de preços (ou template de checkout)
+    return render_template('prices.html')
+
+@app.route('/subscribe/pay')
+@login_required
+def subscribe_pay():
+    u = current_user()
+    from mercado_pago import generate_subscription_link
+    link = generate_subscription_link(u.id)
+    return redirect(link or url_for('payments'))
+
+@app.route('/subscription/success')
+def subscription_success():
+    user_id = request.args.get('metadata[user_id]')
+    if user_id:
+        user = User.query.get(int(user_id))
+        if user:
+            user.plan_status = 'paid'
+            user.plan_expires_at = datetime.utcnow() + timedelta(days=30)
+            user.trial_until = None
+            db.session.commit()
+    flash("Assinatura ativada por 30 dias.", "success")
+    return redirect(url_for('account'))
 
 @app.route('/remove_profile_image', methods=['POST'], endpoint='remove_profile_image')
 @login_required

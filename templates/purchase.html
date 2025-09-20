@@ -13,18 +13,12 @@
   <!-- CSS padronizado -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ponza-base.css') }}">
 
-  <!-- Ajustes locais de estilo -->
   <style>
-    /* Sidebar com fonte padronizada */
-    .sidebar a.menu-item {
-      font-size: 16px;
-    }
-
+    .sidebar a.menu-item,
     .sidebar .label {
       font-size: 16px;
     }
 
-    /* Painel de benefícios */
     .benefits {
       margin-bottom: 18px;
     }
@@ -43,7 +37,6 @@
 
     .benefit {
       display: flex;
-      align-items: flex-start;
       gap: 10px;
       background: var(--surface);
       border: 1px solid var(--border);
@@ -56,7 +49,6 @@
       color: var(--brand-solid);
       font-size: 18px;
       margin-top: 2px;
-      flex: 0 0 18px;
     }
 
     .benefit .t {
@@ -73,7 +65,6 @@
       line-height: 1.4;
     }
 
-    /* Caixa “Como funciona” */
     .howitworks {
       margin-top: 12px;
       background: var(--surface);
@@ -98,7 +89,6 @@
       line-height: 1.5;
     }
 
-    /* Form de compra: centralizar e manter padrão */
     .purchase-wrap {
       max-width: 560px;
       margin: 0 auto;
@@ -113,21 +103,16 @@
 </head>
 
 <body>
-  <!-- Topo direito: Perfil + Notificações -->
-  <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
-      <i class="fa fa-user"></i>
-    </a>
-    <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
-      <i class="fa fa-bell"></i>
-      <span class="badge">{{ (notifications_unread or 0) }}</span>
-    </button>
+  <!-- Topo direito -->
+  <div class="top-profile">
+    <a href="{{ url_for('account') }}" class="icon-btn"><i class="fa fa-user"></i></a>
+    <button class="icon-btn"><i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0)
+        }}</span></button>
   </div>
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
@@ -140,8 +125,7 @@
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
         class="label">Agenda</span></a>
-
-    <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+    <a href="{{ url_for('payments') }}" class="menu-item active"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
@@ -153,47 +137,50 @@
     <h2>Pagamentos</h2>
 
     {% if request.args.get('message') == 'pacote' %}
-    <div class="alert">
-      Seu pacote de análises acabou. Por favor, adquira mais para continuar usando o Ponza Lab.
-    </div>
+    <div class="alert">Seu pacote de análises acabou. Por favor, adquira mais para continuar usando o Ponza Lab.</div>
     {% endif %}
 
-    <!-- Painel de Benefícios -->
+    <!-- ============== ASSINATURA MENSAL ================= -->
+    <div class="panel" style="margin-bottom:24px;">
+      <h3 style="margin-top:0;">Assinatura Mensal</h3>
+      <p style="color:var(--ink-dim); font-size:17px; text-align: center;">
+        Tenha acesso completo ao sistema por 30 dias por apenas <strong>R$ 79,90</strong>. Após efetuar o pagamento envie o comprovante
+        para o nosso número do Whatsapp. Para saber mais acesse <a href="{{ url_for('prices') }}" style="color: var(--brand-solid);" target="_blank">Planos e Preços</a>
+      </p>
+      <div class="purchase-actions">
+        <a href="{{ url_for('subscribe_pay') }}" class="btn">Assinar Agora</a>
+      </div>
+    </div>
+
+    <!-- Painel de Benefícios (pacotes) -->
     <div class="panel benefits">
-      <h3 class="subtitle" style="margin-top:0; margin-bottom:12px; color:var(--ink-dim); font-weight:700;">Por que
-        comprar pacotes de análises?</h3>
+      <h3 class="subtitle" style="margin-top:0; margin-bottom:12px; color:var(--ink-dim); font-weight:700;">
+        Por que comprar pacotes de análises?
+      </h3>
 
       <div class="benefits-grid">
-        <div class="benefit">
-          <i class="fa fa-bolt" aria-hidden="true"></i>
+        <div class="benefit"><i class="fa fa-bolt"></i>
           <div>
             <p class="t">Agilidade no atendimento</p>
-            <p class="d">As análises ficam disponíveis imediatamente, reduzindo tempo de espera e acelerando decisões
-              clínicas.</p>
+            <p class="d">As análises ficam disponíveis imediatamente</p>
           </div>
         </div>
-        <div class="benefit">
-          <i class="fa fa-bar-chart" aria-hidden="true"></i>
+        <div class="benefit"><i class="fa fa-bar-chart"></i>
           <div>
             <p class="t">Melhor visibilidade dos resultados</p>
-            <p class="d">Relatórios e indicadores claros para acompanhar evolução de pacientes e desempenho do
-              consultório.</p>
+            <p class="d">Relatórios e indicadores claros</p>
           </div>
         </div>
-        <div class="benefit">
-          <i class="fa fa-shield" aria-hidden="true"></i>
+        <div class="benefit"><i class="fa fa-shield"></i>
           <div>
             <p class="t">Confiabilidade e segurança</p>
-            <p class="d">Processamento consistente e armazenamento seguro, mantendo a qualidade e a privacidade dos
-              dados.</p>
+            <p class="d">Processamento consistente e armazenamento seguro</p>
           </div>
         </div>
-        <div class="benefit">
-          <i class="fa fa-clock-o" aria-hidden="true"></i>
+        <div class="benefit"><i class="fa fa-clock-o"></i>
           <div>
             <p class="t">Previsibilidade de custos</p>
-            <p class="d">Planos por volume facilitam o planejamento financeiro e evitam interrupções no uso do Ponza
-              Lab.</p>
+            <p class="d">Planos por volume facilitam o planejamento financeiro</p>
           </div>
         </div>
       </div>
@@ -209,9 +196,9 @@
       </div>
     </div>
 
-    <!-- Painel de Compra -->
+    <!-- Form de Pacotes -->
     <div class="panel">
-      <form method="post" style="text-align:center;">
+      <form method="post" action="{{ url_for('purchase') }}" style="text-align:center;">
         <h3>Comprar Pacote de Análises</h3>
         <div class="purchase-wrap">
           <label for="package" class="label">Selecione o Pacote</label>
