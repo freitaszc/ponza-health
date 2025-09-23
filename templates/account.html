@@ -15,21 +15,22 @@
 </head>
 
 <body>
-  <!-- Topo direito: Perfil + Notificações (mesmo formato do index) -->
+  <!-- Topo direito: Perfil + Notificações -->
   <div class="top-profile" aria-label="Ações do usuário">
     <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta">
       <i class="fa fa-user"></i>
     </a>
     <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
       <i class="fa fa-bell"></i>
-      <span class="badge">{{ (notifications_unread or 0) }}</span>
+      <span class="badge">{{ notifications_unread or 0 }}</span>
     </button>
   </div>
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu">
+      <i class="fa fa-angle-double-left"></i>
+    </button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
@@ -42,7 +43,6 @@
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
         class="label">Agenda</span></a>
-
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
     <div class="sidebar-spacer"></div>
@@ -65,8 +65,7 @@
     <div class="panel">
       <h3>Informações Pessoais</h3>
       <form method="post" enctype="multipart/form-data" action="{{ url_for('update_personal_info') }}">
-        <img class="avatar" src="{{ img_url(user.get('profile_image'), 'images/user-icon.png') }}"
-          alt="Foto de Perfil" />
+        <img class="avatar" src="{{ img_url(user.profile_image or 'images/user-icon.png') }}" alt="Foto de Perfil" />
 
         <div class="actions" style="margin-bottom:16px;">
           <label for="profile_image" class="btn btn-outline">Alterar Foto de Perfil</label>
@@ -77,12 +76,12 @@
           <div class="half">
             <label for="name">PRIMEIRO NOME</label>
             <input class="input" type="text" id="name" name="name"
-              value="{{ user.get('name', '').split(' ')[0] if user.get('name') else '' }}" placeholder="Primeiro Nome">
+              value="{{ (user.name.split(' ')[0]) if user.name else '' }}" placeholder="Primeiro Nome">
           </div>
           <div class="half">
             <label for="secondname">SEGUNDO NOME</label>
             <input class="input" type="text" id="secondname" name="secondname"
-              value="{{ user.get('name', '').split(' ')[1] if user.get('name') and ' ' in user.get('name', '') else '' }}"
+              value="{{ (user.name.split(' ')[1]) if user.name and ' ' in user.name else '' }}"
               placeholder="Segundo Nome">
           </div>
         </div>
@@ -90,11 +89,12 @@
         <div class="row" style="margin-top:12px;">
           <div class="half">
             <label for="birthdate">DATA DE NASCIMENTO</label>
-            <input class="input" type="date" id="birthdate" name="birthdate" value="{{ user.get('birthdate', '') }}">
+            <input class="input" type="date" id="birthdate" name="birthdate"
+              value="{{ user.birthdate if user.birthdate else '' }}">
           </div>
           <div class="half">
             <label for="email">EMAIL</label>
-            <input class="input" type="email" id="email" name="email" value="{{ user.get('email', '') }}"
+            <input class="input" type="email" id="email" name="email" value="{{ user.email or '' }}"
               placeholder="email@exemplo.com">
           </div>
         </div>

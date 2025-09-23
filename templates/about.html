@@ -504,7 +504,7 @@
       </a>
       <nav class="nav-actions">
         <a href="{{ url_for('prices') }}">Preços</a>
-        <a href="{{ url_for('register') }}">Cadastrar</a>
+        <a href="{{ url_for('auth.register') }}">Cadastrar</a>
         <a href="{{ url_for('login') }}">Entrar</a>
       </nav>
     </div>
@@ -715,7 +715,7 @@
         <div class="col">
           <h4>Conta</h4>
           <ul class="navlist">
-            <li><a href="{{ url_for('register') }}">Criar conta</a></li>
+            <li><a href="{{ url_for('auth.register') }}">Criar conta</a></li>
             <li><a href="{{ url_for('login') }}">Entrar</a></li>
             <li><a href="{{ url_for('privacy_policy') }}">Política de privacidade</a></li>
             <li><a href="{{ url_for('terms') }}">Termos de uso</a></li>

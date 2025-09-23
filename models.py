@@ -65,6 +65,8 @@ class User(db.Model, BaseModel):
     plan_status     = db.Column(db.String(20), default="inactive")
     plan_expires_at = db.Column(db.DateTime)
     trial_until     = db.Column(db.DateTime)
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
 
     # Relacionamentos úteis ao app
     suppliers      = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
@@ -72,8 +74,7 @@ class User(db.Model, BaseModel):
     agenda_events  = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
     package_usage  = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
     secure_files   = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
-    # NEW: cotações escopadas ao usuário
-    quotes         = relationship("Quote", back_populates="user")  # sem delete-orphan pq user_id pode estar nulo em migrações
+    quotes         = relationship("Quote", back_populates="user")
 
 
 class Supplier(db.Model, BaseModel):
@@ -122,7 +123,6 @@ class Doctor(db.Model, BaseModel):
     __tablename__ = "doctors"
 
     id        = db.Column(db.Integer, primary_key=True)
-    # Escopo por usuário (pode ser NULL em bases antigas; app bloqueia acesso cruzado)
     user_id   = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)
     user      = relationship("User", backref="doctors")
 
@@ -144,23 +144,15 @@ class Doctor(db.Model, BaseModel):
 
 
 class Patient(db.Model, BaseModel):
-    """
-    Paciente com os novos campos do formulário:
-    obrigatórios (no formulário): name, birthdate, sex, phone_primary
-    """
     __tablename__ = "patients"
 
     id            = db.Column(db.Integer, primary_key=True)
-
-    # dono do cadastro = usuário logado
     owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     owner         = relationship("User", foreign_keys=[owner_user_id])
 
-    # opcional: vínculo com médico do catálogo (do mesmo usuário)
     doctor_id    = db.Column(db.Integer, db.ForeignKey("doctors.id"), index=True)
     doctor       = relationship("Doctor", back_populates="patients")
 
-    # dados pessoais
     name           = db.Column(db.String(120), nullable=False)
     birthdate      = db.Column(db.Date)
     sex            = db.Column(db.String(20))
@@ -169,11 +161,9 @@ class Patient(db.Model, BaseModel):
     notes          = db.Column(db.Text)
     profile_image  = db.Column(db.String(200), default="images/patient-icon.png")
 
-    # telefones
     phone_primary   = db.Column(db.String(20))
     phone_secondary = db.Column(db.String(20))
 
-    # endereço
     address_cep        = db.Column(db.String(12))
     address_street     = db.Column(db.String(200))
     address_number     = db.Column(db.String(20))
@@ -182,7 +172,6 @@ class Patient(db.Model, BaseModel):
     address_city       = db.Column(db.String(120))
     address_state      = db.Column(db.String(2))
 
-    # status e auditoria
     status       = db.Column(db.String(20), default="Ativo", nullable=False)
     created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -254,37 +243,42 @@ class AgendaEvent(db.Model, BaseModel):
     )
 
 
+quote_suppliers = db.Table(
+    "quote_suppliers",
+    db.Column("quote_id", db.Integer, db.ForeignKey("quotes.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("supplier_id", db.Integer, db.ForeignKey("suppliers.id", ondelete="CASCADE"), primary_key=True)
+)
+
 class Quote(db.Model, BaseModel):
     __tablename__ = "quotes"
 
     id         = db.Column(db.Integer, primary_key=True)
-    # NEW: escopo por usuário (compat com migração leve: nullable=True)
     user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)
     title      = db.Column(db.String(200), nullable=False)
-    items      = db.Column(db.Text, nullable=False)      # JSON (lista/dict) em string
-    suppliers  = db.Column(db.Text, nullable=False)      # JSON (lista de IDs) em string
+    items      = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    user       = relationship("User", back_populates="quotes")
-
-    __table_args__ = (
-        Index("ix_quotes_created_at", "created_at"),
-        Index("ix_quotes_user_id_created_at", "user_id", "created_at"),
+    suppliers  = db.relationship(
+        "Supplier",
+        secondary=quote_suppliers,
+        backref=db.backref("quotes", lazy="dynamic")
     )
+
+    user       = db.relationship("User", back_populates="quotes")
+    responses  = db.relationship("QuoteResponse", back_populates="quote", cascade="all, delete-orphan")
 
 
 class QuoteResponse(db.Model, BaseModel):
     __tablename__ = "quote_responses"
 
-    id           = db.Column(db.Integer, primary_key=True)
-    quote_id     = db.Column(db.Integer, db.ForeignKey("quotes.id"),    nullable=False, index=True)
-    supplier_id  = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False, index=True)
-    answers      = db.Column(db.Text, nullable=False)  # JSON em string
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    id          = db.Column(db.Integer, primary_key=True)
+    quote_id    = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False, index=True)
+    answers     = db.Column(db.Text, nullable=False)
+    submitted_at= db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    # Relacionamentos úteis
-    quote        = relationship("Quote", backref="responses")
-    supplier     = relationship("Supplier")
+    quote       = db.relationship("Quote", back_populates="responses")
+    supplier    = db.relationship("Supplier")
 
 
 class Reference(db.Model, BaseModel):
@@ -330,7 +324,6 @@ class PdfFile(db.Model, BaseModel):
     size_bytes    = db.Column(db.Integer, nullable=False, default=0)
     uploaded_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    # Vínculos
     secure_file_id = db.Column(db.Integer, db.ForeignKey("secure_files.id"), index=True, nullable=False)
     secure_file    = relationship("SecureFile", foreign_keys=[secure_file_id])
 
@@ -358,3 +351,21 @@ class WaitlistItem(db.Model, BaseModel):
     __table_args__ = (
         Index("ix_waitlist_items_created_at", "created_at"),
     )
+
+
+class ScheduledEmail(db.Model, BaseModel):
+    __tablename__ = "scheduled_emails"
+
+    id       = db.Column(db.Integer, primary_key=True)
+    user_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)  # <-- corrigido
+    template = db.Column(db.String(50), nullable=False)
+    send_at  = db.Column(db.DateTime, nullable=False)
+    sent     = db.Column(db.Boolean, default=False, nullable=False)
+
+    user = relationship("User", backref="scheduled_emails")
+
+    def __init__(self, user_id: int, template: str, send_at: datetime, sent: bool = False) -> None:
+        self.user_id = user_id
+        self.template = template
+        self.send_at = send_at
+        self.sent = sent

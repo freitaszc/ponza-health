@@ -291,14 +291,6 @@
       margin: 0 auto 18px
     }
 
-    .panel h3 {
-      margin: 0 0 12px;
-      font-size: 14px;
-      color: var(--ink-dim);
-      font-weight: 700;
-      text-align: left
-    }
-
     .table-wrap {
       overflow: auto;
       border-radius: 12px
@@ -341,7 +333,6 @@
       cursor: pointer
     }
 
-    /* Centralizar a coluna Ações e o botão “×” */
     td.cell-actions {
       text-align: center;
     }
@@ -365,7 +356,6 @@
       place-items: center;
       transition: box-shadow .2s, border-color .2s, transform .12s;
       margin: 0 auto;
-      /* centraliza */
     }
 
     .icon-btn-row:hover {
@@ -384,6 +374,7 @@
       }
     }
   </style>
+
   <script>
     function toggleSidebar() {
       const s = document.getElementById('sidebar');
@@ -400,10 +391,9 @@
 
 <body>
   <!-- Topo direito -->
-  <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
-        class="fa fa-user"></i></a>
-    <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
+  <div class="top-profile">
+    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta"><i class="fa fa-user"></i></a>
+    <button class="icon-btn" type="button" title="Notificações">
       <i class="fa fa-bell"></i>
       <span class="badge">{{ (notifications_unread or 0) }}</span>
     </button>
@@ -411,9 +401,9 @@
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
@@ -425,9 +415,9 @@
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
         class="label">Agenda</span></a>
-
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
+
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
@@ -458,25 +448,16 @@
           <tbody>
             {% for quote in quotes %}
             <tr>
-              <!-- abre a página de resultados -->
-              <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
-                {{ quote.title }}
-              </td>
-
-              <!-- data formatada: DD/MM/AAAA HH:MM -->
+              <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">{{ quote.title }}</td>
               <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
                 {{ quote.created_at.strftime('%d/%m/%Y %H:%M') if quote.created_at else '-' }}
               </td>
-
-              <!-- Contagem robusta para lista Python, relationship ou Query: use |length -->
               <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
                 {{ quote.suppliers|length }}
-              </td>
-
+              </td>              
               <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
                 {{ quote.responses|length if quote.responses is defined else 0 }}
               </td>
-
               <td class="cell-actions">
                 <form method="post" action="{{ url_for('quote_delete', quote_id=quote.id) }}"
                   onsubmit="return confirm('Deseja realmente excluir esta cotação?')">

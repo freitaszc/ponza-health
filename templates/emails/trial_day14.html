@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family:Arial,Helvetica,sans-serif; background:#f5f7fa; margin:0; padding:0;">
+    <div style="max-width:640px; margin:40px auto; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0 12px 32px rgba(19,29,53,0.15); text-align:center;">
+      
+      <img src="{{ url_for('static', filename='images/7.svg', _external=True) }}" alt="Ponza Health" style="height:80px; margin-bottom:20px;">
+
+      <h2 style="color:#0a1628;">Último dia de teste gratuito, {{ user.username }} ⚠️</h2>
+      <p style="color:#1e293b; font-size:16px;">Seu período de teste de 14 dias termina hoje.</p>
+      <p style="color:#1e293b; font-size:16px;">
+        <a href="{{ url_for('prices', _external=True) }}" style="color:#0a1628;">Assine agora</a> para não perder o acesso.
+      </p>
+
+      <hr style="margin:30px 0;">
+      <p style="font-size:15px; color:#64748b;">
+        Dúvidas? WhatsApp:  
+        <a href="https://wa.me/5511999999999" style="color:#0a1628;">+55 11 99999-9999</a>
+      </p>
+      <p style="font-size:13px; color:#94a3b8;">© {{ current_year }} Ponza Health</p>
+    </div>
+  </body>
+</html>

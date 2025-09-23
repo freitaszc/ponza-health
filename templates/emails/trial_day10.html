@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+
+<body style="font-family:Arial,Helvetica,sans-serif; background:#f5f7fa; margin:0; padding:0;">
+  <div
+    style="max-width:640px; margin:40px auto; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0 12px 32px rgba(19,29,53,0.15); text-align:center;">
+
+    <div style="text-align:center;">
+      <img src="cid:logo" alt="Ponza Health" style="max-width:220px;height:auto;">
+    </div>
+
+    <h2 style="color:#0a1628;">Faltam 4 dias para o fim do teste, {{ user.username }} ⏳</h2>
+    <p style="color:#1e293b; font-size:16px;">Seu teste gratuito termina em breve. Para não perder o acesso, assine o
+      plano mensal de <strong>R$ 79,90</strong>.</p>
+    <p style="color:#1e293b; font-size:16px;">
+      <a href="{{ url_for('prices', _external=True) }}" style="color:#0a1628;">Clique aqui para assinar agora</a>.
+    </p>
+
+    <hr style="margin:30px 0;">
+    <p style="font-size:15px; color:#64748b;">
+      Dúvidas? WhatsApp:
+      <a href="https://wa.me/5533984613689">+55 33 98461-3689</a>
+    </p>
+    </p>
+    <p style="font-size:13px; color:#94a3b8;">© {{ current_year }} Ponza Health</p>
+  </div>
+</body>
+
+</html>

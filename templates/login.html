@@ -343,7 +343,7 @@
             </a>
             <nav class="nav-actions">
                 <a href="{{ url_for('prices') }}">Preços</a>
-                <a href="{{ url_for('register') }}">Cadastrar</a>
+                <a href="{{ url_for('auth.register') }}">Cadastrar</a>
                 <a href="{{ url_for('login') }}">Entrar</a>
             </nav>
         </div>
@@ -383,7 +383,7 @@
 
                 <div style="text-align:center; margin-top:16px">
                     <span class="muted">Não tem conta?</span>
-                    <a href="{{ url_for('register') }}" class="link" style="margin-left:6px">Cadastre-se</a>
+                    <a href="{{ url_for('auth.register') }}" class="link" style="margin-left:6px">Cadastre-se</a>
                 </div>
 
                 <!-- Link centralizado -->

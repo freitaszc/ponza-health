@@ -28,8 +28,8 @@ from jinja2 import TemplateNotFound
 
 from models import (
     db, User, Patient, Doctor, Consult, PackageUsage,
-    Supplier, Product, AgendaEvent, Quote, Reference, Video,
-    SecureFile, PdfFile, WaitlistItem
+    Supplier, Product, AgendaEvent, Quote,
+    SecureFile, PdfFile, WaitlistItem, ScheduledEmail,
 )
 
 # ------------------------------------------------------------------------------
@@ -72,25 +72,34 @@ app.config.update(
 
 mail = Mail(app)
 
-def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=None):
+def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=None, inline_images=None):
     """
-    Helper para enviar e-mail com Flask-Mail.
-    - subject: str
-    - recipients: list[str]
-    - html/body: corpo HTML e/ou texto
-    - sender: opcional; por padrão usa MAIL_DEFAULT_SENDER
-    - reply_to: opcional
+    Envia e-mail com suporte a imagens inline via CID.
+    inline_images deve ser uma lista de dicts: [{"filename": "logo.png", "path": "static/images/7.png", "cid": "logo"}]
     """
     msg = Message(
         subject=subject,
         recipients=recipients,
-        sender=sender,
+        sender=sender or app.config["MAIL_DEFAULT_SENDER"],
         reply_to=reply_to
     )
     if html:
         msg.html = html
     if body:
         msg.body = body
+
+    # 🔑 Adiciona imagens inline (se houver)
+    if inline_images:
+        for img in inline_images:
+            with app.open_resource(img["path"]) as fp:
+                msg.attach(
+                    img["filename"],      # nome do arquivo
+                    "image/png",          # tipo MIME (ajuste se usar .jpg)
+                    fp.read(),
+                    "inline",
+                    headers={"Content-ID": f"<{img['cid']}>"}
+                )
+
     mail.send(msg)
 
 def allowed_file(filename: str) -> bool:
@@ -99,14 +108,13 @@ def allowed_file(filename: str) -> bool:
 
 # Configurações de e-mail (SMTP)
 app.config.update(
-    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
-    MAIL_USE_TLS=True,
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-    MAIL_DEFAULT_SENDER=os.getenv("MAIL_DEFAULT_SENDER", "no-reply@ponzahealth.com")
+    MAIL_SERVER=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
+    MAIL_PORT=int(os.getenv("SMTP_PORT", 587)),
+    MAIL_USE_TLS=(os.getenv("MAIL_USE_TLS", "true").strip().lower() == "true"),
+    MAIL_USERNAME=os.getenv("SMTP_USERNAME"),
+    MAIL_PASSWORD=os.getenv("SMTP_PASSWORD"),
+    MAIL_DEFAULT_SENDER=os.getenv("EMAIL_FROM")  # deve ser igual a SMTP_USERNAME
 )
-
 mail = Mail(app)
 
 # Serializer para tokens
@@ -144,15 +152,39 @@ app.config.update(
     },
 )
 
+from sqlalchemy import inspect, text
+
 db.init_app(app)
+
 with app.app_context():
     try:
+        # Cria todas as tabelas conhecidas pelos modelos
         db.create_all()
+
+        # ➜ criação segura da tabela de associação quote_suppliers
+        insp = inspect(db.engine)
+        if not insp.has_table("quote_suppliers"):
+            # Nova forma: abrir uma conexão explícita e usar text()
+            with db.engine.connect() as conn:
+                conn.execute(text("""
+                    CREATE TABLE quote_suppliers (
+                        quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+                        supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
+                        PRIMARY KEY (quote_id, supplier_id)
+                    )
+                """))
+                conn.commit()  # importante em SQLAlchemy 2.x
+            print("[MIGRATION] Tabela quote_suppliers criada com sucesso.")
+        else:
+            print("[DB] Tabela quote_suppliers já existe.")
+
     except Exception as e:
         print("[DB] create_all error:", e)
         try:
+            # Fallback: garantir modo WAL e recriar tabelas
             with db.engine.connect() as conn:
                 conn.execute(text("PRAGMA journal_mode=WAL"))
+                conn.commit()
             db.create_all()
         except Exception as e2:
             print("[DB] create_all fallback error:", e2)
@@ -320,20 +352,17 @@ def verify_reset_token(token: str, max_age_seconds: int = 3600*24) -> str | None
     except BadSignature:
         return None
 
-
 @app.route("/forgot_password", methods=["GET", "POST"])
 def pw_forgot():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
-
-        # (Opcional) Busque o usuário. Mesmo se não existir, responda genericamente
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter(func.lower(User.email) == email).first()
 
         if user:
+            app.logger.info(f"Reset de senha solicitado para {email}")
             token = generate_reset_token(email)
             reset_link = url_for("pw_reset", token=token, _external=True)
 
-            # Corpo do e-mail (HTML simples)
             html = f"""
                 <p>Olá!</p>
                 <p>Recebemos uma solicitação para redefinir sua senha.</p>
@@ -343,7 +372,6 @@ def pw_forgot():
                 <hr>
                 <p>Ponza Health</p>
             """
-            # Envia SEMPRE como contato@ponzahealth.com.br (MAIL_DEFAULT_SENDER)
             try:
                 send_email(
                     subject="Redefinição de senha — Ponza Health",
@@ -353,11 +381,9 @@ def pw_forgot():
             except Exception as e:
                 app.logger.exception("Erro ao enviar e-mail de reset")
 
-        # Resposta genérica (não revela se o e-mail existe)
         flash("Se este e-mail existir, enviaremos um link de recuperação.", "info")
         return redirect(url_for("pw_forgot"))
 
-    # GET
     return render_template("forgot_password.html")
 
 # ------------------------------------------------------------------------------
@@ -523,6 +549,194 @@ def inject_user_context():
     }
 
 # ------------------------------------------------------------------------------
+# Registering (Blueprint com verificação de e-mail e agendamentos)
+# ------------------------------------------------------------------------------
+from flask import Blueprint
+from itsdangerous import URLSafeTimedSerializer
+from datetime import datetime, timedelta
+
+auth_bp = Blueprint('auth', __name__, template_folder='templates/auth')
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        email = (request.form.get('email') or '').strip().lower()
+        password = request.form.get('password') or ''
+        confirm = request.form.get('confirm') or ''
+
+        import re
+        # ------------------------------
+        # 1️⃣ Validação de senha
+        # ------------------------------
+        if len(password) < 8:
+            return render_template("register.html",
+                                   error_message="A senha deve ter pelo menos <strong>8 caracteres</strong>.")
+        if not re.search(r"[A-Z]", password):
+            return render_template("register.html",
+                                   error_message="A senha deve conter pelo menos <strong>uma letra maiúscula</strong>.")
+        if not re.search(r"\d", password):
+            return render_template("register.html",
+                                   error_message="A senha deve conter pelo menos <strong>um número</strong>.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=]", password):
+            return render_template("register.html",
+                                   error_message="A senha deve conter pelo menos <strong>um caractere especial</strong>.")
+
+        # ------------------------------
+        # 2️⃣ Confirmação de senha
+        # ------------------------------
+        if password != confirm:
+            return render_template("register.html",
+                                   error_message="As senhas não coincidem.")
+
+        # ------------------------------
+        # 3️⃣ Verificar se e-mail já existe
+        # ------------------------------
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            return render_template("register.html",
+                                   error_message="Este e-mail já está cadastrado.")
+
+        # ------------------------------
+        # 4️⃣ Criar token de verificação
+        # ------------------------------
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        token = s.dumps(
+            {
+                'username': username,
+                'email': email,
+                'password_hash': generate_password_hash(password)
+            },
+            salt='email-confirm'
+        )
+
+        confirm_url = url_for('auth.verify_email', token=token, _external=True)
+
+        # ------------------------------
+        # 5️⃣ Montar e enviar o e-mail com a logo 1.png inline
+        # ------------------------------
+        html = render_template(
+            "emails/verify_account.html",
+            username=username,
+            confirm_url=confirm_url,
+            current_year=datetime.utcnow().year
+        )
+        send_email(
+            subject='Confirme sua conta - Ponza Health',
+            recipients=[email],
+            html=html,
+            inline_images=[{
+                "filename": "logo.png",
+                "path": os.path.join("static", "images", "1.png"),  # ✅ usa 1.png
+                "cid": "logo"
+            }]
+        )
+
+        # ------------------------------
+        # 6️⃣ Mensagem para o usuário
+        # ------------------------------
+        success_message = (
+            "Cadastro realizado com sucesso! "
+            f"Abra seu e-mail <strong>{email}</strong> e clique no link enviado para confirmar sua conta. "
+            "Confira também a pasta SPAM."
+        )
+        return render_template("register.html", success_message=success_message)
+
+    # GET
+    return render_template("register.html")
+
+@auth_bp.route('/verify/<token>')
+def verify_email(token):
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+    try:
+        data = s.loads(token, salt='email-confirm', max_age=172800)  # 48h
+    except Exception:
+        flash('Token inválido ou expirado.', 'error')
+        return redirect(url_for('auth.register'))
+
+    email = data['email']
+    username = data['username']
+
+    # ✅ Se já existe um usuário com este e-mail OU username, não tentar criar outro
+    existing = User.query.filter(
+        (User.email == email) | (User.username == username)
+    ).first()
+    if existing:
+        flash('Conta já confirmada ou nome de usuário em uso.', 'success')
+        return redirect(url_for('login'))
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=data['password_hash'],
+        created_at=datetime.utcnow(),
+        trial_until=datetime.utcnow() + timedelta(days=15)
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    schedule_trial_emails(user.id)
+
+    flash('Conta confirmada! Bem-vindo à Ponza Health.', 'success')
+    return redirect(url_for('login'))
+
+def schedule_trial_emails(user_id: int) -> None:
+    """
+    Agenda e-mails automáticos para +4, +7, +10, +14 e +15 dias após a criação da conta.
+    Todos eles agora enviam a logo 1.png inline.
+    """
+    now = datetime.utcnow()
+    offsets = [4, 7, 10, 14, 15]
+    templates = ['trial_day4', 'trial_day7', 'trial_day10', 'trial_day14', 'trial_day15']
+
+    for days, template in zip(offsets, templates):
+        db.session.add(
+            ScheduledEmail(
+                user_id=user_id,
+                template=template,
+                send_at=now + timedelta(days=days)
+            )
+        )
+    db.session.commit()
+
+@auth_bp.route('/cron/dispatch_emails')
+def dispatch_emails():
+    key = request.args.get('key')
+    if key != current_app.config.get('CRON_SECRET'):
+        return 'Unauthorized', 403
+
+    emails = (ScheduledEmail.query
+              .filter(ScheduledEmail.sent.is_(False), #type:ignore
+                      ScheduledEmail.send_at <= func.now())
+              .all())
+
+    sent_count = 0
+    for e in emails:
+        user = User.query.get(e.user_id)
+        if not user:
+            continue
+
+        html = render_template(f'emails/{e.template}.html', user=user)
+        send_email(
+            subject='Aviso do período de teste',
+            recipients=[user.email],
+            html=html,
+            inline_images=[{
+                "filename": "logo.png",
+                "path": os.path.join("static", "images", "1.png"),  # ✅ usa 1.png também nos trials
+                "cid": "logo"
+            }]
+        )
+        e.sent = True
+        sent_count += 1
+
+    db.session.commit()
+    return f'{sent_count} e-mails enviados.', 200
+
+# Não esqueça de registrar o blueprint
+app.register_blueprint(auth_bp)
+
+# ------------------------------------------------------------------------------
 # Páginas Públicas / Auth
 # ------------------------------------------------------------------------------
 @app.route('/')
@@ -543,65 +757,6 @@ def _first(form, *keys, default=""):
         if v is not None:
             return v.strip()
     return default
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    """
-    Registro de novos usuários:
-     - cria usuário
-     - define trial_until = agora + 14 dias
-     - define plan_status = 'trial'
-    """
-    if request.method == 'POST':
-        # aceita vários nomes de campo comuns
-        username = _first(request.form, 'username', 'name', 'user')
-        email    = _first(request.form, 'email', 'mail')
-        password = _first(request.form, 'password', 'pwd', 'pass', 'password1')
-        confirm  = _first(request.form, 'confirm', 'confirm_password', 'password_confirm', 'password2')
-
-        # validações (flash EXCLUSIVO de cadastro)
-        if not username or not email or not password or not confirm:
-            flash('Preencha todos os campos.', 'register_error')
-            return redirect(url_for('register'))
-
-        if not basic_email(email):
-            flash('E-mail inválido.', 'register_error')
-            return redirect(url_for('register'))
-
-        if password != confirm:
-            flash('Senhas não coincidem.', 'register_error')
-            return redirect(url_for('register'))
-
-        msg_len = _password_len_msg(password)
-        if msg_len:
-            flash(msg_len, 'register_error')
-            return redirect(url_for('register'))
-
-        if User.query.filter_by(username=username).first():
-            flash('Já existe um usuário com esse username.', 'register_error')
-            return redirect(url_for('register'))
-
-        if User.query.filter_by(email=email).first():
-            flash('E-mail já cadastrado.', 'register_error')
-            return redirect(url_for('register'))
-
-        # cria o usuário (hash da senha)
-        user = User(username=username, email=email, password_hash=generate_password_hash(password))
-
-        # define trial de 14 dias imediatamente
-        now = datetime.utcnow()
-        user.trial_until = now + timedelta(days=14)
-        user.plan_status = "trial"
-        user.plan_expires_at = None
-
-        db.session.add(user)
-        db.session.commit()
-
-        # sucesso aparece na tela de login
-        flash('Cadastro realizado com sucesso. Você recebeu 14 dias de teste gratuito. Faça seu login.', 'login_success')
-        return redirect(url_for('login'))
-
-    return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1313,6 +1468,11 @@ def upload():
     # 2) UPLOAD DE PDF (no DB)
     # ==========================
     file = request.files.get('pdf_file') or request.files.get('file') or request.files.get('pdf')
+    send_doctor  = (request.form.get('send_doctor') == '1')
+    send_patient = (request.form.get('send_patient') == '1')
+    doctor_phone_in = (request.form.get('doctor_phone') or '').strip()
+    patient_phone_in = (request.form.get('patient_phone') or '').strip()
+
     if not file or not (file.filename and file.filename.strip()):
         return redirect(url_for('upload', error="Nenhum arquivo selecionado."))
 
@@ -1447,6 +1607,39 @@ def upload():
 
     db.session.add(c)
     db.session.commit()
+
+    # === Envio automático via WhatsApp, se marcado no upload ===
+    try:
+        if send_doctor or send_patient:
+            filename = f"Resultado_{(p.name or 'Paciente').replace(' ', '_')}.pdf"
+            pdf_bytes = generate_result_pdf_bytes(
+                patient=p,
+                diagnostic_text=diagnosis,
+                prescription_text=prescriptions,
+                doctor_display_name=(getattr(u, "name", None) or u.username)
+            )
+            # Enviar ao médico
+            if send_doctor:
+                target_phone = doctor_phone_in
+                if not target_phone and doctor_id:
+                    try:
+                        d = Doctor.query.get(doctor_id)
+                        target_phone = (getattr(d, "phone", "") or "").strip()
+                    except Exception:
+                        pass
+                if target_phone:
+                    try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
+                else:
+                    print("[WA] sem telefone do médico para envio.")
+            # Enviar ao paciente
+            if send_patient:
+                target_phone = patient_phone_in or (p.phone_primary or "").strip()
+                if target_phone:
+                    try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
+                else:
+                    print("[WA] sem telefone do paciente para envio.")
+    except Exception as e:
+        print("[WA upload] erro no pipeline de envio:", e)
 
     # vincula o PdfFile ao paciente/consulta, se existir
     try:
@@ -2524,25 +2717,13 @@ def doctor_delete(doctor_id):
 # ------------------------------------------------------------------------------
 @app.route('/quotes', methods=['GET'], endpoint='quote_index')
 @login_required
-def quotes_index():
+def quote_index():
     u = current_user()
     base = Quote.query
     if hasattr(Quote, 'user_id'):
         base = base.filter(Quote.user_id == u.id)
     quotes = base.order_by(Quote.created_at.desc()).all()
-    try:
-        return render_template('quote_index.html', quotes=quotes)
-    except TemplateNotFound:
-        items = "".join(
-            f"<li><strong>{q.title}</strong> — {q.created_at.strftime('%d/%m/%Y %H:%M')}</li>"
-            for q in quotes
-        )
-        return f"""
-            <!doctype html><meta charset="utf-8">
-            <h1>Cotações</h1>
-            <ul>{items or "<li>(vazio)</li>"}</ul>
-            <p><a href="{url_for('index')}">Voltar</a></p>
-        """
+    return render_template('quote_index.html', quotes=quotes)
 
 @app.route('/quotes/<int:quote_id>/results', methods=['GET'], endpoint='quote_results')
 @login_required
@@ -2722,54 +2903,39 @@ def quote_results(quote_id: int):
         notifications_unread=0
     )
 
-@app.route('/create_quote', methods=['GET', 'POST'])
+@app.route('/quotes/create', methods=['GET', 'POST'], endpoint='create_quote')
 @login_required
 def create_quote():
-    from json import loads, dumps
     u = current_user()
 
     if request.method == 'POST':
         title = (request.form.get('title') or '').strip()
-        items_raw = (request.form.get('items') or '').strip()
-        supplier_ids = request.form.getlist('supplier_ids')
+        items = (request.form.get('items') or '').strip()
 
-        if not title or not items_raw or not supplier_ids:
-            flash('Preencha título, itens e fornecedores.', 'warning')
-            return redirect(url_for('create_quote'))
+        # IDs dos fornecedores escolhidos no form
+        supplier_ids = [int(x) for x in request.form.getlist('suppliers') if x.strip()]
 
-        try:
-            parsed = loads(items_raw)
-            if isinstance(parsed, list):
-                items_norm = [str(x).strip() for x in parsed if str(x).strip()]
-            elif isinstance(parsed, dict):
-                items_norm = parsed
-            else:
-                items_norm = [str(parsed).strip()]
-        except Exception:
-            items_norm = [ln.strip() for ln in items_raw.splitlines() if ln.strip()]
+        # busca objetos Supplier do usuário atual
+        suppliers_objs = Supplier.query.filter(
+            Supplier.user_id == u.id,
+            Supplier.id.in_(supplier_ids)
+        ).all()
 
-        suppliers_norm = []
-        for sid in supplier_ids:
-            sid = sid.strip()
-            if sid:
-                suppliers_norm.append(int(sid) if sid.isdigit() else sid)
-
-        kwargs = dict(
+        q = Quote(
+            user_id=u.id,
             title=title,
-            items=dumps(items_norm, ensure_ascii=False),
-            suppliers=dumps(suppliers_norm, ensure_ascii=False),
+            items=items,
+            suppliers=suppliers_objs   # ✅ lista de objetos, não string
         )
-        if hasattr(Quote, 'user_id'):
-            kwargs['user_id'] = u.id
 
-        q = Quote(**kwargs)
         db.session.add(q)
         db.session.commit()
-        flash('Cotação criada.', 'success')
+        flash('Cotação criada com sucesso!', 'success')
         return redirect(url_for('quote_index'))
 
-    suppliers = Supplier.query.filter_by(user_id=u.id).order_by(Supplier.name.asc()).all()
+    suppliers = Supplier.query.filter_by(user_id=u.id).all()
     return render_template('create_quote.html', suppliers=suppliers)
+
 
 @app.route('/quotes/<int:quote_id>', methods=['GET'], endpoint='quote_view')
 @login_required
