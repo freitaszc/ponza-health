@@ -18,7 +18,7 @@ from flask_mail import Mail, Message
 from dotenv import load_dotenv
 from flask import (
     Flask, render_template, render_template_string, request, redirect, url_for,
-    session, flash, jsonify, abort, send_file, g
+    session, flash, jsonify, abort, send_file, g, current_app
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -1521,7 +1521,7 @@ def download_pdf(patient_id):
 
     # 1) Tenta WeasyPrint
     try:
-        HTML(string=html_str, base_url=request.host_url).write_pdf(pdf_io)
+        HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
         pdf_io.seek(0)
         pdf_ok = True
     except Exception as e:
