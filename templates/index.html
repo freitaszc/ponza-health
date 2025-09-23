@@ -629,13 +629,19 @@
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
     <div class="sidebar-spacer"></div>
+    {% if session.username and session.username|lower == 'admin' %}
+    <a href="{{ url_for('admin_users') }}" class="menu-item">
+      <i class="fa fa-shield"></i><span class="label">Admin</span>
+    </a>
+    {% endif %}
+
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
   </div>
 
   <div class="content">
     <h2>Bem-vindo(a) {{ username }}</h2>
-  
+
     {% if trial_active %}
     <div style="
       background: #fff7ed;
@@ -650,14 +656,14 @@
       max-width: 900px;
       box-shadow: var(--shadow);
     ">
-      Você está no <strong>período de teste</strong>.  
+      Você está no <strong>período de teste</strong>.
       <a href="{{ url_for('payments') }}" style="color: #b91c1c; text-decoration: underline;">
         Faça a compra do serviço
       </a>
       para continuar com acesso após o fim do teste.
     </div>
     {% endif %}
-  
+
     <!-- DONUTS + CONSULTAS -->
     <div class="donuts-grid">
       <div class="compact-card">

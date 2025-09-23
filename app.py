@@ -8,6 +8,7 @@ from functools import wraps
 from typing import Any, Optional, Callable, cast
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from uuid import uuid4
 import json
 import tempfile
@@ -333,6 +334,33 @@ def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None)
         mimetype=sf.mime_type or "application/pdf",
     )
 
+# ----------------------------------------–-------------------------------------
+# Admin
+# ------------------------------------------------------------------------------
+@app.route("/admin/users", methods=["GET", "POST"])
+def admin_users():
+    # ✅ Require that the logged-in session user is admin
+    if session.get("username", "").lower() != "admin":
+        abort(403)  # Forbidden if not admin
+
+    all_users = User.query.order_by(User.created_at.desc()).all()
+    return render_template("admin_users.html", users=all_users)
+
+
+@app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
+def delete_user(user_id):
+    if session.get("username", "").lower() != "admin":
+        abort(403)
+
+    u = User.query.get_or_404(user_id)
+    if u.username.lower() == "admin":
+        flash("Conta admin não pode ser excluída.", "error")
+    else:
+        db.session.delete(u)
+        db.session.commit()
+        flash("Usuário excluído com sucesso.", "success")
+    return redirect(url_for("admin_users"))
+
 # ------------------------------------------------------------------------------
 # Esqueci a senha
 # ------------------------------------------------------------------------------
@@ -384,7 +412,7 @@ def pw_forgot():
         flash("Se este e-mail existir, enviaremos um link de recuperação.", "info")
         return redirect(url_for("pw_forgot"))
 
-    return render_template("forgot_password.html")
+    return render_template("pw_forgot.html")
 
 # ------------------------------------------------------------------------------
 # Reset de senha
@@ -2715,163 +2743,91 @@ def doctor_delete(doctor_id):
 # ------------------------------------------------------------------------------
 # Cotações / Fornecedores / Produtos
 # ------------------------------------------------------------------------------
+from zoneinfo import ZoneInfo
+from decimal import Decimal
+
 @app.route('/quotes', methods=['GET'], endpoint='quote_index')
 @login_required
 def quote_index():
     u = current_user()
-    base = Quote.query
-    if hasattr(Quote, 'user_id'):
-        base = base.filter(Quote.user_id == u.id)
-    quotes = base.order_by(Quote.created_at.desc()).all()
+    # busca todas as cotações do usuário
+    quotes = Quote.query.filter(Quote.user_id == u.id).order_by(Quote.created_at.desc()).all()
+
+    # Ajusta timezone e contagens
+    for q in quotes:
+        q.created_at_br = q.created_at.astimezone(ZoneInfo("America/Sao_Paulo")) if q.created_at else None
+        # contagem de fornecedores via relationship
+        q.suppliers_count = len(q.suppliers or [])
+        # contagem de respostas via relationship
+        q.responses_count = len(q.responses or [])
+
     return render_template('quote_index.html', quotes=quotes)
+
 
 @app.route('/quotes/<int:quote_id>/results', methods=['GET'], endpoint='quote_results')
 @login_required
 def quote_results(quote_id: int):
-    from json import loads
     u = current_user()
-
     q = Quote.query.get_or_404(quote_id)
-    if hasattr(Quote, 'user_id') and q.user_id != u.id:
+    if q.user_id != u.id:
         abort(403)
 
-    # 1) Itens
+    # 1) Itens: converte o JSON salvo em items (continua Text mas é JSON válido)
     items: list[str] = []
     try:
-        parsed = loads(q.items or "[]")
+        parsed = json.loads(q.items or "[]")
         if isinstance(parsed, list):
             items = [str(x).strip() for x in parsed if str(x).strip()]
-        elif isinstance(parsed, dict):
-            items = [str(k).strip() for k in parsed.keys() if str(k).strip()]
-        else:
-            s = str(parsed).strip()
-            if s:
-                items = [s]
     except Exception:
+        # fallback: caso seja texto simples
         raw = (q.items or "").strip()
         items = [ln.strip() for ln in raw.splitlines() if ln.strip()]
 
-    # 2) Fornecedores selecionados
-    quote_suppliers: list[int] = []
-    try:
-        sup_parsed = loads(q.suppliers or "[]")
-        if isinstance(sup_parsed, list):
-            for v in sup_parsed:
-                try:
-                    quote_suppliers.append(int(v))
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    # 2) Fornecedores diretamente do relacionamento
+    suppliers = q.suppliers or []
+    supplier_names = [s.name or f"Fornecedor #{s.id}" for s in suppliers]
+    quote_suppliers_ids = [s.id for s in suppliers]
 
-    # 3) Nomes de fornecedores do PRÓPRIO usuário
-    supplier_names: list[str] = []
-    if quote_suppliers:
-        sups = Supplier.query.filter(
-            Supplier.user_id == u.id,
-            Supplier.id.in_(quote_suppliers)
-        ).all()
-        name_by_id = {s.id: (s.name or f"Fornecedor #{s.id}") for s in sups}
-        supplier_names = [
-            name_by_id.get(sid, f"Fornecedor #{sid}") for sid in quote_suppliers
-        ]
-    else:
-        supplier_names = []
-
-    # 4) Respostas por fornecedor (como no seu código, sem mudanças estruturais)
+    # 3) Respostas via relacionamento
     quote_responses: dict[int, dict] = {}
-    used_source = None
-    try:
-        from models import QuoteResponse  # type: ignore
-        rows = (
-            db.session.query(QuoteResponse)
-            .filter(getattr(QuoteResponse, "quote_id") == quote_id)
-            .all()
-        )
-        for r in rows:
-            sid = getattr(r, "supplier_id", None)
-            if not sid:
-                continue
-            payload = getattr(r, "answers", None) or getattr(r, "response", None)
-            if isinstance(payload, str):
-                try:
-                    payload = loads(payload)
-                except Exception:
-                    payload = None
-            answers = []
+    for r in q.responses:
+        sid = r.supplier_id
+        if not sid:
+            continue
+        # respostas armazenadas como JSON em r.answers
+        answers = []
+        try:
+            payload = json.loads(r.answers) if r.answers else []
             if isinstance(payload, list):
                 answers = payload
             elif isinstance(payload, dict) and "answers" in payload:
                 answers = payload.get("answers") or []
-            norm = []
-            for a in (answers or []):
-                if not isinstance(a, dict):
-                    continue
+        except Exception:
+            pass
+
+        norm = []
+        for a in answers:
+            if isinstance(a, dict):
                 price = str(a.get("price", "")).strip()
                 deadline = a.get("deadline", "")
-                from decimal import Decimal
                 try:
                     price_val = Decimal(str(price).replace(",", "."))
                     price = f"{price_val:.2f}".replace(".", ",")
                 except Exception:
-                    price = str(price) or ""
+                    price = price or ""
                 try:
                     deadline = int(deadline)
                 except Exception:
                     deadline = str(deadline).strip() or ""
                 norm.append({"price": price, "deadline": deadline})
-            quote_responses[int(sid)] = {"answers": norm}
-        if quote_responses:
-            used_source = "QuoteResponse"
-    except Exception:
-        pass
+        quote_responses[sid] = {"answers": norm}
 
-    if not used_source:
-        try:
-            raw = getattr(q, "responses", None)
-            if isinstance(raw, str):
-                raw = loads(raw)
-            if isinstance(raw, dict):
-                for k, v in raw.items():
-                    try:
-                        sid = int(k)
-                    except Exception:
-                        continue
-                    answers = v.get("answers") if isinstance(v, dict) else None
-                    if isinstance(answers, str):
-                        try:
-                            answers = loads(answers)
-                        except Exception:
-                            answers = None
-                    norm = []
-                    for a in (answers or []):
-                        if not isinstance(a, dict):
-                            continue
-                        price = str(a.get("price", "")).strip()
-                        deadline = a.get("deadline", "")
-                        from decimal import Decimal
-                        try:
-                            price_val = Decimal(price.replace(".", "").replace(",", ".")) if price else None
-                            price = f"{price_val:.2f}".replace(".", ",") if price_val is not None else ""
-                        except Exception:
-                            price = str(price) or ""
-                        try:
-                            deadline = int(deadline)
-                        except Exception:
-                            deadline = str(deadline).strip() or ""
-                        norm.append({"price": price, "deadline": deadline})
-                    quote_responses[sid] = {"answers": norm}
-            used_source = "Quote.responses"
-        except Exception:
-            used_source = None
-
-    # 5) Melhor preço por item
+    # 4) Melhor preço por item
     best_per_item: dict[int, int] = {}
     for idx in range(len(items)):
         best_sid = None
         best_price = None
-        from decimal import Decimal
-        for sid in quote_suppliers:
+        for sid in quote_suppliers_ids:
             resp = quote_responses.get(sid)
             if not resp:
                 continue
@@ -2884,9 +2840,7 @@ def quote_results(quote_id: int):
                 price_val = Decimal(price_s.replace(".", "").replace(",", ".")) if price_s else None
             except Exception:
                 price_val = None
-            if price_val is None:
-                continue
-            if best_price is None or price_val < best_price:
+            if price_val is not None and (best_price is None or price_val < best_price):
                 best_price = price_val
                 best_sid = sid
         if best_sid is not None:
@@ -2897,36 +2851,36 @@ def quote_results(quote_id: int):
         quote=q,
         supplier_names=supplier_names,
         quote_items=list(enumerate(items)),
-        quote_suppliers=quote_suppliers,
+        quote_suppliers=quote_suppliers_ids,
         quote_responses=quote_responses,
         best_per_item=best_per_item,
         notifications_unread=0
     )
 
+
 @app.route('/quotes/create', methods=['GET', 'POST'], endpoint='create_quote')
 @login_required
 def create_quote():
     u = current_user()
-
     if request.method == 'POST':
         title = (request.form.get('title') or '').strip()
-        items = (request.form.get('items') or '').strip()
+        raw_items = (request.form.get('items') or '').strip()
+        items_list = [ln.strip() for ln in raw_items.splitlines() if ln.strip()]
 
-        # IDs dos fornecedores escolhidos no form
+        # busca instâncias Supplier
         supplier_ids = [int(x) for x in request.form.getlist('suppliers') if x.strip()]
-
-        # busca objetos Supplier do usuário atual
-        suppliers_objs = Supplier.query.filter(
+        selected_suppliers = Supplier.query.filter(
             Supplier.user_id == u.id,
             Supplier.id.in_(supplier_ids)
-        ).all()
+        ).all() if supplier_ids else []
 
         q = Quote(
             user_id=u.id,
             title=title,
-            items=items,
-            suppliers=suppliers_objs   # ✅ lista de objetos, não string
+            items=json.dumps(items_list, ensure_ascii=False)
         )
+        # relaciona os fornecedores diretamente
+        q.suppliers = selected_suppliers  # type: ignore
 
         db.session.add(q)
         db.session.commit()
@@ -2942,25 +2896,17 @@ def create_quote():
 def quotes_view(quote_id):
     u = current_user()
     q = Quote.query.get_or_404(quote_id)
-    if hasattr(Quote, 'user_id') and q.user_id != u.id:
+    if q.user_id != u.id:
         abort(403)
-    try:
-        return render_template('quote_view.html', quote=q)
-    except TemplateNotFound:
-        return render_template_string("""
-        <h1>Visualizar Cotação</h1>
-        <p><strong>Título:</strong> {{ q.title }}</p>
-        <p><strong>Itens:</strong><br><pre>{{ q.items }}</pre></p>
-        <p><strong>Fornecedores:</strong><br><pre>{{ q.suppliers }}</pre></p>
-        <p><a href="{{ url_for('quote_index') }}">Voltar</a></p>
-        """, q=q)
+    return render_template('quote_view.html', quote=q)
+
 
 @app.route('/quotes/<int:quote_id>/delete', methods=['POST'], endpoint='quote_delete')
 @login_required
 def quotes_delete(quote_id):
     u = current_user()
     q = Quote.query.get_or_404(quote_id)
-    if hasattr(Quote, 'user_id') and q.user_id != u.id:
+    if q.user_id != u.id:
         abort(403)
     db.session.delete(q)
     db.session.commit()
