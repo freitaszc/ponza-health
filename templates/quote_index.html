@@ -454,8 +454,14 @@
               <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
                 {{ quote.created_at_br.strftime('%d/%m/%Y %H:%M') if quote.created_at_br else '-' }}
               </td>
-              <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
-                {{ quote.suppliers_count }}
+              <td>
+                {% if quote.suppliers %}
+                  {% for s in quote.suppliers %}
+                    {{ s.name }}<br>
+                  {% endfor %}
+                {% else %}
+                  —
+                {% endif %}
               </td>
               <td onclick="window.location='{{ url_for('quote_results', quote_id=quote.id) }}'">
                 {{ quote.responses_count }}
@@ -469,7 +475,7 @@
             </tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table>        
       </div>
     </div>
     {% else %}

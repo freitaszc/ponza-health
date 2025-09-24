@@ -339,9 +339,9 @@ def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None)
 # ------------------------------------------------------------------------------
 @app.route("/admin/users", methods=["GET", "POST"])
 def admin_users():
-    # ✅ Require that the logged-in session user is admin
-    if session.get("username", "").lower() != "admin":
-        abort(403)  # Forbidden if not admin
+    u = get_logged_user()
+    if not u or (u.username or "").lower() != "admin":
+        abort(403)
 
     all_users = User.query.order_by(User.created_at.desc()).all()
     return render_template("admin_users.html", users=all_users)
@@ -349,14 +349,15 @@ def admin_users():
 
 @app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
 def delete_user(user_id):
-    if session.get("username", "").lower() != "admin":
+    u = get_logged_user()
+    if not u or (u.username or "").lower() != "admin":
         abort(403)
 
-    u = User.query.get_or_404(user_id)
-    if u.username.lower() == "admin":
+    target = User.query.get_or_404(user_id)
+    if (target.username or "").lower() == "admin":
         flash("Conta admin não pode ser excluída.", "error")
     else:
-        db.session.delete(u)
+        db.session.delete(target)
         db.session.commit()
         flash("Usuário excluído com sucesso.", "success")
     return redirect(url_for("admin_users"))
@@ -467,6 +468,16 @@ def pw_reset(token):
 # ------------------------------------------------------------------------------
 # Helpers / Auth
 # ------------------------------------------------------------------------------
+@app.template_filter("brt")
+def brt(dt):
+    """Converte um datetime UTC para horário de Brasília (America/Sao_Paulo)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # assume que vem em UTC
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+
 @app.context_processor
 def url_helpers():
     def img_url(path, default_rel=None):
@@ -618,12 +629,20 @@ def register():
                                    error_message="As senhas não coincidem.")
 
         # ------------------------------
-        # 3️⃣ Verificar se e-mail já existe
+        # 3️⃣ Verificar se username/email já existem (case-insensitive p/ email)
         # ------------------------------
-        existing = User.query.filter_by(email=email).first()
-        if existing:
+        if not username:
             return render_template("register.html",
-                                   error_message="Este e-mail já está cadastrado.")
+                                error_message="Informe um <strong>nome de usuário</strong>.")
+
+        if User.query.filter_by(username=username).first():
+            return render_template("register.html",
+                                error_message="Este <strong>nome de usuário</strong> já está em uso.")
+
+        existing_email = User.query.filter(func.lower(User.email) == email.lower()).first()
+        if existing_email:
+            return render_template("register.html",
+                                error_message="Este <strong>e-mail</strong> já está cadastrado.")
 
         # ------------------------------
         # 4️⃣ Criar token de verificação
@@ -673,45 +692,40 @@ def register():
     # GET
     return render_template("register.html")
 
-@auth_bp.route('/verify/<token>')
+@auth_bp.route('/verify_email/<token>')
 def verify_email(token):
     s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
-        data = s.loads(token, salt='email-confirm', max_age=172800)  # 48h
-    except Exception:
-        flash('Token inválido ou expirado.', 'error')
-        return redirect(url_for('auth.register'))
+        data = s.loads(token, salt='email-confirm', max_age=3600*24)
+    except (SignatureExpired, BadSignature):
+        abort(400)
 
-    email = data['email']
-    username = data['username']
+    now = datetime.utcnow()
 
-    # ✅ Se já existe um usuário com este e-mail OU username, não tentar criar outro
-    existing = User.query.filter(
-        (User.email == email) | (User.username == username)
-    ).first()
-    if existing:
-        flash('Conta já confirmada ou nome de usuário em uso.', 'success')
-        return redirect(url_for('login'))
-
-    user = User(
-        username=username,
-        email=email,
+    new_user = User(
+        username=data['username'],
+        email=data['email'].lower(),
         password_hash=data['password_hash'],
-        created_at=datetime.utcnow(),
-        trial_until=datetime.utcnow() + timedelta(days=15)
+        created_at=now,
+        plan_status='trial',          # <- controle simples de status
+        trial_until=now + timedelta(days=14),
+        plan_expires_at=None
     )
-    db.session.add(user)
+    db.session.add(new_user)
     db.session.commit()
 
-    schedule_trial_emails(user.id)
+    # agenda os e-mails de trial (4, 7, 10, 14 e 15 dias)
+    try:
+        schedule_trial_emails(new_user.id)
+    except Exception:
+        current_app.logger.exception("Falha ao agendar e-mails de trial")
 
-    flash('Conta confirmada! Bem-vindo à Ponza Health.', 'success')
+    flash('Conta confirmada com sucesso. Agora você pode entrar.', 'success')
     return redirect(url_for('login'))
 
 def schedule_trial_emails(user_id: int) -> None:
     """
     Agenda e-mails automáticos para +4, +7, +10, +14 e +15 dias após a criação da conta.
-    Todos eles agora enviam a logo 1.png inline.
     """
     now = datetime.utcnow()
     offsets = [4, 7, 10, 14, 15]
@@ -808,7 +822,6 @@ def login():
         # sucesso de login com flash exclusivo
         session['user_id']  = user.id
         session['username'] = user.username
-        flash('Login realizado com sucesso!', 'login_success')
         return redirect(url_for('index'))
 
     return render_template('login.html')
@@ -2743,9 +2756,6 @@ def doctor_delete(doctor_id):
 # ------------------------------------------------------------------------------
 # Cotações / Fornecedores / Produtos
 # ------------------------------------------------------------------------------
-from zoneinfo import ZoneInfo
-from decimal import Decimal
-
 @app.route('/quotes', methods=['GET'], endpoint='quote_index')
 @login_required
 def quote_index():
