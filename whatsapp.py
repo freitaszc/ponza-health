@@ -11,25 +11,27 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 
 def normalize_phone(phone: str) -> str:
     """
-    Normaliza números brasileiros para o formato E.164 aceito pelo WhatsApp.
-    Exemplo:
-        "31 98461-3689" ou "31984613689" -> "+5531984613689"
-        "+5531984613689" -> "+5531984613689"
+    Normaliza número para o formato internacional esperado pelo WhatsApp Cloud API.
+    - Remove caracteres não numéricos.
+    - Se for um celular do Brasil sem DDI (11 dígitos), prefixa 55.
+    - Se já começa com DDI (ex.: 55...), mantém.
     """
     if not phone:
-        return ""
-    digits = re.sub(r"\D", "", phone)  # remove tudo que não é número
+        return phone
+    digits = re.sub(r"\D", "", phone)
 
-    # Já vem com +55 no início
-    if digits.startswith("55"):
-        return "+" + digits
+    if digits.startswith("55") and len(digits) in (12, 13):  # 12/13 because of the 9th digit added in Brazil
+        return digits
 
-    # Se for número brasileiro (10 ou 11 dígitos), adiciona +55
-    if len(digits) in (10, 11):
-        return "+55" + digits
+    # if it doesnt have DDI
+    if len(digits) == 11 and not digits.startswith("55"):
+        return f"55{digits}"
 
-    # Fallback: outros países ou formatos
-    return "+" + digits
+    # if it already has + it corrects it
+    if phone.startswith("+"):
+        return digits
+
+    return digits
 
 
 def send_pdf_whatsapp(doctor_name: str, patient_name: str,
