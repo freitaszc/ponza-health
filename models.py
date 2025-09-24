@@ -67,14 +67,19 @@ class User(db.Model, BaseModel):
     trial_until     = db.Column(db.DateTime)
     created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-
     # Relacionamentos úteis ao app
-    suppliers      = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
-    products       = relationship("Product",  back_populates="user", cascade="all, delete-orphan")
-    agenda_events  = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
-    package_usage  = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    secure_files   = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
-    quotes         = relationship("Quote", back_populates="user")
+    suppliers       = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
+    products        = relationship("Product",  back_populates="user", cascade="all, delete-orphan")
+    agenda_events   = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
+    package_usage   = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    secure_files    = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
+    quotes          = relationship("Quote", back_populates="user")
+    scheduled_emails = relationship(  # 👈 adicionado cascade
+        "ScheduledEmail",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
 
 class Supplier(db.Model, BaseModel):
@@ -354,15 +359,19 @@ class WaitlistItem(db.Model, BaseModel):
 
 
 class ScheduledEmail(db.Model, BaseModel):
-    __tablename__ = "scheduled_emails"
-
-    id       = db.Column(db.Integer, primary_key=True)
-    user_id  = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)  # <-- corrigido
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', name='fk_scheduled_emails_user_id_users')
+    )
     template = db.Column(db.String(50), nullable=False)
     send_at  = db.Column(db.DateTime, nullable=False)
     sent     = db.Column(db.Boolean, default=False, nullable=False)
 
-    user = relationship("User", backref="scheduled_emails")
+    user = relationship(
+        "User",
+        back_populates="scheduled_emails",
+        passive_deletes=True
+    )
 
     def __init__(self, user_id: int, template: str, send_at: datetime, sent: bool = False) -> None:
         self.user_id = user_id

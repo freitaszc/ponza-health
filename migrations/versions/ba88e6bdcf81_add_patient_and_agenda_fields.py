@@ -1,5 +1,19 @@
+"""add patient and agenda fields"""
+
 from alembic import op
 import sqlalchemy as sa
+
+# ========================================================================
+# Cabeçalho obrigatório do Alembic
+# ========================================================================
+# Identificador único desta migration (o nome do arquivo é só referência).
+revision = 'ba88e6bdcf81'
+# ID da migration imediatamente anterior (verifique no seu histórico
+# ou no arquivo que precede este — ajuste se necessário).
+down_revision = None
+branch_labels = None
+depends_on = None
+# ========================================================================
 
 
 def upgrade():
@@ -50,22 +64,16 @@ def upgrade():
     # AGENDA_EVENTS: campos extras (se ainda não existirem)
     # -----------------------
     with op.batch_alter_table('agenda_events', schema=None) as batch_op:
-        try:
-            batch_op.add_column(sa.Column('notes', sa.Text(), nullable=True))
-        except Exception:
-            pass
-        try:
-            batch_op.add_column(sa.Column('type', sa.String(length=20), nullable=True))
-        except Exception:
-            pass
-        try:
-            batch_op.add_column(sa.Column('billing', sa.String(length=20), nullable=True))
-        except Exception:
-            pass
-        try:
-            batch_op.add_column(sa.Column('insurer', sa.String(length=120), nullable=True))
-        except Exception:
-            pass
+        for col_name, col_def in [
+            ('notes', sa.Text()),
+            ('type', sa.String(length=20)),
+            ('billing', sa.String(length=20)),
+            ('insurer', sa.String(length=120)),
+        ]:
+            try:
+                batch_op.add_column(sa.Column(col_name, col_def.type, nullable=True))
+            except Exception:
+                pass
 
     # Índices úteis na agenda
     op.create_index('ix_agenda_events_start', 'agenda_events', ['start'], unique=False)
@@ -78,9 +86,11 @@ def downgrade():
     dialect = bind.dialect.name
 
     # Remover índices da agenda
-    op.drop_index('ix_agenda_events_type', table_name='agenda_events')
-    op.drop_index('ix_agenda_events_end', table_name='agenda_events')
-    op.drop_index('ix_agenda_events_start', table_name='agenda_events')
+    for idx in ('ix_agenda_events_type', 'ix_agenda_events_end', 'ix_agenda_events_start'):
+        try:
+            op.drop_index(idx, table_name='agenda_events')
+        except Exception:
+            pass
 
     # Remover colunas extras da agenda (tolerante se já não existirem)
     with op.batch_alter_table('agenda_events', schema=None) as batch_op:

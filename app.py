@@ -1,9 +1,10 @@
 import os
 import re
 import secrets
+from flask_migrate import Migrate
+from models import db
 from io import BytesIO
 from mercado_pago import generate_subscription_link
-from weasyprint import HTML
 from functools import wraps
 from typing import Any, Optional, Callable, cast
 from decimal import Decimal, InvalidOperation
@@ -72,6 +73,8 @@ app.config.update(
 )
 
 mail = Mail(app)
+
+migrate = Migrate(app, db)
 
 def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=None, inline_images=None):
     """
@@ -1697,6 +1700,7 @@ def upload():
 @app.route('/download_pdf/<int:patient_id>')
 @login_required
 def download_pdf(patient_id):
+    from weasyprint import HTML
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
     if patient.owner_user_id != u.id:
@@ -3431,6 +3435,8 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
     Gera o PDF (mesma aparência do /download_pdf) e retorna os bytes.
     Também salva uma cópia no banco (PdfFile/SecureFile) para histórico.
     """
+
+    from weasyprint import HTML
     u = current_user()
 
     def _calc_age(birthdate):
