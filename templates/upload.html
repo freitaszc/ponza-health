@@ -428,11 +428,17 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
-    <a href="{{ url_for('upload') }}" class="menu-item active"><i class="fa fa-upload"></i><span class="label">Ponza
+    <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
+
+    <!-- ✅ Novo link para Profissionais -->
+    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
+        class="label">Profissionais</span></a>
+
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
@@ -441,6 +447,7 @@
         class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
+
     <div class="sidebar-spacer"></div>
     {% if session.username and session.username|lower == 'admin' %}
     <a href="{{ url_for('admin_users') }}" class="menu-item"><i class="fa fa-shield"></i><span

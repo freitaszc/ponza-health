@@ -2,9 +2,9 @@
 <html lang="pt-br">
 
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Profissionais - Ponza Health</title>
-  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
 
   <!-- Preload: aplica estado colapsado ANTES do primeiro paint -->
   <script>
@@ -19,24 +19,24 @@
 
   <!-- Fonts / Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 
   <style>
-    /* ===== Page/base layout (outside of shadow) ===== */
     :root {
       --bg: #ffffff;
-      --surface: #ffffff;
-      --surface-alt: #f8fafc;
-      --border: #e5e7eb;
       --ink: #0b1220;
       --ink-dim: #475569;
+      --border: #e5e7eb;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
-      --brand-solid: #131d35;
+      --brand-blue-solid: #0f182b;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
-      --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --radius: 12px;
       --btn-h: 44px;
       --btn-minw: 220px;
+      --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 
     * {
@@ -49,15 +49,14 @@
     }
 
     body {
+      font-family: var(--font-family);
+      background: var(--bg);
+      color: var(--ink);
       min-height: 100vh;
       display: flex;
-      font-family: var(--font-family);
-      color: var(--ink);
-      background: var(--bg);
-      font-size: 14px;
     }
 
-    /* Topo direito */
+    /* TOP RIGHT */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -79,18 +78,18 @@
       display: grid;
       place-items: center;
       box-shadow: var(--shadow);
-      transition: transform .15s, box-shadow .15s, border-color .15s;
-      text-decoration: none;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
+      text-decoration: none
     }
 
     .icon-btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 10px 24px rgba(2, 6, 23, .12);
-      border-color: var(--brand-solid)
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
+      border-color: var(--brand-blue-solid)
     }
 
     .icon-btn i {
-      color: var(--brand-solid);
+      color: var(--brand-blue-solid);
       font-size: 18px
     }
 
@@ -102,16 +101,119 @@
       height: 16px;
       padding: 0 4px;
       border-radius: 999px;
-      background: var(--brand-solid);
+      background: var(--brand-blue-solid);
       color: #fff;
       font-size: 10px;
       font-weight: 800;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center
     }
 
-    /* ===== Content ===== */
+    /* SIDEBAR */
+    .sidebar {
+      width: 250px;
+      min-height: 100vh;
+      background: var(--brand-grad);
+      padding: 28px 18px;
+      border-right: 1px solid #1f2937;
+      box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
+      display: flex;
+      flex-direction: column;
+      transition: width 180ms ease;
+      position: sticky;
+      top: 0
+    }
+
+    .sidebar-logo {
+      width: 200px;
+      display: block;
+      margin: 0 auto 18px;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
+      transition: width 180ms ease, margin 180ms ease
+    }
+
+    .sidebar a.menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      color: #e5e7eb;
+      text-decoration: none;
+      margin-bottom: 18px;
+      font-weight: 600;
+      transition: background .2s, color .2s, transform .12s
+    }
+
+    .sidebar a.menu-item i {
+      width: 21px;
+      text-align: center;
+      flex: 0 0 21px
+    }
+
+    .sidebar a.menu-item:hover {
+      background: #fff;
+      color: var(--brand-blue-solid);
+      transform: translateX(4px)
+    }
+
+    .sidebar a.menu-item.active {
+      color: #fff;
+      background: var(--brand-grad);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
+    }
+
+    .sidebar-spacer {
+      flex: 1 1 auto
+    }
+
+    .sidebar-toggle {
+      align-self: flex-end;
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .25);
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background .2s, border-color .2s, transform .12s;
+      font-size: 12px
+    }
+
+    .sidebar-toggle:hover {
+      background: #fff;
+      color: var(--brand-blue-solid);
+      border-color: #fff;
+      transform: translateY(-1px)
+    }
+
+    .sidebar.is-collapsed {
+      width: 76px
+    }
+
+    .sidebar.is-collapsed .sidebar-logo {
+      width: 44px;
+      margin: 0 auto 22px
+    }
+
+    .sidebar.is-collapsed .menu-item {
+      justify-content: center;
+      gap: 0;
+      padding: 12px 0;
+      margin-bottom: 18px
+    }
+
+    .sidebar.is-collapsed .menu-item .label {
+      display: none
+    }
+
+    .sidebar.is-collapsed .sidebar-toggle i {
+      transform: rotate(180deg)
+    }
+
+    /* CONTEÚDO */
     .content {
       flex: 1 1 auto;
       padding: 36px;
@@ -158,7 +260,7 @@
       border-radius: 999px;
       font-weight: 800;
       font-size: 14px;
-      border: 1px solid var(--brand-solid);
+      border: 1px solid var(--brand-blue-solid);
       cursor: pointer;
       transition: .22s;
       text-decoration: none;
@@ -167,14 +269,10 @@
       box-shadow: var(--shadow);
     }
 
-    .btn:hover {
-      transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
-    }
-
     .btn.btn-outline {
       background: #fff;
-      color: var(--brand-solid)
+      color: var(--brand-blue-solid);
+      border: 1px solid var(--brand-blue-solid)
     }
 
     .filter-form {
@@ -200,7 +298,7 @@
 
     .menu-input:focus,
     .menu-select:focus {
-      border-color: var(--brand-solid);
+      border-color: var(--brand-blue-solid);
       box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
     }
 
@@ -276,7 +374,7 @@
     .icon-square:hover {
       transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
-      border-color: var(--brand-solid);
+      border-color: var(--brand-blue-solid);
       background: #fafafa
     }
 
@@ -303,12 +401,40 @@
 </head>
 
 <body>
-  <!-- Topo direito -->
-  <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
-        class="fa fa-user"></i></a>
-    <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações"><i
-        class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span></button>
+  <div class="top-profile">
+    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta"><i class="fa fa-user"></i></a>
+    <button class="icon-btn" type="button" title="Notificações">
+      <i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span>
+    </button>
+  </div>
+
+  <!-- Sidebar igual à do Ponza Lab -->
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
+        class="fa fa-angle-double-left"></i></button>
+    <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+    <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
+    <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
+        Lab</span></a>
+    <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
+        class="label">Cotações</span></a>
+    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
+        class="label">Profissionais</span></a>
+    <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
+        class="label">Pacientes</span></a>
+    <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
+        class="label">Estoque</span></a>
+    <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
+        class="label">Agenda</span></a>
+    <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+        class="label">Pagamentos</span></a>
+    <div class="sidebar-spacer"></div>
+    {% if session.username and session.username|lower == 'admin' %}
+    <a href="{{ url_for('admin_users') }}" class="menu-item"><i class="fa fa-shield"></i><span
+        class="label">Admin</span></a>
+    {% endif %}
+    <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
+        class="label">Sair</span></a>
   </div>
 
   <!-- Conteúdo -->
@@ -375,7 +501,7 @@
     </div>
   </div>
 
-  <!-- Modal (igual ao seu) -->
+  <!-- Modal -->
   <div id="modal" class="modal" aria-hidden="true"
     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); justify-content:center; align-items:center; z-index:20000;">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"
@@ -420,6 +546,28 @@
       </form>
     </div>
   </div>
+
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      const collapsed = sidebar.classList.toggle('is-collapsed');
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem('sidebarCollapsed') === '1') {
+        document.querySelector('.sidebar').classList.add('is-collapsed');
+        document.body.classList.add('sidebar-collapsed');
+      }
+    });
+
+    function openModal() {
+      document.getElementById('modal').style.display = 'flex';
+    }
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+  </script>
 </body>
 
 </html>

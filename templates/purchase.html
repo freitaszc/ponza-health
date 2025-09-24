@@ -119,6 +119,8 @@
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
+    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
+        class="label">Profissionais</span></a>
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
@@ -144,8 +146,10 @@
     <div class="panel" style="margin-bottom:24px;">
       <h3 style="margin-top:0;">Assinatura Mensal</h3>
       <p style="color:var(--ink-dim); font-size:17px; text-align: center;">
-        Tenha acesso completo ao sistema por 30 dias por apenas <strong>R$ 79,90</strong>. Após efetuar o pagamento envie o comprovante
-        para o nosso número do Whatsapp. Para saber mais acesse <a href="{{ url_for('prices') }}" style="color: var(--brand-solid);" target="_blank">Planos e Preços</a>
+        Tenha acesso completo ao sistema por 30 dias por apenas <strong>R$ 79,90</strong>. Após efetuar o pagamento
+        envie o comprovante
+        para o nosso número do Whatsapp. Para saber mais acesse <a href="{{ url_for('prices') }}"
+          style="color: var(--brand-solid);" target="_blank">Planos e Preços</a>
       </p>
       <div class="purchase-actions">
         <a href="{{ url_for('subscribe_pay') }}" class="btn">Assinar Agora</a>
