@@ -74,7 +74,7 @@ class User(db.Model, BaseModel):
     package_usage   = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
     secure_files    = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
     quotes          = relationship("Quote", back_populates="user")
-    scheduled_emails = relationship(  # 👈 adicionado cascade
+    scheduled_emails = relationship(
         "ScheduledEmail",
         back_populates="user",
         cascade="all, delete-orphan",
@@ -245,6 +245,7 @@ class AgendaEvent(db.Model, BaseModel):
     __table_args__ = (
         Index("ix_agenda_events_start", "start"),
         Index("ix_agenda_events_end", "end"),
+        Index("ix_agenda_events_type", "type"),
     )
 
 
@@ -359,9 +360,20 @@ class WaitlistItem(db.Model, BaseModel):
 
 
 class ScheduledEmail(db.Model, BaseModel):
+    __tablename__ = "scheduled_emails"  # <<< garante o mesmo nome usado nas migrações
+
+    # <<< AGORA TEM PK
+    id = db.Column(db.Integer, primary_key=True)
+
     user_id = db.Column(
         db.Integer,
-        db.ForeignKey('users.id', name='fk_scheduled_emails_user_id_users')
+        db.ForeignKey(
+            'users.id',
+            name='fk_scheduled_emails_user_id_users',
+            ondelete='CASCADE'
+        ),
+        nullable=False,
+        index=True
     )
     template = db.Column(db.String(50), nullable=False)
     send_at  = db.Column(db.DateTime, nullable=False)
@@ -371,6 +383,10 @@ class ScheduledEmail(db.Model, BaseModel):
         "User",
         back_populates="scheduled_emails",
         passive_deletes=True
+    )
+
+    __table_args__ = (
+        Index("ix_scheduled_emails_send_at", "send_at"),
     )
 
     def __init__(self, user_id: int, template: str, send_at: datetime, sent: bool = False) -> None:
