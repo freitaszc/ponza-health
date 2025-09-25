@@ -197,7 +197,7 @@ class Consult(db.Model, BaseModel):
 
     id         = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False, index=True)
-    doctor_id  = db.Column(db.Integer, db.ForeignKey("doctors.id"),  nullable=False, index=True)
+    doctor_id  = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=True, index=True)
 
     notes      = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

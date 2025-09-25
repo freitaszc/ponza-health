@@ -14,8 +14,9 @@ from uuid import uuid4
 import json
 import tempfile
 import requests
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from itsdangerous import URLSafeTimedSerializer, URLSafeSerializer, BadSignature, SignatureExpired
 from flask_mail import Mail, Message
+from whatsapp import send_pdf_whatsapp, send_quote_whatsapp
 
 from dotenv import load_dotenv
 from flask import (
@@ -1369,27 +1370,25 @@ def upload():
             notifications_unread=0
         )
 
- # ==========================
+    # ==========================
     # 1) INSERÇÃO MANUAL
     # ==========================
     if request.form.get('manual_entry') == '1':
         name_form       = (request.form.get('name') or '').strip()
-        age_s           = (request.form.get('age') or '').strip()  # (não usado agora, mantém)
+        age_s           = (request.form.get('age') or '').strip()
         cpf_form        = (request.form.get('cpf') or '').strip()
         gender_form     = (request.form.get('gender') or '').strip()
         phone_form      = (request.form.get('phone') or '').strip()
         doctor_form     = (request.form.get('doctor') or '').strip()
-        doctor_phone_in = (request.form.get('doctor_phone') or '').strip()
+        doctor_phone    = (request.form.get('doctor_phone') or '').strip()
         lab_results     = (request.form.get('lab_results') or '').strip()
 
-        # Opções de envio (checkboxes)
         send_doctor  = (request.form.get('send_doctor') == '1')
         send_patient = (request.form.get('send_patient') == '1')
 
         if not lab_results:
             return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
 
-        # references.json (single source)
         try:
             refs_path = _project_references_json()
         except FileNotFoundError as e:
@@ -1409,9 +1408,8 @@ def upload():
         cpf         = cpf_form or cpf_ai or ''
         phone       = phone_form or phone_ai or ''
         doctor_name = doctor_form or doctor_ai or ''
-        doctor_phone= doctor_phone_in  # prioridade do formulário
 
-        # Paciente por CPF
+        # Paciente
         p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first() if cpf else None
         if p:
             if name and not (p.name or '').strip():   p.name = name
@@ -1433,29 +1431,6 @@ def upload():
             db.session.add(p)
         db.session.commit()
 
-        # Resolve doctor (preferindo criar/atualizar com telefone se informado)
-        doctor_id = None
-        if doctor_name:
-            # limita ao escopo do usuário, se houver coluna user_id
-            base = Doctor.query
-            if hasattr(Doctor, 'user_id'):
-                base = base.filter(Doctor.user_id == u.id)
-            doc = base.filter(Doctor.name.ilike(doctor_name)).first()
-            if not doc:
-                d_kwargs = dict(name=doctor_name, phone=(doctor_phone or None))
-                if hasattr(Doctor, 'user_id'):
-                    d_kwargs['user_id'] = u.id
-                doc = Doctor(**d_kwargs)
-                db.session.add(doc)
-                db.session.commit()
-            else:
-                if doctor_phone and not (doc.phone or '').strip():
-                    doc.phone = doctor_phone
-                    db.session.commit()
-            doctor_id = doc.id
-        if not doctor_id:
-            doctor_id = get_or_create_default_doctor()
-
         diagnosis     = (dgn or "").strip()
         prescriptions = (rx or "").strip()
         notes_blob = diagnosis + "\n\nPrescrição:\n" + prescriptions
@@ -1466,13 +1441,10 @@ def upload():
             time=None,
             notes=notes_blob
         )
-        if hasattr(c, "doctor_id"):
-            c.doctor_id = doctor_id
-
         db.session.add(c)
         db.session.commit()
 
-        # === Envio automático via WhatsApp, se marcado ===
+        # === Envio automático via WhatsApp ===
         try:
             if send_doctor or send_patient:
                 filename = f"Resultado_{(p.name or 'Paciente').replace(' ', '_')}.pdf"
@@ -1482,38 +1454,40 @@ def upload():
                     prescription_text=prescriptions,
                     doctor_display_name=(getattr(u, "name", None) or u.username)
                 )
-                # Enviar ao médico
+
+                # Link público assinado para download
+                from itsdangerous import URLSafeSerializer
+                s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+                token = s.dumps(p.id)
+                analyzed_link = url_for('public_download', token=token, _external=True)
+                original_link = ""
+
                 if send_doctor:
-                    target_phone = doctor_phone or ""
-                    # fallback: se o médico existir com phone cadastrado
-                    if not target_phone and doctor_id:
-                        try:
-                            d = Doctor.query.get(doctor_id)
-                            target_phone = (getattr(d, "phone", "") or "").strip()
-                        except Exception:
-                            pass
-                    if target_phone:
-                        try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
-                    else:
-                        print("[WA] sem telefone do médico para envio.")
-                # Enviar ao paciente
-                if send_patient:
-                    target_phone = (p.phone_primary or "").strip()
-                    if target_phone:
-                        try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
-                    else:
-                        print("[WA] sem telefone do paciente para envio.")
+                    wa_err = send_pdf_whatsapp(
+                        doctor_name=doctor_name,
+                        patient_name=p.name or "Paciente",
+                        analyzed_pdf_link=analyzed_link,
+                        original_pdf_link=original_link,
+                        phone_number=doctor_phone
+                    )
+                    if wa_err:
+                        current_app.logger.error(f"[WA] send_pdf_whatsapp(manual) failed: {wa_err}")
+                        if doctor_phone:
+                            try_send_whatsapp_pdf(doctor_phone, pdf_bytes, filename)
+
+                if send_patient and p.phone_primary:
+                    try_send_whatsapp_pdf(p.phone_primary, pdf_bytes, filename)
         except Exception as e:
-            print("[WA] erro no pipeline de envio:", e)
+            print("[WA] erro no pipeline de envio (manual):", e)
 
         return redirect(url_for('upload', success=1, success_id=p.id))
 
     # ==========================
-    # 2) UPLOAD DE PDF (no DB)
+    # 2) UPLOAD DE PDF (arquivo)
     # ==========================
     file = request.files.get('pdf_file') or request.files.get('file') or request.files.get('pdf')
-    send_doctor  = (request.form.get('send_doctor') == '1')
-    send_patient = (request.form.get('send_patient') == '1')
+    send_doctor     = (request.form.get('send_doctor') == '1')
+    send_patient    = (request.form.get('send_patient') == '1')
     doctor_phone_in = (request.form.get('doctor_phone') or '').strip()
     patient_phone_in = (request.form.get('patient_phone') or '').strip()
 
@@ -1524,11 +1498,9 @@ def upload():
     if not raw_name.lower().endswith('.pdf'):
         return redirect(url_for('upload', error="Tipo de arquivo não permitido. Envie um PDF."))
 
-    # --- previne 'Unbound' do Pylance e falhas silenciosas ---
     content: bytes = b""
     pf: Optional[PdfFile] = None
     tmp_pdf: Optional[str] = None
-    tmp_refs: Optional[str] = None
 
     try:
         content = file.read() or b""
@@ -1539,7 +1511,6 @@ def upload():
         filename_safe = secure_filename(raw_name)
         unique_name = f"{os.path.splitext(filename_safe)[0]}_{int(datetime.utcnow().timestamp())}.pdf"
 
-        # Guarda no DB
         sf = SecureFile(
             owner_user_id=u.id,
             kind="upload_pdf",
@@ -1549,7 +1520,7 @@ def upload():
             data=content
         )
         db.session.add(sf)
-        db.session.flush()  # precisa do sf.id
+        db.session.flush()
 
         pf = PdfFile(
             filename=unique_name,
@@ -1564,21 +1535,17 @@ def upload():
         print("[UPLOAD] erro ao persistir PDF no DB:", e)
         return redirect(url_for('upload', error="Falha ao salvar o arquivo."))
 
-    # ---------- ANÁLISE ----------
-    # Use exatamente os bytes persistidos (mais robusto que depender do stream original)
     try:
         persisted_bytes = pf.secure_file.data if (pf and pf.secure_file and pf.secure_file.data) else content
     except Exception:
         persisted_bytes = content
 
-    # Use references.json directly
     try:
         refs_path = _project_references_json()
     except FileNotFoundError as e:
         print("[PDF] references.json missing:", e)
         return redirect(url_for('upload', error=str(e)))
 
-    tmp_pdf = None
     try:
         fd, tmp_pdf = tempfile.mkstemp(prefix="up_", suffix=".pdf")
         with os.fdopen(fd, "wb") as fh:
@@ -1593,11 +1560,8 @@ def upload():
             "Error reading PDF or references.", "", "", "", 0, "", "", ""
         )
     finally:
-        try:
-            if tmp_pdf and os.path.exists(tmp_pdf):
-                os.remove(tmp_pdf)
-        except Exception:
-            pass
+        if tmp_pdf and os.path.exists(tmp_pdf):
+            os.remove(tmp_pdf)
 
     diagnosis     = (dgn or "").strip()
     prescriptions = (rx or "").strip()
@@ -1607,7 +1571,6 @@ def upload():
     phone         = (phone_ai or "").strip()
     doctor_name   = (doctor_ai or "").strip()
 
-    # Paciente por CPF
     p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first() if cpf else None
     if p:
         if name and not (p.name or '').strip():   p.name = name
@@ -1629,30 +1592,17 @@ def upload():
         db.session.add(p)
     db.session.commit()
 
-    # Resolve doctor_id SEMPRE
-    doctor_id = None
-    if doctor_name:
-        doc = Doctor.query.filter(Doctor.name.ilike(doctor_name)).first()
-        if doc:
-            doctor_id = doc.id
-    if not doctor_id:
-        doctor_id = get_or_create_default_doctor()
-
     notes_blob = diagnosis + "\n\nPrescrição:\n" + prescriptions
-
     c = Consult(
         patient_id=p.id,
         date=datetime.today().date(),
         time=None,
         notes=notes_blob
     )
-    if hasattr(c, "doctor_id"):
-        c.doctor_id = doctor_id
-
     db.session.add(c)
     db.session.commit()
 
-    # === Envio automático via WhatsApp, se marcado no upload ===
+    # === Envio automático via WhatsApp ===
     try:
         if send_doctor or send_patient:
             filename = f"Resultado_{(p.name or 'Paciente').replace(' ', '_')}.pdf"
@@ -1662,38 +1612,35 @@ def upload():
                 prescription_text=prescriptions,
                 doctor_display_name=(getattr(u, "name", None) or u.username)
             )
-            # Enviar ao médico
-            if send_doctor:
-                target_phone = doctor_phone_in
-                if not target_phone and doctor_id:
-                    try:
-                        d = Doctor.query.get(doctor_id)
-                        target_phone = (getattr(d, "phone", "") or "").strip()
-                    except Exception:
-                        pass
-                if target_phone:
-                    try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
-                else:
-                    print("[WA] sem telefone do médico para envio.")
-            # Enviar ao paciente
-            if send_patient:
-                target_phone = patient_phone_in or (p.phone_primary or "").strip()
-                if target_phone:
-                    try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
-                else:
-                    print("[WA] sem telefone do paciente para envio.")
+
+            from itsdangerous import URLSafeSerializer
+            s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+            token = s.dumps(p.id)
+            analyzed_link = url_for('public_download', token=token, _external=True)
+            original_link = ""
+
+            if send_doctor and doctor_phone_in:
+                wa_err = send_pdf_whatsapp(
+                    doctor_name=doctor_name,
+                    patient_name=p.name or "Paciente",
+                    analyzed_pdf_link=analyzed_link,
+                    original_pdf_link=original_link,
+                    phone_number=doctor_phone_in
+                )
+                if wa_err:
+                    current_app.logger.error(f"[WA] send_pdf_whatsapp(upload) failed: {wa_err}")
+                    try_send_whatsapp_pdf(doctor_phone_in, pdf_bytes, filename)
+
+            if send_patient and (patient_phone_in or p.phone_primary):
+                target_phone = patient_phone_in or p.phone_primary
+                try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
     except Exception as e:
         print("[WA upload] erro no pipeline de envio:", e)
 
-    # vincula o PdfFile ao paciente/consulta, se existir
-    try:
-        if pf is not None:
-            pf.patient_id = p.id
-            pf.consult_id = c.id
-            db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print("[UPLOAD] falha ao vincular PdfFile ao paciente/consulta:", e)
+    if pf is not None:
+        pf.patient_id = p.id
+        pf.consult_id = c.id
+        db.session.commit()
 
     return redirect(url_for('upload', success=1, success_id=p.id))
 
@@ -1849,6 +1796,107 @@ def download_pdf(patient_id):
 
     download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
     pdf_io.seek(0)
+    return send_file(pdf_io, as_attachment=True, download_name=download_name, mimetype="application/pdf")
+
+@app.route('/public_download/<token>')
+def public_download(token):
+    """Allow external users (e.g., via WhatsApp link) to download the latest PDF result."""
+    from itsdangerous import URLSafeSerializer
+    s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+    try:
+        patient_id = s.loads(token)
+    except Exception:
+        abort(403)  # invalid or tampered token
+
+    patient = Patient.query.get_or_404(patient_id)
+    consults = (
+        Consult.query.filter_by(patient_id=patient.id)
+        .order_by(Consult.id.desc())
+        .all()
+    )
+    if not consults:
+        return jsonify({"error": "Nenhuma consulta encontrada"}), 404
+
+    latest = consults[0].notes or ""
+    parts = latest.split("Prescrição:\n", 1)
+    diagnostic_text  = parts[0].strip()
+    prescription_text = parts[1].strip() if len(parts) > 1 else ""
+
+    pdf_bytes = generate_result_pdf_bytes(
+        patient=patient,
+        diagnostic_text=diagnostic_text,
+        prescription_text=prescription_text,
+        doctor_display_name=(getattr(patient, "doctor_name", None) or "Médico")
+    )
+
+    download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
+    return send_file(BytesIO(pdf_bytes),
+                     as_attachment=True,
+                     download_name=download_name,
+                     mimetype="application/pdf")
+
+
+def _generate_patient_pdf(patient_id: int):
+    """
+    Internal helper to build the PDF exactly like download_pdf,
+    without requiring login.
+    """
+    from weasyprint import HTML
+    patient = Patient.query.get_or_404(patient_id)
+
+    consults = Consult.query.filter_by(patient_id=patient_id).order_by(Consult.id.asc()).all()
+    if consults:
+        latest = consults[-1].notes or ""
+        parts = latest.split("Prescrição:\n", 1)
+        diagnostic_text  = parts[0].strip()
+        prescription_text = parts[1].strip() if len(parts) > 1 else ""
+        latest_consult_id = consults[-1].id
+    else:
+        diagnostic_text  = "Nenhuma consulta registrada."
+        prescription_text = ""
+        latest_consult_id = None
+
+    def _calc_age(birthdate):
+        try:
+            today = datetime.today().date()
+            return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+        except Exception:
+            return None
+
+    age_str = ""
+    if getattr(patient, "birthdate", None):
+        age_val = _calc_age(patient.birthdate)
+        if age_val is not None:
+            age_str = f"{age_val} anos"
+
+    sex_str = (patient.sex or "").strip()
+    cpf_str = (patient.cpf or "").strip()
+    phones = [x for x in [(patient.phone_primary or "").strip(), (patient.phone_secondary or "").strip()] if x]
+    phone_str = " / ".join(phones)
+
+    patient_lines = [
+        f"Nome: {patient.name or '—'}",
+        f"Data de nascimento: {patient.birthdate.strftime('%d/%m/%Y') if patient.birthdate else '—'}",
+    ]
+    if age_str: patient_lines.append(f"Idade: {age_str}")
+    if sex_str: patient_lines.append(f"Sexo: {sex_str}")
+    if cpf_str: patient_lines.append(f"CPF: {cpf_str}")
+    if phone_str: patient_lines.append(f"Telefone: {phone_str}")
+    patient_info = "\n".join(patient_lines)
+
+    html_str = render_template(
+        "result_pdf.html",
+        patient_info=patient_info,
+        diagnostic_text=diagnostic_text,
+        prescription_text=prescription_text,
+        doctor_name="Ponza Health",  # no current_user, so generic signature
+    )
+
+    pdf_io = BytesIO()
+    HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
+    pdf_io.seek(0)
+
+    download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
     return send_file(pdf_io, as_attachment=True, download_name=download_name, mimetype="application/pdf")
 
 @app.route('/files/pdf/<int:pdf_id>')
@@ -2893,11 +2941,37 @@ def create_quote():
             title=title,
             items=json.dumps(items_list, ensure_ascii=False)
         )
-        # relaciona os fornecedores diretamente
         q.suppliers = selected_suppliers  # type: ignore
 
         db.session.add(q)
         db.session.commit()
+
+        # === ✅ WhatsApp sending with signed public link ===
+        try:
+            from itsdangerous import URLSafeSerializer
+            s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+            token = s.dumps(q.id)
+
+            # Link that suppliers will click to view the quote publicly
+            public_link = url_for('quote_view', quote_id=q.id, _external=True)
+
+            # send WhatsApp message to every selected supplier
+            for s_item in selected_suppliers:
+                if s_item.phone:
+                    wa_err = send_quote_whatsapp(
+                        supplier_name=s_item.name,
+                        quote_title=title,
+                        phone=s_item.phone,
+                        quote_items=items_list,
+                        response_url=public_link
+                    )
+                    if wa_err:
+                        current_app.logger.error(
+                            f"[WA] send_quote_whatsapp failed for supplier {s_item.name}: {wa_err}"
+                        )
+        except Exception as e:
+            current_app.logger.error(f"[WA] erro no pipeline de envio da cotação: {e}")
+
         flash('Cotação criada com sucesso!', 'success')
         return redirect(url_for('quote_index'))
 

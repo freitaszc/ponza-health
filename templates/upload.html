@@ -412,6 +412,45 @@
     .manual-grid textarea {
       grid-column: 1 / -1
     }
+
+    .success-bubble {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 18px 26px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+      color: #065f46;
+      font-weight: 700;
+      box-shadow: 0 8px 22px rgba(6, 95, 70, 0.25);
+      border: 2px solid #6ee7b7;
+      max-width: 600px;
+      margin: 22px auto;
+      animation: bubbleFade 0.4s ease-in-out;
+    }
+
+    .bubble-icon {
+      font-size: 26px;
+    }
+
+    .bubble-text a {
+      color: #065f46;
+      font-weight: 800;
+      text-decoration: underline;
+    }
+
+    @keyframes bubbleFade {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 
@@ -465,11 +504,15 @@
     {% if error %}
     <div class="alert alert-error">{{ error }}</div>
     {% elif success %}
-    <div class="alert alert-success">✅ Análise realizada com sucesso!
-      <a href="{{ url_for('patient_result', patient_id=success_id) }}" target="_blank"
-        style="color:#065f46; font-weight:800; text-decoration:underline;">Ver resultado</a>
+    <div class="success-bubble">
+      <div class="bubble-icon">✅</div>
+      <div class="bubble-text">
+        Análise realizada com sucesso!
+        <a href="{{ url_for('patient_result', patient_id=success_id) }}" target="_blank">Ver resultado</a>
+      </div>
     </div>
     {% endif %}
+
 
     <div class="row-actions">
       <button type="button" class="btn-chip active" id="btn-up" onclick="showSection('upload')">📎 Upload PDF</button>
