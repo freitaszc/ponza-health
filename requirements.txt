@@ -13,3 +13,4 @@ PyPDF2>=3.0,<4
 itsdangerous
 Flask-Mail>=0.9.1
 requests>=2.31
+APScheduler==3.10.4
