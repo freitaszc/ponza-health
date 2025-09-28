@@ -570,8 +570,9 @@
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
-        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-                class="fa fa-angle-double-left"></i></button>
+        <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu">
+            <i class="fa fa-angle-double-left"></i>
+        </button>
         <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
         <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span
                 class="label">Início</span></a>
@@ -587,8 +588,6 @@
                 class="label">Estoque</span></a>
         <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
                 class="label">Agenda</span></a>
-        <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-stethoscope"></i><span
-                class="label">Profissionais</span></a>
         <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
                 class="label">Pagamentos</span></a>
         <div class="sidebar-spacer"></div>
@@ -604,7 +603,8 @@
         <div class="avatar-section">
             <div class="avatar-card">
                 <div class="avatar-wrap">
-                    <img id="avatar-img" class="avatar" src="{{ url_for('static', filename='images/user-icon.png') }}"
+                    <img id="avatar-img" class="avatar"
+                        src="{{ form.get('profile_image', default_image_url) if form is defined else default_image_url }}"
                         alt="Foto do paciente">
                 </div>
                 <div class="avatar-actions">
@@ -612,12 +612,8 @@
                         <label for="profile_image_file" class="btn btn-outline" title="Selecionar foto de perfil">
                             <i class="fa fa-image"></i>&nbsp;Alterar Foto de Perfil
                         </label>
-                        <button type="button" class="btn btn-outline icon-only"
-                            title="Salvar foto ao enviar o cadastro">
-                            <i class="fa fa-save"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline icon-only" title="Remover foto"
-                            onclick="document.getElementById('avatar-img').src='{{ url_for('static', filename='images/user-icon.png') }}'; document.getElementById('profile_image_file').value='';">
+                        <button type="button" class="btn btn-outline icon-only" title="Remover foto" onclick="document.getElementById('avatar-img').src='{{ default_image_url }}';
+                             document.getElementById('profile_image_file').value='';">
                             <i class="fa fa-trash"></i>
                         </button>
                     </div>
@@ -628,20 +624,20 @@
 
         <!-- Form principal -->
         <form class="panel" method="post" action="{{ url_for('register_patient') }}" enctype="multipart/form-data"
-            onsubmit="return validatePatientForm()" novalidate>
+            onsubmit="return validatePatientForm()">
             <input id="profile_image_file" name="profile_image" type="file" accept="image/*" style="display:none;">
 
             <div class="section-title">Informações Pessoais</div>
             <div class="grid-2">
                 <div class="form-group">
                     <label class="required" for="name">Nome completo</label>
-                    <input class="input" id="name" name="name" required placeholder="Ex.: Maria Silva" />
+                    <input class="input" id="name" name="name" required placeholder="Ex.: Maria Silva"
+                        value="{{ form.get('name','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label class="required" for="birthdate">Data de nascimento (dd/mm/aaaa)</label>
                     <input class="input" id="birthdate" name="birthdate" inputmode="numeric" placeholder="dd/mm/aaaa"
-                        required autocomplete="bday">
-                    <div class="help">Use o formato <strong>dd/mm/aaaa</strong>. Ex.: 05/09/1990</div>
+                        required autocomplete="bday" value="{{ form.get('birthdate','') if form is defined else '' }}">
                 </div>
             </div>
 
@@ -650,35 +646,43 @@
                     <label class="required" for="sex">Sexo</label>
                     <select class="input" id="sex" name="sex" required>
                         <option value="">Selecione...</option>
-                        <option value="Feminino">Feminino</option>
-                        <option value="Masculino">Masculino</option>
-                        <option value="Outro">Outro</option>
-                        <option value="Prefiro não informar">Prefiro não informar</option>
+                        <option value="Feminino" {{ 'selected' if form is defined and form.get('sex')=='Feminino'
+                            else '' }}>Feminino</option>
+                        <option value="Masculino" {{ 'selected' if form is defined and form.get('sex')=='Masculino'
+                            else '' }}>Masculino</option>
+                        <option value="Outro" {{ 'selected' if form is defined and form.get('sex')=='Outro' else '' }}>
+                            Outro</option>
+                        <option value="Prefiro não informar" {{ 'selected' if form is defined and
+                            form.get('sex')=='Prefiro não informar' else '' }}>Prefiro não informar</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="email">E-mail</label>
-                    <input class="input" id="email" name="email" type="email" placeholder="exemplo@email.com" />
+                    <input class="input" id="email" name="email" type="email" placeholder="exemplo@email.com"
+                        value="{{ form.get('email','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="cpf">CPF</label>
-                    <input class="input" id="cpf" name="cpf" placeholder="Somente números" maxlength="14" />
+                    <input class="input" id="cpf" name="cpf" placeholder="Somente números" maxlength="14"
+                        value="{{ form.get('cpf','') if form is defined else '' }}">
                 </div>
             </div>
 
             <div class="grid-3">
                 <div class="form-group">
                     <label class="required" for="phone_primary">Celular</label>
-                    <input class="input" id="phone_primary" name="phone_primary" placeholder="(00) 90000-0000"
-                        required />
+                    <input class="input" id="phone_primary" name="phone_primary" placeholder="(00) 90000-0000" required
+                        value="{{ form.get('phone_primary','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="phone_secondary">Celular secundário</label>
-                    <input class="input" id="phone_secondary" name="phone_secondary" placeholder="(00) 90000-0000" />
+                    <input class="input" id="phone_secondary" name="phone_secondary" placeholder="(00) 90000-0000"
+                        value="{{ form.get('phone_secondary','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="notes">Observações</label>
-                    <input class="input" id="notes" name="notes" placeholder="Alergias, preferências, etc." />
+                    <input class="input" id="notes" name="notes" placeholder="Alergias, preferências, etc."
+                        value="{{ form.get('notes','') if form is defined else '' }}">
                 </div>
             </div>
 
@@ -686,44 +690,49 @@
             <div class="grid-4">
                 <div class="form-group">
                     <label for="cep">CEP</label>
-                    <input class="input" id="cep" name="cep" placeholder="00000-000" />
+                    <input class="input" id="cep" name="cep" placeholder="00000-000"
+                        value="{{ form.get('cep','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="street">Rua</label>
-                    <input class="input" id="street" name="street" placeholder="Rua Exemplo" />
+                    <input class="input" id="street" name="street"
+                        value="{{ form.get('street','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="number">Número</label>
-                    <input class="input" id="number" name="number" placeholder="123" />
+                    <input class="input" id="number" name="number"
+                        value="{{ form.get('number','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="complement">Complemento</label>
-                    <input class="input" id="complement" name="complement" placeholder="Apto, bloco..." />
+                    <input class="input" id="complement" name="complement" placeholder="Apto, bloco"
+                        value="{{ form.get('complement','') if form is defined else '' }}">
                 </div>
             </div>
 
             <div class="grid-3">
                 <div class="form-group">
                     <label for="district">Bairro</label>
-                    <input class="input" id="district" name="district" placeholder="Bairro" />
+                    <input class="input" id="district" name="district"
+                        value="{{ form.get('district','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="city">Cidade</label>
-                    <input class="input" id="city" name="city" placeholder="Cidade" />
+                    <input class="input" id="city" name="city"
+                        value="{{ form.get('city','') if form is defined else '' }}">
                 </div>
                 <div class="form-group">
                     <label for="state">Estado</label>
-                    <input class="input" id="state" name="state" placeholder="UF" maxlength="2" />
+                    <input class="input" id="state" name="state" maxlength="2"
+                        value="{{ form.get('state','') if form is defined else '' }}">
                 </div>
             </div>
 
             <div class="actions">
-                <a class="btn secondary" href="{{ url_for('catalog') }}"><i
-                        class="fa fa-arrow-left"></i>&nbsp;Voltar</a>
+                <a class="btn secondary" href="{{ url_for('catalog') }}">
+                    <i class="fa fa-arrow-left"></i>&nbsp;Voltar
+                </a>
                 <button class="btn" type="submit"><i class="fa fa-save"></i>&nbsp;Salvar paciente</button>
             </div>
         </form>
     </div>
-</body>
-
-</html>

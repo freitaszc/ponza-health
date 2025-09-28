@@ -52,6 +52,7 @@ class User(db.Model, BaseModel):
     username      = db.Column(db.String(80),  nullable=False, unique=True, index=True)
     email         = db.Column(db.String(120), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(128), nullable=False)
+    clinic_phone  = db.Column(db.String(30), nullable=True)
 
     name          = db.Column(db.String(120))
     birthdate     = db.Column(db.Date)
@@ -65,15 +66,15 @@ class User(db.Model, BaseModel):
     plan_status     = db.Column(db.String(20), default="inactive")
     plan_expires_at = db.Column(db.DateTime)
     trial_until     = db.Column(db.DateTime)
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at      = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     # Relacionamentos úteis ao app
-    suppliers       = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
-    products        = relationship("Product",  back_populates="user", cascade="all, delete-orphan")
-    agenda_events   = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
-    package_usage   = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    secure_files    = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
-    quotes          = relationship("Quote", back_populates="user")
+    suppliers        = relationship("Supplier", back_populates="user", cascade="all, delete-orphan")
+    products         = relationship("Product",  back_populates="user", cascade="all, delete-orphan")
+    agenda_events    = relationship("AgendaEvent", back_populates="user", cascade="all, delete-orphan")
+    package_usage    = relationship("PackageUsage", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    secure_files     = relationship("SecureFile", back_populates="owner", cascade="all, delete-orphan")
+    quotes           = relationship("Quote", back_populates="user")
     scheduled_emails = relationship(
         "ScheduledEmail",
         back_populates="user",
@@ -164,7 +165,7 @@ class Patient(db.Model, BaseModel):
     email          = db.Column(db.String(120))
     cpf            = db.Column(db.String(20))
     notes          = db.Column(db.Text)
-    profile_image  = db.Column(db.String(200), default="images/patient-icon.png")
+    profile_image  = db.Column(db.String(200), default="images/user-icon.png")
 
     phone_primary   = db.Column(db.String(20))
     phone_secondary = db.Column(db.String(20))
@@ -190,6 +191,49 @@ class Patient(db.Model, BaseModel):
         Index("ix_patients_email", "email"),
         Index("ix_patients_owner_user_id", "owner_user_id"),
     )
+
+    # -------- Propriedades de compatibilidade com o template --------
+    @property
+    def document(self) -> Optional[str]:
+        """Compat: usado no template como patient.document (mapeia para cpf)."""
+        return self.cpf
+
+    @property
+    def phone(self) -> Optional[str]:
+        """Compat: usado no template como patient.phone (mapeia para phone_primary)."""
+        return self.phone_primary
+
+    @property
+    def street(self) -> Optional[str]:
+        """Compat: usado no template como patient.street (mapeia para address_street)."""
+        return self.address_street
+
+    @property
+    def number(self) -> Optional[str]:
+        """Compat: usado no template como patient.number (mapeia para address_number)."""
+        return self.address_number
+
+    @property
+    def zipcode(self) -> Optional[str]:
+        """Compat: usado no template como patient.zipcode (mapeia para address_cep)."""
+        return self.address_cep
+
+    @property
+    def city(self) -> Optional[str]:
+        return self.address_city
+
+    @property
+    def state(self) -> Optional[str]:
+        return self.address_state
+
+    @property
+    def profile_image_url(self) -> Optional[str]:
+        """
+        Compat: o template usa patient.profile_image_url.
+        Retorna a string armazenada em profile_image (que já é um caminho válido,
+        ex.: '/files/img/<id>' ou 'images/patient-icon.png').
+        """
+        return self.profile_image
 
 
 class Consult(db.Model, BaseModel):
@@ -232,6 +276,7 @@ class AgendaEvent(db.Model, BaseModel):
     id      = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True, nullable=True)
     title   = db.Column(db.String(200), nullable=False)
+    phone   = db.Column(db.String(20), nullable=False)
     start   = db.Column(db.DateTime, nullable=False)
     end     = db.Column(db.DateTime, nullable=True)
 
@@ -360,17 +405,16 @@ class WaitlistItem(db.Model, BaseModel):
 
 
 class ScheduledEmail(db.Model, BaseModel):
-    __tablename__ = "scheduled_emails"  # <<< garante o mesmo nome usado nas migrações
+    __tablename__ = "scheduled_emails"
 
-    # <<< AGORA TEM PK
     id = db.Column(db.Integer, primary_key=True)
 
     user_id = db.Column(
         db.Integer,
         db.ForeignKey(
-            'users.id',
-            name='fk_scheduled_emails_user_id_users',
-            ondelete='CASCADE'
+            "users.id",
+            name="fk_scheduled_emails_user_id_users",
+            ondelete="CASCADE"
         ),
         nullable=False,
         index=True

@@ -475,8 +475,7 @@
         class="label">Cotações</span></a>
 
     <!-- ✅ Novo link para Profissionais -->
-    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
-        class="label">Profissionais</span></a>
+
 
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
@@ -498,8 +497,10 @@
 
   <div class="content">
     <img src="{{ url_for('static', filename='images/PonzaLab.svg') }}" alt="Logo Ponza Lab" class="logo-img">
-    <p class="subtitle">Envie um PDF de exames para análise automática; o sistema identifica os valores, gera o
-      diagnóstico com prescrição e envia ao prescritor via WhatsApp.</p>
+    <p class="subtitle">
+      Envie um PDF de exames para análise.
+      Preencha manualmente o nome e telefone do médico e/ou paciente se desejar enviar o resultado via WhatsApp.
+    </p>
 
     {% if error %}
     <div class="alert alert-error">{{ error }}</div>
@@ -513,7 +514,6 @@
     </div>
     {% endif %}
 
-
     <div class="row-actions">
       <button type="button" class="btn-chip active" id="btn-up" onclick="showSection('upload')">📎 Upload PDF</button>
       <button type="button" class="btn-chip" id="btn-ma" onclick="showSection('manual')">📝 Inserir Manualmente</button>
@@ -521,31 +521,35 @@
 
     <!-- Upload -->
     <div id="upload-section" class="panel">
-      <form id="upload-form" method="post" enctype="multipart/form-data" onsubmit="return validateUpload()"
-        style="text-align:center;">
+      <form id="upload-form" method="post" enctype="multipart/form-data" onsubmit="return validateUpload()">
         <input type="file" name="pdf_file" id="pdf_file" accept="application/pdf" style="display:none;" />
         <div id="drop-zone" class="drop-zone" tabindex="0">
-          <div id="drop-title" style="font-weight:800; color:var(--ink); font-size:16px; margin-bottom:6px;">Selecione
-            ou arraste um PDF aqui</div>
-          <div class="dz-sub" style="font-size:13px; color:var(--ink-dim);">Tamanho máx. recomendado: 10MB</div>
+          <div id="drop-title" style="font-weight:800; color:var(--ink); font-size:16px; margin-bottom:6px;">
+            Selecione ou arraste um PDF aqui
+          </div>
+          <div class="dz-sub" style="font-size:13px; color:var(--ink-dim);">
+            Tamanho máx. recomendado: 10MB
+          </div>
         </div>
 
         <div class="send-options">
           <label><input type="checkbox" id="send_doctor" name="send_doctor" value="1" onchange="togglePhoneFields()">
             Enviar ao médico</label>
           <div id="doctor_phone_field" class="phone-field">
-            <input type="text" name="doctor_phone" placeholder="Número WhatsApp do médico" class="menu-input">
+            <input type="text" name="doctor_name" placeholder="Nome do médico" class="menu-input">
+            <input type="text" name="doctor_phone" placeholder="Telefone WhatsApp do médico" class="menu-input">
           </div>
+
           <label><input type="checkbox" id="send_patient" name="send_patient" value="1" onchange="togglePhoneFields()">
             Enviar ao paciente</label>
           <div id="patient_phone_field" class="phone-field">
-            <input type="text" name="patient_phone" placeholder="Número WhatsApp do paciente" class="menu-input">
+            <input type="text" name="patient_name" placeholder="Nome do paciente" class="menu-input">
+            <input type="text" name="patient_phone" placeholder="Telefone WhatsApp do paciente" class="menu-input">
           </div>
         </div>
 
         <div class="actions" style="margin-top:18px;">
           <button type="submit" class="btn">Enviar</button>
-          <a href="{{ url_for('doctors') }}" class="btn btn-outline" target="_blank">Cadastrar Profissional</a>
         </div>
       </form>
     </div>
@@ -556,7 +560,7 @@
         <input type="hidden" name="manual_entry" value="1">
         <div class="manual-grid">
           <input type="text" name="name" placeholder="Nome do Paciente" class="menu-input" required>
-          <input type="number" name="age" placeholder="Idade" class="menu-input" required>
+          <input type="number" name="age" placeholder="Idade" class="menu-input">
           <input type="text" name="cpf" placeholder="CPF" class="menu-input">
           <input type="text" name="gender" placeholder="Sexo" class="menu-input">
           <input type="text" name="phone" placeholder="Telefone do Paciente (WhatsApp)" class="menu-input">

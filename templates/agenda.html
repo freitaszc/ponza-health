@@ -768,8 +768,7 @@
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
-    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
-        class="label">Profissionais</span></a>
+
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
@@ -821,6 +820,11 @@
       <div class="form-group">
         <label for="add_title">Paciente</label>
         <input type="text" id="add_title" placeholder="Nome do paciente" class="input" required>
+      </div>
+
+      <div class="form-group">
+        <label for="add_phone">Telefone do paciente</label>
+        <input type="tel" id="add_phone" placeholder="(__) _____-____" class="input" required>
       </div>
 
       <div class="form-row">
@@ -885,6 +889,11 @@
       <div class="form-group">
         <label for="edit_title">Paciente</label>
         <input type="text" id="edit_title" class="input" required>
+      </div>
+
+      <div class="form-group">
+        <label for="edit_phone">Telefone do paciente</label>
+        <input type="tel" id="edit_phone" class="input" required>
       </div>
 
       <div class="form-row">
@@ -1042,14 +1051,11 @@
       const dt = new Date(y, mo, d);
       return (dt && dt.getFullYear() === y && dt.getMonth() === mo && dt.getDate() === d) ? dt : null;
     }
-    // IMPORTANTE: formatar como ISO LOCAL (sem 'Z') para evitar mudança de fuso/horário
-    function formatLocalISO(d) {
+    function formatLocalISO(d) { // ISO local (sem 'Z')
       if (!d) return null;
       const pad = n => String(n).padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
     }
-    // Constrói ISO local a partir de 'dd/mm/aaaa' e 'HH:MM'
-    // Se horário estiver vazio, usamos 08:00 (slotMinTime) para não "sumir" da visão semanal
     function buildLocalISO(dateBR, timeStr) {
       const base = parseBR(dateBR);
       if (!base) return null;
@@ -1070,6 +1076,7 @@
     // ===== Preenchimento dos modais =====
     function openAddModal(prefill) {
       document.getElementById('add_title').value = prefill?.title || '';
+      document.getElementById('add_phone').value = prefill?.phone || '';
       document.getElementById('add_date').value = prefill?.dateBR || '';
       document.getElementById('add_time').value = prefill?.time || '';
       document.getElementById('add_end').value = prefill?.endTime || '';
@@ -1083,6 +1090,7 @@
     function openEditModal(prefill) {
       document.getElementById('edit_id').value = prefill?.id || '';
       document.getElementById('edit_title').value = prefill?.title || '';
+      document.getElementById('edit_phone').value = prefill?.phone || '';
       document.getElementById('edit_date').value = prefill?.dateBR || '';
       document.getElementById('edit_time').value = prefill?.time || '';
       document.getElementById('edit_end').value = prefill?.endTime || '';
@@ -1097,27 +1105,28 @@
     // ===== Submeter ADIÇÃO =====
     async function submitAddEvent() {
       const title = document.getElementById('add_title').value.trim();
+      const phone = document.getElementById('add_phone').value.trim();
       const dateBR = document.getElementById('add_date').value;
-      const time = document.getElementById('add_time').value;       // pode estar vazio
-      const endTime = document.getElementById('add_end').value;     // pode estar vazio
+      const time = document.getElementById('add_time').value;
+      const endTime = document.getElementById('add_end').value;
       const notes = document.getElementById('add_notes').value;
       const type = document.getElementById('add_type').value;
       const billing = document.getElementById('add_billing').value;
       const insurer = (document.getElementById('add_insurer').value || '').trim();
 
-      if (!title || !dateBR) { alert('Preencha o nome do paciente e a data.'); return; }
+      if (!title || !phone || !dateBR) {
+        alert('Preencha o nome, telefone e a data.'); return;
+      }
 
-      const startISO = buildLocalISO(dateBR, time); // ISO local (sem Z)
+      const startISO = buildLocalISO(dateBR, time);
       let endISO = endTime ? buildLocalISO(dateBR, endTime) : null;
-
-      // Se término ficou antes/igual ao início, anulamos para evitar "sumir"
       if (endISO) {
         const s = new Date(startISO);
         const e = new Date(endISO);
         if (!(e > s)) endISO = null;
       }
 
-      const payload = { title, start: startISO, end: endISO, notes, type, billing, insurer };
+      const payload = { title, phone, start: startISO, end: endISO, notes, type, billing, insurer };
 
       try {
         const res = await fetch('/api/add_event', {
@@ -1141,6 +1150,7 @@
     async function submitEditEvent() {
       const id = document.getElementById('edit_id').value || null;
       const title = document.getElementById('edit_title').value.trim();
+      const phone = document.getElementById('edit_phone').value.trim();
       const dateBR = document.getElementById('edit_date').value;
       const time = document.getElementById('edit_time').value;
       const endTime = document.getElementById('edit_end').value;
@@ -1150,18 +1160,17 @@
       const insurer = (document.getElementById('edit_insurer').value || '').trim();
 
       if (!id) { alert('Evento inválido.'); return; }
-      if (!title || !dateBR) { alert('Preencha o nome do paciente e a data.'); return; }
+      if (!title || !phone || !dateBR) { alert('Preencha o nome, telefone e a data.'); return; }
 
       const startISO = buildLocalISO(dateBR, time);
       let endISO = endTime ? buildLocalISO(dateBR, endTime) : null;
-
       if (endISO) {
         const s = new Date(startISO);
         const e = new Date(endISO);
         if (!(e > s)) endISO = null;
       }
 
-      const payload = { title, start: startISO, end: endISO, notes, type, billing, insurer };
+      const payload = { title, phone, start: startISO, end: endISO, notes, type, billing, insurer };
 
       try {
         const res = await fetch(`/api/events/${encodeURIComponent(id)}`, {
@@ -1228,7 +1237,7 @@
             listEl.appendChild(row);
           }
         }
-      } catch (e) { /* silencia erro */ }
+      } catch (e) { /* silencioso */ }
     }
     async function addToWaitlist() {
       const payload = {
@@ -1273,7 +1282,7 @@
       const calendarEl = document.getElementById('calendar');
 
       calendar = new FullCalendar.Calendar(calendarEl, {
-        timeZone: 'local',                    // >>> evita mudanças de horário por fuso
+        timeZone: 'local',
         initialView: 'timeGridWeek',
         locale: 'pt-br',
         headerToolbar: false,
@@ -1294,11 +1303,10 @@
         eventDurationEditable: true,
         dragScroll: true,
 
-        events: '/api/events',                // servidor deve devolver ISO; com timeZone: 'local', não haverá "pulo"
+        events: '/api/events',
         eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
         dayHeaderFormat: { weekday: 'short', day: '2-digit', month: '2-digit' },
 
-        // Criar por seleção
         select: (info) => {
           const start = info.start, end = info.end;
           const dateBR = toBR(start);
@@ -1308,24 +1316,28 @@
           calendar.unselect();
         },
 
-        // Editar ao clicar
         eventClick: (info) => {
           const ev = info.event;
           if (ev.classNames.includes('holiday-event')) return;
           if (!ev.id) return;
-
           const start = ev.start, end = ev.end || null;
           const dateBR = toBR(start);
           const t = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
           const tEnd = end ? `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` : '';
           openEditModal({
-            id: ev.id, title: ev.title || '', dateBR, time: t, endTime: tEnd,
-            notes: ev.extendedProps?.notes || '', type: ev.extendedProps?.type || 'consulta',
-            billing: ev.extendedProps?.billing || 'particular', insurer: ev.extendedProps?.insurer || ''
+            id: ev.id,
+            title: ev.title || '',
+            phone: ev.extendedProps?.phone || '',
+            dateBR,
+            time: t,
+            endTime: tEnd,
+            notes: ev.extendedProps?.notes || '',
+            type: ev.extendedProps?.type || 'consulta',
+            billing: ev.extendedProps?.billing || 'particular',
+            insurer: ev.extendedProps?.insurer || ''
           });
         },
 
-        // Arrastar (muda início/fim sem trocar fuso)
         eventDrop: async (info) => {
           const ev = info.event;
           if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
@@ -1342,7 +1354,6 @@
           } catch (e) { info.revert(); alert('Falha de rede ao atualizar o evento.'); }
         },
 
-        // Redimensionar (duração) sem trocar fuso
         eventResize: async (info) => {
           const ev = info.event;
           if (ev.classNames.includes('holiday-event') || !ev.id) { info.revert(); return; }
@@ -1365,11 +1376,9 @@
       calendar.render();
       updatePeriodDisplay();
 
-      // Ajustes de layout
       window.addEventListener('resize', () => calendar.updateSize());
       setTimeout(() => calendar.updateSize(), 0);
 
-      // Navegação e ações
       document.getElementById('prevBtn').addEventListener('click', () => calendar.prev());
       document.getElementById('nextBtn').addEventListener('click', () => calendar.next());
       document.getElementById('todayBtn').addEventListener('click', () => calendar.today());

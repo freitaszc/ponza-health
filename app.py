@@ -16,7 +16,7 @@ import tempfile
 import requests
 from itsdangerous import URLSafeTimedSerializer, URLSafeSerializer, BadSignature, SignatureExpired
 from flask_mail import Mail, Message
-from whatsapp import send_pdf_whatsapp, send_quote_whatsapp
+from whatsapp import send_pdf_whatsapp_patient, send_pdf_whatsapp_template, send_quote_whatsapp, send_reminder_doctor, send_reminder_patient
 
 from dotenv import load_dotenv
 from flask import (
@@ -27,6 +27,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import select, text, func, or_
 from werkzeug.middleware.proxy_fix import ProxyFix
+from apscheduler.schedulers.background import BackgroundScheduler
 from jinja2 import TemplateNotFound
 
 from models import (
@@ -179,9 +180,6 @@ with app.app_context():
                     )
                 """))
                 conn.commit()  # importante em SQLAlchemy 2.x
-            print("[MIGRATION] Tabela quote_suppliers criada com sucesso.")
-        else:
-            print("[DB] Tabela quote_suppliers já existe.")
 
     except Exception as e:
         print("[DB] create_all error:", e)
@@ -1255,10 +1253,18 @@ def update_personal_info():
     u = current_user()
 
     name = (request.form.get("name") or "").strip()
+    clinic_phone = (request.form.get("clinic_phone") or "").strip()
     birthdate_str = (request.form.get("birthdate") or "").strip()
+    email = (request.form.get("email") or "").strip().lower()
 
     if name:
         u.name = name
+
+    if clinic_phone:
+        u.clinic_phone = clinic_phone
+
+    if email:
+        u.email = email
 
     if birthdate_str:
         try:
@@ -1283,7 +1289,6 @@ def update_personal_info():
             flash("Arquivo de imagem inválido.", "warning")
             return redirect(url_for("account"))
 
-        # remove SecureFile anterior se houver
         old = (u.profile_image or "").replace("\\", "/")
         old_sid = _extract_securefile_id_from_url(old)
         if old_sid:
@@ -1355,294 +1360,173 @@ def _project_references_json() -> str:
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
+    """
+    Upload de exames ou entrada manual de resultados.
+    - GET: exibe o formulário
+    - POST: processa dados manuais OU arquivo PDF
+    """
     from prescription import analyze_pdf
+
     u = current_user()
 
     if request.method == 'GET':
-        success    = request.args.get('success', type=int)
-        success_id = request.args.get('success_id', type=int)
-        error      = request.args.get('error')
         return render_template(
             'upload.html',
-            success=success,
-            success_id=success_id,
-            error=error,
+            success=request.args.get('success', type=int),
+            success_id=request.args.get('success_id', type=int),
+            error=request.args.get('error'),
             notifications_unread=0
         )
 
-    # ==========================
-    # 1) INSERÇÃO MANUAL
-    # ==========================
+    # ==========================================================
+    # ENTRADA MANUAL
+    # ==========================================================
     if request.form.get('manual_entry') == '1':
-        name_form       = (request.form.get('name') or '').strip()
-        age_s           = (request.form.get('age') or '').strip()
-        cpf_form        = (request.form.get('cpf') or '').strip()
-        gender_form     = (request.form.get('gender') or '').strip()
-        phone_form      = (request.form.get('phone') or '').strip()
-        doctor_form     = (request.form.get('doctor') or '').strip()
-        doctor_phone    = (request.form.get('doctor_phone') or '').strip()
-        lab_results     = (request.form.get('lab_results') or '').strip()
+        return _handle_manual_entry(request, u, analyze_pdf)
 
-        send_doctor  = (request.form.get('send_doctor') == '1')
-        send_patient = (request.form.get('send_patient') == '1')
+    # ==========================================================
+    # UPLOAD DE PDF
+    # ==========================================================
+    return _handle_pdf_upload(request, u, analyze_pdf)
 
-        if not lab_results:
-            return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
 
-        try:
-            refs_path = _project_references_json()
-        except FileNotFoundError as e:
-            print("[PDF] references.json missing:", e)
-            return redirect(url_for('upload', error=str(e)))
+# =====================================================================
+# Helpers internos para manter a rota enxuta
+# =====================================================================
 
-        try:
-            dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai = analyze_pdf(
-                lab_results, references_path=refs_path, manual=True
-            )
-        except Exception as e:
-            print("[PDF] manual analyze error:", e)
-            return redirect(url_for('upload', error="Falha ao analisar o texto manual."))
+def _handle_manual_entry(request, u, analyze_pdf):
+    """Processa inserção manual de resultados."""
+    name        = (request.form.get('name') or '').strip()
+    age         = (request.form.get('age') or '').strip()
+    cpf         = (request.form.get('cpf') or '').strip()
+    gender      = (request.form.get('gender') or '').strip()
+    phone       = (request.form.get('phone') or '').strip()
+    doctor_name = (request.form.get('doctor') or '').strip()
+    doctor_phone= (request.form.get('doctor_phone') or '').strip()
+    lab_results = (request.form.get('lab_results') or '').strip()
 
-        name        = name_form or name_ai or 'Paciente (manual)'
-        gender      = gender_form or gender_ai or None
-        cpf         = cpf_form or cpf_ai or ''
-        phone       = phone_form or phone_ai or ''
-        doctor_name = doctor_form or doctor_ai or ''
+    send_doctor  = request.form.get('send_doctor') == '1'
+    send_patient = request.form.get('send_patient') == '1'
 
-        # Paciente
-        p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first() if cpf else None
-        if p:
-            if name and not (p.name or '').strip():   p.name = name
-            if gender and not (p.sex or '').strip():  p.sex = gender
-            if phone and not (p.phone_primary or '').strip(): p.phone_primary = phone
-        else:
-            p = Patient(
-                owner_user_id=u.id,
-                name=name,
-                birthdate=None,
-                sex=gender or None,
-                email=None,
-                cpf=cpf or None,
-                notes=None,
-                profile_image=DEFAULT_PATIENT_IMAGE,
-                phone_primary=phone,
-                phone_secondary=None
-            )
-            db.session.add(p)
-        db.session.commit()
+    if not lab_results:
+        return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
 
-        diagnosis     = (dgn or "").strip()
-        prescriptions = (rx or "").strip()
-        notes_blob = diagnosis + "\n\nPrescrição:\n" + prescriptions
+    refs_path = _project_references_json()
+    dgn, rx, *_ = analyze_pdf(lab_results, references_path=refs_path, manual=True)
 
-        c = Consult(
-            patient_id=p.id,
-            date=datetime.today().date(),
-            time=None,
-            notes=notes_blob
-        )
-        db.session.add(c)
-        db.session.commit()
+    p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
 
-        # === Envio automático via WhatsApp ===
-        try:
-            if send_doctor or send_patient:
-                filename = f"Resultado_{(p.name or 'Paciente').replace(' ', '_')}.pdf"
-                pdf_bytes = generate_result_pdf_bytes(
-                    patient=p,
-                    diagnostic_text=diagnosis,
-                    prescription_text=prescriptions,
-                    doctor_display_name=(getattr(u, "name", None) or u.username)
-                )
+    notes_blob = _attach_consult_and_notes(p, dgn, rx)
 
-                # Link público assinado para download
-                from itsdangerous import URLSafeSerializer
-                s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-                token = s.dumps(p.id)
-                analyzed_link = url_for('public_download', token=token, _external=True)
-                original_link = ""
-
-                if send_doctor:
-                    wa_err = send_pdf_whatsapp(
-                        doctor_name=doctor_name,
-                        patient_name=p.name or "Paciente",
-                        analyzed_pdf_link=analyzed_link,
-                        original_pdf_link=original_link,
-                        phone_number=doctor_phone
-                    )
-                    if wa_err:
-                        current_app.logger.error(f"[WA] send_pdf_whatsapp(manual) failed: {wa_err}")
-                        if doctor_phone:
-                            try_send_whatsapp_pdf(doctor_phone, pdf_bytes, filename)
-
-                if send_patient and p.phone_primary:
-                    try_send_whatsapp_pdf(p.phone_primary, pdf_bytes, filename)
-        except Exception as e:
-            print("[WA] erro no pipeline de envio (manual):", e)
-
-        return redirect(url_for('upload', success=1, success_id=p.id))
-
-    # ==========================
-    # 2) UPLOAD DE PDF (arquivo)
-    # ==========================
-    file = request.files.get('pdf_file') or request.files.get('file') or request.files.get('pdf')
-    send_doctor     = (request.form.get('send_doctor') == '1')
-    send_patient    = (request.form.get('send_patient') == '1')
-    doctor_phone_in = (request.form.get('doctor_phone') or '').strip()
-    patient_phone_in = (request.form.get('patient_phone') or '').strip()
-
-    if not file or not (file.filename and file.filename.strip()):
-        return redirect(url_for('upload', error="Nenhum arquivo selecionado."))
-
-    raw_name = file.filename
-    if not raw_name.lower().endswith('.pdf'):
-        return redirect(url_for('upload', error="Tipo de arquivo não permitido. Envie um PDF."))
-
-    content: bytes = b""
-    pf: Optional[PdfFile] = None
-    tmp_pdf: Optional[str] = None
-
-    try:
-        content = file.read() or b""
-        if not content:
-            return redirect(url_for('upload', error="PDF vazio ou inválido."))
-
-        size = len(content)
-        filename_safe = secure_filename(raw_name)
-        unique_name = f"{os.path.splitext(filename_safe)[0]}_{int(datetime.utcnow().timestamp())}.pdf"
-
-        sf = SecureFile(
-            owner_user_id=u.id,
-            kind="upload_pdf",
-            filename=unique_name,
-            mime_type="application/pdf",
-            size_bytes=size,
-            data=content
-        )
-        db.session.add(sf)
-        db.session.flush()
-
-        pf = PdfFile(
-            filename=unique_name,
-            original_name=raw_name,
-            size_bytes=size,
-            secure_file_id=sf.id
-        )
-        db.session.add(pf)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print("[UPLOAD] erro ao persistir PDF no DB:", e)
-        return redirect(url_for('upload', error="Falha ao salvar o arquivo."))
-
-    try:
-        persisted_bytes = pf.secure_file.data if (pf and pf.secure_file and pf.secure_file.data) else content
-    except Exception:
-        persisted_bytes = content
-
-    try:
-        refs_path = _project_references_json()
-    except FileNotFoundError as e:
-        print("[PDF] references.json missing:", e)
-        return redirect(url_for('upload', error=str(e)))
-
-    try:
-        fd, tmp_pdf = tempfile.mkstemp(prefix="up_", suffix=".pdf")
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(persisted_bytes)
-
-        dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai = analyze_pdf(
-            tmp_pdf, references_path=refs_path, manual=False
-        )
-    except Exception as e:
-        print("[PDF] analyze error:", e)
-        dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai = (
-            "Error reading PDF or references.", "", "", "", 0, "", "", ""
-        )
-    finally:
-        if tmp_pdf and os.path.exists(tmp_pdf):
-            os.remove(tmp_pdf)
-
-    diagnosis     = (dgn or "").strip()
-    prescriptions = (rx or "").strip()
-    name          = (name_ai or "").strip()
-    gender        = (gender_ai or "").strip() or None
-    cpf           = (cpf_ai or "").strip()
-    phone         = (phone_ai or "").strip()
-    doctor_name   = (doctor_ai or "").strip()
-
-    p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first() if cpf else None
-    if p:
-        if name and not (p.name or '').strip():   p.name = name
-        if gender and not (p.sex or '').strip():  p.sex = gender
-        if phone and not (p.phone_primary or '').strip(): p.phone_primary = phone
-    else:
-        p = Patient(
-            owner_user_id=u.id,
-            name=(name or f"Paciente ({datetime.now().strftime('%d/%m/%Y %H:%M')})"),
-            birthdate=None,
-            sex=(gender or None),
-            email=None,
-            cpf=(cpf or None),
-            notes=None,
-            profile_image=DEFAULT_PATIENT_IMAGE,
-            phone_primary=(phone or ''),
-            phone_secondary=None
-        )
-        db.session.add(p)
-    db.session.commit()
-
-    notes_blob = diagnosis + "\n\nPrescrição:\n" + prescriptions
-    c = Consult(
-        patient_id=p.id,
-        date=datetime.today().date(),
-        time=None,
-        notes=notes_blob
-    )
-    db.session.add(c)
-    db.session.commit()
-
-    # === Envio automático via WhatsApp ===
-    try:
-        if send_doctor or send_patient:
-            filename = f"Resultado_{(p.name or 'Paciente').replace(' ', '_')}.pdf"
-            pdf_bytes = generate_result_pdf_bytes(
-                patient=p,
-                diagnostic_text=diagnosis,
-                prescription_text=prescriptions,
-                doctor_display_name=(getattr(u, "name", None) or u.username)
-            )
-
-            from itsdangerous import URLSafeSerializer
-            s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-            token = s.dumps(p.id)
-            analyzed_link = url_for('public_download', token=token, _external=True)
-            original_link = ""
-
-            if send_doctor and doctor_phone_in:
-                wa_err = send_pdf_whatsapp(
-                    doctor_name=doctor_name,
-                    patient_name=p.name or "Paciente",
-                    analyzed_pdf_link=analyzed_link,
-                    original_pdf_link=original_link,
-                    phone_number=doctor_phone_in
-                )
-                if wa_err:
-                    current_app.logger.error(f"[WA] send_pdf_whatsapp(upload) failed: {wa_err}")
-                    try_send_whatsapp_pdf(doctor_phone_in, pdf_bytes, filename)
-
-            if send_patient and (patient_phone_in or p.phone_primary):
-                target_phone = patient_phone_in or p.phone_primary
-                try_send_whatsapp_pdf(target_phone, pdf_bytes, filename)
-    except Exception as e:
-        print("[WA upload] erro no pipeline de envio:", e)
-
-    if pf is not None:
-        pf.patient_id = p.id
-        pf.consult_id = c.id
-        db.session.commit()
+    # Envio via WhatsApp
+    if send_doctor and doctor_phone:
+        send_pdf_whatsapp_template('relatorio_ponza', doctor_name, p.name, doctor_phone, p.id)
+    if send_patient and phone:
+        send_pdf_whatsapp_patient(p.name, phone, p.id, clinic_phone=u.phone)
 
     return redirect(url_for('upload', success=1, success_id=p.id))
+
+
+def _handle_pdf_upload(request, u, analyze_pdf):
+    """Processa upload de arquivo PDF e cria/atualiza paciente e consulta."""
+    file = request.files.get('pdf_file')
+    if not file or not file.filename.lower().endswith('.pdf'):
+        return redirect(url_for('upload', error="Nenhum PDF válido enviado."))
+
+    content = file.read()
+    if not content:
+        return redirect(url_for('upload', error="PDF vazio ou inválido."))
+
+    # salva arquivo seguro
+    sf = SecureFile(
+        owner_user_id=u.id,
+        kind="upload_pdf",
+        filename=secure_filename(file.filename),
+        mime_type="application/pdf",
+        size_bytes=len(content),
+        data=content
+    )
+    db.session.add(sf)
+    db.session.flush()
+
+    pf = PdfFile(
+        filename=sf.filename,
+        original_name=file.filename,
+        size_bytes=sf.size_bytes,
+        secure_file_id=sf.id
+    )
+    db.session.add(pf)
+    db.session.commit()
+
+    # analisa o PDF
+    refs_path = _project_references_json()
+    fd, tmp = tempfile.mkstemp(suffix=".pdf")
+    with os.fdopen(fd, "wb") as fh:
+        fh.write(content)
+
+    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, _ = analyze_pdf(tmp, references_path=refs_path, manual=False)
+    os.remove(tmp)
+
+    p = _get_or_create_patient(
+        u,
+        name=name_ai,
+        cpf=(cpf_ai or '').strip(),
+        gender=gender_ai,
+        phone=phone_ai
+    )
+
+    notes_blob = _attach_consult_and_notes(p, dgn, rx)
+
+    # envio WhatsApp
+    send_doctor  = request.form.get('send_doctor') == '1'
+    send_patient = request.form.get('send_patient') == '1'
+    doctor_name  = (request.form.get('doctor_name') or '').strip()
+    doctor_phone = (request.form.get('doctor_phone') or '').strip()
+    patient_name = (request.form.get('patient_name') or '').strip()
+    patient_phone= (request.form.get('patient_phone') or '').strip()
+
+    if send_doctor and doctor_phone:
+        send_pdf_whatsapp_template('relatorio_ponza', doctor_name, p.name, doctor_phone, p.id)
+    if send_patient and patient_phone:
+        send_pdf_whatsapp_patient(patient_name or p.name, patient_phone, p.id, clinic_phone=u.phone)
+
+    pf.patient_id = p.id
+    # vincula a última consulta criada
+    latest_consult = Consult.query.filter_by(patient_id=p.id).order_by(Consult.id.desc()).first()
+    pf.consult_id = latest_consult.id if latest_consult else None
+    db.session.commit()
+
+    return redirect(url_for('upload', success=1, success_id=p.id))
+
+
+def _get_or_create_patient(u, *, name=None, cpf=None, gender=None, phone=None):
+    """Obtém ou cria paciente do usuário."""
+    p = None
+    if cpf:
+        p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first()
+    if not p:
+        p = Patient(
+            owner_user_id=u.id,
+            name=name or f"Paciente ({datetime.now():%d/%m/%Y %H:%M})",
+            sex=gender or None,
+            cpf=cpf or None,
+            phone_primary=phone or '',
+            notes=None,
+            profile_image=DEFAULT_PATIENT_IMAGE
+        )
+        db.session.add(p)
+        db.session.commit()
+    return p
+
+
+def _attach_consult_and_notes(p, dgn, rx):
+    """Cria consulta e anexa diagnóstico/prescrição ao paciente."""
+    notes_blob = (dgn or '') + "\n\nPrescrição:\n" + (rx or '')
+    p.notes = (p.notes or '') + "\n\n" + notes_blob if p.notes else notes_blob
+    db.session.add(Consult(patient_id=p.id, date=datetime.today().date(), notes=notes_blob))
+    db.session.commit()
+    return notes_blob
+
 
 @app.route('/download_pdf/<int:patient_id>')
 @login_required
@@ -2043,16 +1927,20 @@ def api_events():
     return jsonify(events)
 
 
+# ------------------------------------------------------------------------------
+# Agenda (API) – cria evento + agenda lembretes WhatsApp
+# ------------------------------------------------------------------------------
 @app.route('/api/add_event', methods=['POST'])
 @login_required
 def api_add_event():
     """
-    Cria um AgendaEvent. Aceita start/end com 'Z' ou offset.
+    Cria um AgendaEvent e agenda lembretes para médico e paciente.
     """
     u = current_user()
     data = request.get_json(silent=True) or {}
 
     title   = (data.get('title') or '').strip()
+    phone   = (data.get('phone') or '').strip()
     start_s = (data.get('start') or '').strip()
     end_s   = (data.get('end') or '').strip() or None
     notes   = (data.get('notes') or '').strip()
@@ -2067,28 +1955,74 @@ def api_add_event():
     if not start_dt:
         return jsonify(success=False, error="Formato de data/hora inválido (start)."), 400
 
-    end_dt = _parse_iso_to_naive_utc(end_s) if end_s else None
+    end_dt = _parse_iso_to_naive_utc(end_s) if end_s else start_dt + timedelta(hours=1)
     if end_s and not end_dt:
         return jsonify(success=False, error="Formato de data/hora inválido (end)."), 400
-    if not end_dt:
-        end_dt = start_dt + timedelta(hours=1)
 
     ev = AgendaEvent(
         user_id=u.id,
         title=title,
         start=start_dt,
         end=end_dt,
-        notes=(notes or None),
-        type=(type_ or None),
-        billing=(billing or None),
-        insurer=(insurer or None),
+        notes=notes or None,
+        type=type_ or None,
+        billing=billing or None,
+        insurer=insurer or None,
     )
     db.session.add(ev)
     db.session.commit()
+
+    # === WhatsApp lembretes ===
+    from whatsapp import send_reminder_doctor, send_reminder_patient
+    from app import schedule_whatsapp_job  # garante o scheduler
+
+    # Dados do lembrete
+    patient_name = title
+    clinic_name = u.username or "Clínica"
+    date_str = start_dt.strftime("%d/%m/%Y")
+    time_start = start_dt.strftime("%H:%M")
+    time_end = end_dt.strftime("%H:%M") if end_dt else time_start
+
+    # Médico: no mesmo dia
+    if u.clinic_phone:
+        schedule_whatsapp_job(
+            func=send_reminder_doctor,
+            run_at=start_dt.replace(hour=8, minute=0),
+            kwargs={
+                "doctor_phone": u.clinic_phone,
+                "patient_name": patient_name,
+                "clinic_name": clinic_name,
+                "date_str": date_str,
+                "time_start": time_start,
+                "time_end": time_end
+            }
+        )
+
+    # Paciente: um dia antes
+    if phone:
+        remind_time = (start_dt - timedelta(days=1)).replace(hour=8, minute=0)
+        schedule_whatsapp_job(
+            func=send_reminder_patient,
+            run_at=remind_time,
+            kwargs={
+                "patient_phone": phone,
+                "patient_name": patient_name,
+                "clinic_name": clinic_name,
+                "date_str": date_str,
+                "time_start": time_start,
+                "time_end": time_end
+            }
+        )
+
     return jsonify(success=True, event_id=ev.id), 201
 
+scheduler = BackgroundScheduler()
+scheduler.start()
 
-# Alias opcional: permite criar também em POST /api/events
+def schedule_whatsapp_job(func, run_at, kwargs):
+    """Agenda o envio de mensagens no horário correto."""
+    scheduler.add_job(func, 'date', run_date=run_at, kwargs=kwargs)
+
 @app.route('/api/events', methods=['POST'])
 @login_required
 def api_create_event_alias():
@@ -2099,8 +2033,8 @@ def api_create_event_alias():
 @login_required
 def api_event_mutation(event_id: int):
     """
-    PUT: atualiza campos; aceita start/end ISO com 'Z' ou offset.
-    DELETE: remove o evento do usuário atual.
+    PUT: atualiza o evento e reprograma lembretes quando a data muda.
+    DELETE: remove o evento.
     """
     u = current_user()
     ev = AgendaEvent.query.get_or_404(event_id)
@@ -2112,15 +2046,28 @@ def api_event_mutation(event_id: int):
         db.session.commit()
         return jsonify(success=True)
 
-    # PUT
     data = request.get_json(silent=True) or {}
 
-    # Datas
     if 'start' in data:
         start_dt = _parse_iso_to_naive_utc((data.get('start') or '').strip())
         if not start_dt:
             return jsonify(success=False, error="Formato de data/hora inválido para 'start'."), 400
         ev.start = start_dt
+
+        # Reagendar lembretes
+        date_str = start_dt.strftime("%d/%m/%Y %H:%M")
+        if u.clinic_phone:
+            schedule_whatsapp_job(
+                func=send_reminder_doctor,
+                run_at=start_dt.replace(hour=9, minute=0),
+                kwargs={"doctor_phone": u.clinic_phone, "date_time": date_str}
+            )
+        if ev.phone:
+            schedule_whatsapp_job(
+                func=send_reminder_patient,
+                run_at=start_dt - timedelta(days=1),
+                kwargs={"patient_phone": ev.phone, "date_time": date_str}
+            )
 
     if 'end' in data:
         end_val = (data.get('end') or '').strip()
@@ -2132,8 +2079,7 @@ def api_event_mutation(event_id: int):
         else:
             ev.end = None
 
-    # Strings simples
-    for key in ('title', 'notes', 'type', 'billing', 'insurer'):
+    for key in ('title', 'notes', 'type', 'billing', 'insurer', 'phone'):
         if key in data:
             setattr(ev, key, ((data.get(key) or '').strip() or None))
 
@@ -2149,23 +2095,36 @@ def register_patient():
     import time as _time
 
     u = current_user()
+
+    # URL absoluta da imagem padrão (útil para gravar direto no campo profile_image)
+    default_image_url = url_for('static', filename='images/user-icon.png')
+
     if request.method == 'POST':
+        # -------- campos básicos
         name = (request.form.get('name') or '').strip()
 
-        # aceita dd/mm/aaaa (preferencial) e fallback yyyy-mm-dd
-        birthdate_s = (request.form.get('birthdate') or '').strip()
+        # -------- birthdate: aceita "13/09/2005", "2005-09-13" ou "13092005"
+        birthdate_raw = (request.form.get('birthdate') or '').strip()
         birthdate = None
-        if birthdate_s:
+        if birthdate_raw:
+            # normaliza 8 dígitos → dd/mm/aaaa
+            only_digits = re.sub(r'\D', '', birthdate_raw)
+            if len(only_digits) == 8:
+                birthdate_try = f"{only_digits[:2]}/{only_digits[2:4]}/{only_digits[4:]}"
+            else:
+                birthdate_try = birthdate_raw
+
             for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
                 try:
-                    birthdate = datetime.strptime(birthdate_s, fmt).date()
+                    birthdate = datetime.strptime(birthdate_try, fmt).date()
                     break
                 except Exception:
                     continue
 
         sex   = (request.form.get('sex') or '').strip()
         email = (request.form.get('email') or '').strip().lower()
-        cpf   = (request.form.get('cpf') or request.form.get('document') or '').strip().replace('.', '').replace('-', '')
+        cpf   = (request.form.get('cpf') or request.form.get('document') or '').strip()
+        cpf   = cpf.replace('.', '').replace('-', '')
         notes = (request.form.get('notes') or '').strip()
 
         phone_pri = (request.form.get('phone_primary') or request.form.get('phone') or '').strip()
@@ -2179,35 +2138,66 @@ def register_patient():
         city       = (request.form.get('city') or '').strip()
         state      = (request.form.get('state') or '').strip().upper()
 
-        # (opcional) se quiser vincular um médico do catálogo:
+        # vínculo médico (opcional)
         doctor_id = request.form.get('doctor_id')
         try:
             doctor_id = int(doctor_id) if doctor_id else None
         except Exception:
             doctor_id = None
 
+        # -------- validação servidor (mantém o formulário preenchido se falhar)
         missing = []
         if not name: missing.append('name')
         if not birthdate: missing.append('birthdate')
         if not sex: missing.append('sex')
         if not phone_pri: missing.append('phone_primary')
+
         if missing:
             flash("Preencha todos os campos obrigatórios.", "warning")
-            return redirect(url_for('register_patient'))
+            # Re-renderiza mantendo valores já digitados
+            return render_template(
+                'register_patient.html',
+                form=request.form,
+                errors=missing,
+                default_image_url=default_image_url
+            )
 
-        profile_rel = DEFAULT_PATIENT_IMAGE
+        if email and not basic_email(email):
+            flash("E-mail inválido.", "warning")
+            return render_template(
+                'register_patient.html',
+                form=request.form,
+                errors=['email'],
+                default_image_url=default_image_url
+            )
+
+        # -------- foto de perfil (opcional): salva em /static/uploads/patients
+        profile_rel = default_image_url  # fallback padrão
         file = request.files.get('profile_image')
         if file and file.filename:
             if allowed_file(file.filename):
                 filename = secure_filename(file.filename)
                 ext = filename.rsplit('.', 1)[1].lower()
+
                 dest_dir = os.path.join(STATIC_DIR, "uploads", "patients")
                 os.makedirs(dest_dir, exist_ok=True)
+
                 new_name = f"patient_{u.id}_{int(_time.time())}.{ext}"
                 dest_path = os.path.join(dest_dir, new_name)
                 file.save(dest_path)
-                profile_rel = os.path.relpath(dest_path, STATIC_DIR).replace("\\", "/")
 
+                # salva caminho relativo /static/...
+                profile_rel = "/" + os.path.relpath(dest_path, STATIC_DIR).replace("\\", "/")
+            else:
+                flash("Tipo de arquivo não permitido. Use png, jpg ou jpeg.", "warning")
+                return render_template(
+                    'register_patient.html',
+                    form=request.form,
+                    errors=['profile_image'],
+                    default_image_url=default_image_url
+                )
+
+        # -------- cria paciente
         p = Patient(
             owner_user_id=u.id,
             doctor_id=doctor_id,
@@ -2217,7 +2207,7 @@ def register_patient():
             email=email or None,
             cpf=cpf or None,
             notes=notes or None,
-            profile_image=profile_rel or DEFAULT_PATIENT_IMAGE,
+            profile_image=profile_rel or default_image_url,
             phone_primary=phone_pri,
             phone_secondary=phone_sec or None,
             address_cep=cep or None,
@@ -2230,10 +2220,13 @@ def register_patient():
         )
         db.session.add(p)
         db.session.commit()
+
         flash('Paciente cadastrado com sucesso.', 'success')
         return redirect(url_for('catalog'))
 
-    return render_template('register_patient.html')
+    # GET
+    return render_template('register_patient.html', default_image_url=default_image_url)
+
 
 @app.route('/catalog')
 @login_required
@@ -2257,7 +2250,7 @@ def catalog():
     return render_template('catalog.html', patients=patients, doctors=doctors_list)
 
 # ------------------------------------------------------------------------------
-# Editar Paciente (com upload de foto usando SecureFile) ✅
+# Editar Paciente (com upload de foto via SecureFile)
 # ------------------------------------------------------------------------------
 @app.route('/edit_patient/<int:patient_id>', methods=['GET', 'POST'])
 @login_required
@@ -2272,8 +2265,16 @@ def edit_patient(patient_id):
     if request.method == 'POST':
         name = (request.form.get('name') or '').strip()
 
-        # aceita dd/mm/aaaa e yyyy-mm-dd
+        # -----------------------
+        # Data de nascimento
+        # -----------------------
         birthdate_s = (request.form.get('birthdate') or '').strip()
+
+        # Se o usuário digitar apenas números (ex: 13092005),
+        # formatamos automaticamente para 13/09/2005
+        if birthdate_s and birthdate_s.isdigit() and len(birthdate_s) == 8:
+            birthdate_s = f"{birthdate_s[:2]}/{birthdate_s[2:4]}/{birthdate_s[4:]}"
+
         birthdate = None
         if birthdate_s:
             for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
@@ -2297,18 +2298,16 @@ def edit_patient(patient_id):
         city      = (request.form.get('city') or '').strip()
         state     = (request.form.get('state') or '').strip().upper()
 
-        missing = []
-        if not name: missing.append('name')
-        if not birthdate: missing.append('birthdate')
-        if not sex: missing.append('sex')
-        if not phone_pri: missing.append('phone_primary')
-        if missing:
-            flash("Preencha todos os campos obrigatórios.", "warning")
+        # -----------------------
+        # Validação mínima
+        # -----------------------
+        if not name:
+            flash("Preencha o nome do paciente.", "warning")
             return redirect(url_for('edit_patient', patient_id=patient.id))
 
-        # ==============
-        # Upload da foto (opcional) — via SecureFile
-        # ==============
+        # -----------------------
+        # Upload de foto (opcional)
+        # -----------------------
         file = request.files.get('profile_image')
         if file and file.filename:
             if not allowed_file(file.filename):
@@ -2326,13 +2325,12 @@ def edit_patient(patient_id):
                 flash("Arquivo de imagem inválido.", "warning")
                 return redirect(url_for('edit_patient', patient_id=patient.id))
 
-            # Remove imagem anterior: SecureFile OU arquivo físico legado
+            # Remove imagem anterior
             old_rel = (patient.profile_image or "").replace("\\", "/")
             old_sid = _extract_securefile_id_from_url(old_rel)
             if old_sid:
                 _delete_securefile_if_owned(old_sid, u.id)
             else:
-                # compat: pode ter sido salvo em static/uploads/patients
                 _safe_remove_patient_photo(old_rel)
 
             new_name = f"patient_{u.id}_{int(_time.time())}.{ext}"
@@ -2348,6 +2346,9 @@ def edit_patient(patient_id):
             db.session.flush()
             patient.profile_image = f"/files/img/{sf.id}"
 
+        # -----------------------
+        # Atualiza dados no banco
+        # -----------------------
         patient.name               = name
         patient.birthdate          = birthdate
         patient.sex                = sex or None
@@ -2370,6 +2371,9 @@ def edit_patient(patient_id):
 
     return render_template('edit_patient.html', patient=patient)
 
+# ------------------------------------------------------------------------------
+# Visualizar resultado e prescrição do paciente
+# ------------------------------------------------------------------------------
 @app.route('/patient_result/<int:patient_id>')
 @login_required
 def patient_result(patient_id):
@@ -2396,8 +2400,9 @@ def patient_result(patient_id):
         doctor_name=getattr(u, "name", u.username)
     )
 
+
 # ------------------------------------------------------------------------------
-# Paciente – Foto de perfil (upload/remover)
+# Foto do paciente (upload/remover) — compatível com SecureFile
 # ------------------------------------------------------------------------------
 def _patient_photos_dir():
     dest_dir = os.path.join(STATIC_DIR, "uploads", "patients")
@@ -2405,7 +2410,6 @@ def _patient_photos_dir():
     return dest_dir
 
 def _safe_remove_patient_photo(rel_path: str):
-    """Remove o arquivo antigo com segurança (apenas dentro de static/uploads/patients)."""
     try:
         if not rel_path:
             return
@@ -2417,10 +2421,10 @@ def _safe_remove_patient_photo(rel_path: str):
     except Exception as e:
         print("[patient_photo] remove error:", e)
 
+
 @app.route('/patients/<int:patient_id>/photo', methods=['POST'], endpoint='patient_update_photo')
 @login_required
 def patient_update_photo(patient_id: int):
-    """Salva foto do paciente em SecureFile e referencia via /files/img/<id>."""
     import time as _time
 
     u = current_user()
@@ -2448,7 +2452,7 @@ def patient_update_photo(patient_id: int):
         flash("Arquivo de imagem inválido.", "warning")
         return redirect(url_for('edit_patient', patient_id=p.id))
 
-    # Remove imagem anterior (SecureFile ou arquivo estático legado)
+    # Remove imagem anterior
     old_rel = (p.profile_image or "").replace("\\", "/")
     old_sid = _extract_securefile_id_from_url(old_rel)
     if old_sid:
@@ -2478,12 +2482,16 @@ def patient_update_photo(patient_id: int):
 @app.route('/patients/<int:patient_id>/photo/delete', methods=['POST'], endpoint='patient_remove_photo')
 @login_required
 def patient_remove_photo(patient_id: int):
-    """Volta à imagem padrão e apaga a atual do SecureFile (se for DB) ou arquivo físico legado."""
+    """
+    Remove a foto de perfil do paciente, seja do banco (SecureFile) ou do sistema de arquivos.
+    Em seguida, volta para a imagem padrão.
+    """
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
     if p.owner_user_id != u.id:
         abort(403)
 
+    # remove imagem atual (do SecureFile ou física)
     old_rel = (p.profile_image or "").replace("\\", "/")
     old_sid = _extract_securefile_id_from_url(old_rel)
     if old_sid:
@@ -2491,15 +2499,20 @@ def patient_remove_photo(patient_id: int):
     else:
         _safe_remove_patient_photo(old_rel)
 
-    p.profile_image = DEFAULT_PATIENT_IMAGE
+    # volta para a imagem padrão
+    p.profile_image = url_for('static', filename='images/user-icon.png')
     db.session.commit()
 
     flash("Foto de perfil removida.", "info")
     return redirect(url_for('edit_patient', patient_id=p.id))
 
+
 @app.route('/files/img/<int:file_id>')
 @login_required
 def serve_image(file_id: int):
+    """
+    Retorna imagem de perfil armazenada no banco (SecureFile).
+    """
     u = current_user()
     sf = SecureFile.query.get_or_404(file_id)
     if sf.owner_user_id is not None and sf.owner_user_id != u.id:
@@ -2516,19 +2529,27 @@ def serve_image(file_id: int):
         mimetype=sf.mime_type or "image/jpeg",
     )
 
+
 @app.route('/patient_info/<int:patient_id>')
 @login_required
 def patient_info(patient_id):
+    """
+    Exibe informações do paciente.
+    """
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
     if patient.owner_user_id != u.id:
         abort(403)
     return render_template('patient_info.html', patient=patient)
 
-# /api/add_patient — criação via JSON (ex.: fetch/AJAX). Persiste no Postgres igual.
+
 @app.route('/api/add_patient', methods=['POST'])
 @login_required
 def api_add_patient():
+    """
+    Cria um paciente via JSON (ex.: importação de PDF).
+    Sempre garante imagem padrão quando nenhuma é enviada.
+    """
     u = current_user()
     data = request.get_json(silent=True) or {}
 
@@ -2548,7 +2569,7 @@ def api_add_patient():
     city        = (data.get("city") or "").strip()
     state       = (data.get("state") or "").strip().upper()
 
-    # opcional: vínculo com médico
+    # vínculo com médico (opcional)
     doctor_id = data.get("doctor_id")
     try:
         doctor_id = int(doctor_id) if doctor_id else None
@@ -2558,7 +2579,7 @@ def api_add_patient():
     if not (name and birthdate_s and sex and phone_pri):
         return jsonify(success=False, error='Campos obrigatórios: nome, data de nascimento, sexo, celular.'), 400
 
-    # aceita dd/mm/aaaa (preferencial) e fallback yyyy-mm-dd
+    # aceita dd/mm/aaaa e yyyy-mm-dd
     birthdate = None
     for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
         try:
@@ -2572,6 +2593,7 @@ def api_add_patient():
     if email and not basic_email(email):
         return jsonify(success=False, error='E-mail inválido'), 400
 
+    # ✅ sempre cria com a imagem padrão se nenhuma for enviada
     p = Patient(
         owner_user_id=u.id,
         doctor_id=doctor_id,
@@ -2581,7 +2603,7 @@ def api_add_patient():
         email=email or None,
         cpf=cpf or None,
         notes=notes or None,
-        profile_image=DEFAULT_PATIENT_IMAGE,
+        profile_image=url_for('static', filename='images/user-icon.png'),
         phone_primary=phone_pri,
         phone_secondary=phone_sec or None,
         address_cep=cep or None,
@@ -2596,29 +2618,40 @@ def api_add_patient():
     db.session.commit()
     return jsonify(success=True, patient_id=p.id), 201
 
+
 @app.route('/delete_patient/<int:patient_id>', methods=['POST'])
 @login_required
 def delete_patient(patient_id):
+    """
+    Exclui paciente e suas consultas.
+    """
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
     if p.owner_user_id != u.id:
         abort(403)
+
     Consult.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
     db.session.delete(p)
     db.session.commit()
     flash('Paciente removido.', 'info')
     return redirect(url_for('catalog'))
 
+
 @app.route('/toggle_patient_status/<int:patient_id>/<new_status>', methods=['GET', 'POST'])
 @login_required
 def toggle_patient_status(patient_id, new_status):
+    """
+    Altera o status (Ativo/Inativo) do paciente.
+    """
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
     if p.owner_user_id != u.id:
         abort(403)
+
     p.status = new_status
     db.session.commit()
     return redirect(url_for('catalog'))
+
 
 # ------------------------------------------------------------------------------
 # Médicos

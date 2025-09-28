@@ -37,10 +37,9 @@
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
+
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
-    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
-        class="label">Profissionais</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
         class="label">Estoque</span></a>
     <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
@@ -76,15 +75,16 @@
 
         <div class="row">
           <div class="half">
-            <label for="name">PRIMEIRO NOME</label>
-            <input class="input" type="text" id="name" name="name"
-              value="{{ (user.name.split(' ')[0]) if user.name else '' }}" placeholder="Primeiro Nome">
+            <label for="name">NOME</label>
+            <input class="input" type="text" id="name" name="name" value="{{ user.name or '' }}"
+              placeholder="Nome/Clínica">
           </div>
           <div class="half">
-            <label for="secondname">SEGUNDO NOME</label>
-            <input class="input" type="text" id="secondname" name="secondname"
-              value="{{ (user.name.split(' ')[1]) if user.name and ' ' in user.name else '' }}"
-              placeholder="Segundo Nome">
+            <label for="clinic_phone">CELULAR</label>
+            <input class="input" type="text" id="clinic_phone" name="clinic_phone" value="{{ user.clinic_phone or '' }}"
+              placeholder="(00) 90000-0000"> <small style="display:block; margin-top:6px; color:#475569;">
+              As mensagens de lembrete de consulta serão enviadas para este número via WhatsApp.
+            </small>
           </div>
         </div>
 

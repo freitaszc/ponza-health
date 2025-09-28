@@ -2,7 +2,6 @@
 <html lang="pt-br">
 
 <head>
-  <!-- Pre-paint fix: apply saved sidebar state BEFORE first paint -->
   <script>
     (function () {
       try {
@@ -33,7 +32,6 @@
       --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
       --brand-solid: #131d35;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
-      --radius: 12px;
       --btn-h: 44px;
       --btn-minw: 220px;
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -54,7 +52,7 @@
       background: var(--bg);
       color: var(--ink);
       min-height: 100vh;
-      display: flex;
+      display: flex
     }
 
     .top-profile {
@@ -64,7 +62,7 @@
       z-index: 1001;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 12px
     }
 
     .icon-btn {
@@ -79,18 +77,18 @@
       place-items: center;
       box-shadow: var(--shadow);
       transition: transform .15s, box-shadow .15s, border-color .15s;
-      text-decoration: none;
+      text-decoration: none
     }
 
     .icon-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
-      border-color: var(--brand-solid);
+      border-color: var(--brand-solid)
     }
 
     .icon-btn i {
       color: var(--brand-solid);
-      font-size: 18px;
+      font-size: 18px
     }
 
     .icon-btn .badge {
@@ -107,10 +105,9 @@
       font-weight: 800;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center
     }
 
-    /* Sidebar */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -122,7 +119,7 @@
       flex-direction: column;
       transition: width 180ms ease;
       position: sticky;
-      top: 0;
+      top: 0
     }
 
     .sidebar-logo {
@@ -130,7 +127,7 @@
       display: block;
       margin: 0 auto 18px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
-      transition: width 180ms ease, margin 180ms ease;
+      transition: width 180ms ease, margin 180ms ease
     }
 
     .sidebar a.menu-item {
@@ -144,33 +141,33 @@
       text-decoration: none;
       margin-bottom: 18px;
       font-weight: 600;
-      transition: background .2s, color .2s, transform .12s;
+      transition: background .2s, color .2s, transform .12s
     }
 
     .sidebar a.menu-item i {
       width: 21px;
       text-align: center;
-      flex: 0 0 21px;
+      flex: 0 0 21px
     }
 
     .sidebar a.menu-item:hover {
       background: #fff;
       color: var(--brand-solid);
-      transform: translateX(4px);
+      transform: translateX(4px)
     }
 
     .sidebar a.menu-item.active {
       color: #fff;
       background: var(--brand-grad);
-      box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
     }
 
     .sidebar-spacer {
-      flex: 1 1 auto;
+      flex: 1 1 auto
     }
 
     .sidebar a.menu-item.logout {
-      color: #e5e7eb;
+      color: #e5e7eb
     }
 
     .sidebar-toggle {
@@ -183,65 +180,62 @@
       cursor: pointer;
       margin-bottom: 14px;
       transition: background .2s, border-color .2s, transform .12s;
-      font-size: 12px;
+      font-size: 12px
     }
 
     .sidebar-toggle:hover {
       background: #fff;
       color: var(--brand-solid);
       border-color: #fff;
-      transform: translateY(-1px);
+      transform: translateY(-1px)
     }
 
-    /* Collapse from <html> (pre-paint) */
     html.sidebar-collapsed .sidebar {
-      width: 76px;
+      width: 76px
     }
 
     html.sidebar-collapsed .sidebar .sidebar-logo {
       width: 44px;
-      margin: 0 auto 22px;
+      margin: 0 auto 22px
     }
 
     html.sidebar-collapsed .sidebar .menu-item {
       justify-content: center;
       gap: 0;
       padding: 12px 0;
-      margin-bottom: 14px;
+      margin-bottom: 14px
     }
 
     html.sidebar-collapsed .sidebar .menu-item .label {
-      display: none;
+      display: none
     }
 
-    /* Legacy mirror (element class) */
     .sidebar.is-collapsed {
-      width: 76px;
+      width: 76px
     }
 
     .sidebar.is-collapsed .sidebar-logo {
       width: 44px;
-      margin: 0 auto 22px;
+      margin: 0 auto 22px
     }
 
     .sidebar.is-collapsed .menu-item {
       justify-content: center;
       gap: 0;
       padding: 12px 0;
-      margin-bottom: 14px;
+      margin-bottom: 14px
     }
 
     .sidebar.is-collapsed .menu-item .label {
-      display: none;
+      display: none
     }
 
-    /* Conteúdo */
     .content {
       flex-grow: 1;
       padding: 36px;
       min-width: 0;
       position: relative;
-      background: var(--bg);
+      background: var(--bg)
     }
 
     h2 {
@@ -250,7 +244,7 @@
       color: var(--ink);
       margin: 0 0 28px;
       position: relative;
-      font-weight: 800;
+      font-weight: 800
     }
 
     h2::after {
@@ -263,7 +257,7 @@
       height: 4px;
       background: var(--brand-grad);
       border-radius: 2px;
-      box-shadow: 0 0 8px rgba(0, 0, 0, .12);
+      box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
 
     .panel {
@@ -273,29 +267,36 @@
       box-shadow: var(--shadow);
       max-width: 1100px;
       margin: 0 auto;
-      border: 1px solid var(--border);
+      border: 1px solid var(--border)
     }
 
     .section-title {
       font-size: 18px;
       font-weight: 800;
-      margin: 8px 0 18px;
+      margin: 8px 0 18px
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 16px
     }
 
     .grid-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1fr 1fr
     }
 
     .grid-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1fr 1fr 1fr
+    }
+
+    .grid-4 {
+      grid-template-columns: 1fr 1fr 1fr 1fr
     }
 
     .form-group {
-      margin-bottom: 16px;
+      margin-bottom: 16px
     }
 
     label {
@@ -303,7 +304,7 @@
       margin-bottom: 8px;
       font-weight: 600;
       color: var(--ink);
-      font-size: 14px;
+      font-size: 14px
     }
 
     .input,
@@ -318,19 +319,19 @@
       font-family: var(--font-family);
       font-size: 14px;
       outline: none;
-      transition: .2s;
+      transition: .2s
     }
 
     .textarea {
       min-height: 110px;
-      resize: vertical;
+      resize: vertical
     }
 
     .input:focus,
     .textarea:focus,
     select:focus {
       border-color: var(--brand-solid);
-      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12);
+      box-shadow: 0 0 0 4px rgba(19, 29, 53, .12)
     }
 
     .actions {
@@ -339,7 +340,7 @@
       flex-wrap: wrap;
       margin-top: 18px;
       justify-content: center;
-      align-items: center;
+      align-items: center
     }
 
     .btn {
@@ -358,28 +359,33 @@
       text-decoration: none;
       color: #fff;
       background: var(--brand-grad);
-      box-shadow: var(--shadow);
+      box-shadow: var(--shadow)
     }
 
     .btn:hover {
       transform: translateY(-2px) scale(1.02);
-      box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
+      box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
     }
 
     .btn.secondary {
       background: #fff;
       color: var(--ink);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border)
     }
 
     .btn.secondary:hover {
-      border-color: var(--brand-solid);
+      border-color: var(--brand-solid)
     }
 
-    /* Avatar */
+    .required::after {
+      content: " *";
+      color: #dc2626;
+      font-weight: 800
+    }
+
     .avatar-section {
       max-width: 1100px;
-      margin: 0 auto 16px;
+      margin: 0 auto 16px
     }
 
     .avatar-card {
@@ -391,12 +397,12 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 20px 24px;
-      box-shadow: var(--shadow);
+      box-shadow: var(--shadow)
     }
 
     .avatar-wrap {
       grid-column: 2;
-      justify-self: center;
+      justify-self: center
     }
 
     .avatar {
@@ -406,7 +412,7 @@
       object-fit: cover;
       border: 2px solid var(--border);
       background: #fff;
-      box-shadow: 0 6px 14px rgba(2, 6, 23, .08);
+      box-shadow: 0 6px 14px rgba(2, 6, 23, .08)
     }
 
     .avatar-actions {
@@ -416,24 +422,24 @@
       flex-direction: column;
       align-items: flex-end;
       gap: 10px;
-      flex-wrap: wrap;
+      flex-wrap: wrap
     }
 
     .avatar-actions .inline-actions {
       display: flex;
       gap: 10px;
-      flex-wrap: wrap;
+      flex-wrap: wrap
     }
 
     .btn-outline {
       background: #fff;
       color: var(--brand-solid);
-      border: 2px solid var(--brand-solid);
+      border: 2px solid var(--brand-solid)
     }
 
     .btn-outline:hover {
       background: var(--brand-solid);
-      color: #fff;
+      color: #fff
     }
 
     .btn.icon-only {
@@ -444,47 +450,47 @@
       border-radius: 12px;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
+      justify-content: center
     }
 
     .btn.icon-only i {
-      font-size: 16px;
+      font-size: 16px
     }
 
     .hint {
       font-size: 12px;
-      color: var(--ink-dim);
+      color: var(--ink-dim)
     }
 
-    /* First paint: disable transitions */
     html.no-anim * {
-      transition: none !important;
+      transition: none !important
     }
 
     @media (max-width:900px) {
 
       .grid-2,
-      .grid-3 {
-        grid-template-columns: 1fr;
+      .grid-3,
+      .grid-4 {
+        grid-template-columns: 1fr
       }
 
       .content {
-        padding: 24px;
+        padding: 24px
       }
 
       .btn {
-        min-width: 100%;
+        min-width: 100%
       }
 
       .avatar-card {
         grid-template-columns: 1fr;
-        text-align: center;
+        text-align: center
       }
 
       .avatar-actions {
         grid-column: 1;
         justify-self: center;
-        align-items: center;
+        align-items: center
       }
     }
   </style>
@@ -498,51 +504,46 @@
       sidebar?.classList.toggle('is-collapsed', collapsed);
       try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) { }
     }
-
     document.addEventListener('DOMContentLoaded', () => {
-      // Re-enable transitions after first paint
       document.documentElement.classList.remove('no-anim');
-
-      // Mirror initial state onto element (compat)
-      if (document.documentElement.classList.contains('sidebar-collapsed')) {
-        document.getElementById('sidebar')?.classList.add('is-collapsed');
-      }
-
-      // Avatar preview on change
+      if (document.documentElement.classList.contains('sidebar-collapsed')) { document.getElementById('sidebar')?.classList.add('is-collapsed'); }
       const file = document.getElementById('profile_image_file');
-      if (file) {
-        file.addEventListener('change', (e) => {
-          const img = document.getElementById('avatar-img');
-          const f = e.target.files?.[0];
-          if (img && f) img.src = URL.createObjectURL(f);
+      if (file) { file.addEventListener('change', e => { const img = document.getElementById('avatar-img'); const f = e.target.files?.[0]; if (img && f) img.src = URL.createObjectURL(f); }); }
+      const bd = document.getElementById('birthdate');
+      if (bd) {
+        bd.addEventListener('input', () => {
+          let v = bd.value.replace(/\D/g, '').slice(0, 8);
+          if (v.length >= 5) v = v.replace(/(\d{2})(\d{2})(\d{1,4})/, '$1/$2/$3');
+          else if (v.length >= 3) v = v.replace(/(\d{2})(\d{1,2})/, '$1/$2');
+          bd.value = v;
         });
       }
     });
+    function validatePatientForm() {
+      const bd = document.getElementById('birthdate').value.trim();
+      const rgx = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+      if (!rgx.test(bd)) { alert('Data de nascimento inválida. Use o formato dd/mm/aaaa.'); return false; }
+      return true;
+    }
   </script>
 </head>
 
 <body>
-  <!-- Topo direito -->
-  <div class="top-profile" aria-label="Ações do usuário">
-    <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta" aria-label="Minha conta"><i
-        class="fa fa-user"></i></a>
-    <button class="icon-btn" type="button" title="Notificações" aria-label="Notificações">
-      <i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span>
-    </button>
+  <div class="top-profile">
+    <a href="{{ url_for('account') }}" class="icon-btn"><i class="fa fa-user"></i></a>
+    <button class="icon-btn" type="button"><i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0)
+        }}</span></button>
   </div>
 
-  <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
-    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
+    <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
-    <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span
-        class="label">Profissionais</span></a>
+
     <a href="{{ url_for('catalog') }}" class="menu-item active"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
@@ -551,44 +552,31 @@
         class="label">Agenda</span></a>
     <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
-    {% if username and username|lower == 'admin' %}
-    <div style="margin:18px 0 8px; border-top:1px solid #1f2937;"></div>
-    <a href="{{ url_for('admin_companies') }}" class="menu-item admin"><i class="fa fa-building"></i><span
-        class="label">Admin — Empresas</span></a>
-    <a href="{{ url_for('admin_pdfs') }}" class="menu-item admin"><i class="fa fa-folder-open"></i><span
-        class="label">Admin — Repositório</span></a>
-    <a href="{{ url_for('admin_availability_page') }}" class="menu-item admin"><i class="fa fa-clock-o"></i><span
-        class="label">Admin — Disponibilidade</span></a>
-    {% endif %}
     <div class="sidebar-spacer"></div>
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
   </div>
 
-  <!-- Conteúdo -->
   <div class="content">
     <h2>Editar Paciente</h2>
 
-    <!-- Avatar (carrega foto existente ou fallback) -->
     <div class="avatar-section">
       <div class="avatar-card">
         <div class="avatar-wrap">
           <img id="avatar-img" class="avatar"
-            src="{{ patient.profile_image_url or url_for('static', filename='images/user-icon.png') }}"
+            src="{{ patient.profile_image or url_for('static', filename='images/user-icon.png') }}"
             alt="Foto do paciente">
         </div>
         <div class="avatar-actions">
           <div class="inline-actions" style="margin-bottom:10px;">
-            <label for="profile_image_file" class="btn btn-outline" title="Selecionar foto de perfil">
-              <i class="fa fa-image"></i>&nbsp;Alterar Foto de Perfil
-            </label>
-            <button type="button" class="btn btn-outline icon-only" title="Salvar foto ao enviar">
-              <i class="fa fa-save"></i>
-            </button>
-            <button type="button" class="btn btn-outline icon-only" title="Remover foto"
-              onclick="document.getElementById('avatar-img').src='{{ url_for('static', filename='images/user-icon.png') }}'; document.getElementById('profile_image_file').value='';">
-              <i class="fa fa-trash"></i>
-            </button>
+            <label for="profile_image_file" class="btn btn-outline"><i class="fa fa-image"></i>&nbsp;Alterar Foto de
+              Perfil</label>
+            <form method="post" action="{{ url_for('patient_remove_photo', patient_id=patient.id) }}"
+              style="display:inline;">
+              <button type="submit" class="btn btn-outline icon-only"
+                onclick="return confirm('Deseja realmente remover a foto de perfil?');"><i
+                  class="fa fa-trash"></i></button>
+            </form>
           </div>
           <div class="hint">Formatos aceitos: JPG/PNG. A foto é exibida em círculo (160×160).</div>
         </div>
@@ -596,79 +584,104 @@
     </div>
 
     <form class="panel" method="post" action="{{ url_for('edit_patient', patient_id=patient.id) }}"
-      enctype="multipart/form-data" novalidate>
-      <!-- input de arquivo da foto -->
+      enctype="multipart/form-data" onsubmit="return validatePatientForm()">
       <input id="profile_image_file" name="profile_image" type="file" accept="image/*" style="display:none;">
 
-      <div class="section-title">Dados Pessoais</div>
+      <div class="section-title">Informações Pessoais</div>
       <div class="grid-2">
         <div class="form-group">
-          <label for="name">Nome completo</label>
-          <input id="name" name="name" class="input" type="text" value="{{ patient.name }}"
-            placeholder="Nome e sobrenome" required>
+          <label class="required" for="name">Nome completo</label>
+          <input class="input" id="name" name="name" required value="{{ patient.name or '' }}">
         </div>
         <div class="form-group">
-          <label for="email">E-mail</label>
-          <input id="email" name="email" class="input" type="email" value="{{ patient.email }}"
-            placeholder="email@exemplo.com">
+          <label class="required" for="birthdate">Data de nascimento (dd/mm/aaaa)</label>
+          <input class="input" id="birthdate" name="birthdate" inputmode="numeric" maxlength="10"
+            placeholder="dd/mm/aaaa" value="{{ patient.birthdate.strftime('%d/%m/%Y') if patient.birthdate else '' }}">
         </div>
       </div>
 
       <div class="grid-3">
         <div class="form-group">
-          <label for="birthdate">Data de nascimento</label>
-          <!-- Mantive type="date" pois aqui você já armazena ISO; ajuste se quiser máscara dd/mm/aaaa -->
-          <input id="birthdate" name="birthdate" class="input" type="date" value="{{ patient.birthdate }}">
+          <label class="required" for="sex">Sexo</label>
+          <select class="input" id="sex" name="sex" required>
+            <option value="">Selecione...</option>
+            <option value="Feminino" {{ 'selected' if patient.sex=='Feminino' else '' }}>Feminino</option>
+            <option value="Masculino" {{ 'selected' if patient.sex=='Masculino' else '' }}>Masculino</option>
+            <option value="Outro" {{ 'selected' if patient.sex=='Outro' else '' }}>Outro</option>
+            <option value="Prefiro não informar" {{ 'selected' if patient.sex=='Prefiro não informar' else '' }}>Prefiro
+              não informar</option>
+          </select>
         </div>
         <div class="form-group">
-          <label for="document">Documento</label>
-          <input id="document" name="document" class="input" type="text" value="{{ patient.document }}"
-            placeholder="CPF / RG">
+          <label for="email">E-mail</label>
+          <input class="input" id="email" name="email" type="email" placeholder="exemplo@email.com"
+            value="{{ patient.email or '' }}">
         </div>
         <div class="form-group">
-          <label for="phone">Telefone</label>
-          <input id="phone" name="phone" class="input" type="tel" value="{{ patient.phone }}"
-            placeholder="(00) 00000-0000">
+          <label for="cpf">CPF</label>
+          <input class="input" id="cpf" name="cpf" maxlength="14" value="{{ patient.cpf or '' }}">
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label class="required" for="phone_primary">Celular</label>
+          <input class="input" id="phone_primary" name="phone_primary" required
+            value="{{ patient.phone_primary or '' }}">
+        </div>
+        <div class="form-group">
+          <label for="phone_secondary">Celular secundário</label>
+          <input class="input" id="phone_secondary" name="phone_secondary" value="{{ patient.phone_secondary or '' }}">
         </div>
       </div>
 
       <div class="section-title">Endereço</div>
-      <div class="grid-3">
+      <div class="grid-4">
+        <div class="form-group">
+          <label for="cep">CEP</label>
+          <input class="input" id="cep" name="cep" value="{{ patient.address_cep or '' }}">
+        </div>
         <div class="form-group">
           <label for="street">Rua</label>
-          <input id="street" name="street" class="input" type="text" value="{{ patient.street }}">
+          <input class="input" id="street" name="street" value="{{ patient.address_street or '' }}">
         </div>
         <div class="form-group">
           <label for="number">Número</label>
-          <input id="number" name="number" class="input" type="text" value="{{ patient.number }}">
+          <input class="input" id="number" name="number" value="{{ patient.address_number or '' }}">
         </div>
         <div class="form-group">
-          <label for="zipcode">CEP</label>
-          <input id="zipcode" name="zipcode" class="input" type="text" value="{{ patient.zipcode }}">
+          <label for="complement">Complemento</label>
+          <input class="input" id="complement" name="complement" value="{{ patient.address_complement or '' }}">
         </div>
       </div>
 
-      <div class="grid-2">
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="district">Bairro</label>
+          <input class="input" id="district" name="district" value="{{ patient.address_district or '' }}">
+        </div>
         <div class="form-group">
           <label for="city">Cidade</label>
-          <input id="city" name="city" class="input" type="text" value="{{ patient.city }}">
+          <input class="input" id="city" name="city" value="{{ patient.address_city or '' }}">
         </div>
         <div class="form-group">
           <label for="state">Estado</label>
-          <input id="state" name="state" class="input" type="text" value="{{ patient.state }}">
+          <input class="input" id="state" name="state" maxlength="2" value="{{ patient.address_state or '' }}">
         </div>
       </div>
 
       <div class="section-title">Observações</div>
       <div class="form-group">
-        <label for="notes">Observações</label>
-        <textarea id="notes" name="notes" class="textarea"
-          placeholder="Alergias, histórico, observações gerais">{{ patient.notes }}</textarea>
+        <label for="notes">Informações de análise / anotações gerais</label>
+        <textarea class="textarea" id="notes" name="notes"
+          placeholder="Escreva aqui as observações detalhadas">{{ patient.notes or '' }}</textarea>
       </div>
 
+
       <div class="actions">
-        <button type="submit" class="btn"><i class="fa fa-save"></i>&nbsp;Salvar</button>
-        <a href="{{ url_for('catalog') }}" class="btn secondary"><i class="fa fa-times"></i>&nbsp;Cancelar</a>
+        <button class="btn" type="submit">
+          <i class="fa fa-save"></i>&nbsp;Salvar paciente
+        </button>
       </div>
     </form>
   </div>
