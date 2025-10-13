@@ -6,7 +6,7 @@
   <title>Ponza Lab</title>
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon">
 
-  <!-- Preload: aplica estado colapsado ANTES do primeiro paint -->
+  <!-- Sidebar collapsed preload -->
   <script>
     (function () {
       try {
@@ -17,6 +17,7 @@
     })();
   </script>
 
+  <!-- Fonts / Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -38,12 +39,12 @@
     }
 
     * {
-      box-sizing: border-box
+      box-sizing: border-box;
     }
 
     html,
     body {
-      margin: 0
+      margin: 0;
     }
 
     body {
@@ -54,7 +55,7 @@
       display: flex;
     }
 
-    /* TOP RIGHT */
+    /* Top right profile icons */
     .top-profile {
       position: fixed;
       top: 18px;
@@ -63,54 +64,50 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      background: transparent;
-      box-shadow: none
     }
 
     .icon-btn {
-      position: relative;
       border: 1px solid var(--border);
       background: var(--surface);
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      cursor: pointer;
       display: grid;
       place-items: center;
+      cursor: pointer;
       box-shadow: var(--shadow);
-      transition: transform .15s ease, box-shadow .15s ease, border-color .15s;
-      text-decoration: none
+      transition: transform .15s, box-shadow .15s, border-color .15s;
     }
 
     .icon-btn:hover {
       transform: translateY(-1px);
+      border-color: var(--brand-blue-solid);
       box-shadow: 0 10px 24px rgba(0, 0, 0, .12);
-      border-color: var(--brand-blue-solid)
     }
 
     .icon-btn i {
       color: var(--brand-blue-solid);
-      font-size: 18px
+      font-size: 18px;
     }
 
     .icon-btn .badge {
       position: absolute;
       top: 6px;
       right: 6px;
-      min-width: 16px;
-      height: 16px;
-      padding: 0 4px;
-      border-radius: 999px;
       background: var(--brand-blue-solid);
       color: #fff;
+      border-radius: 999px;
+      min-width: 16px;
+      height: 16px;
       font-size: 10px;
       font-weight: 800;
       display: flex;
       align-items: center;
-      justify-content: center
+      justify-content: center;
+      padding: 0 4px;
     }
 
-    /* SIDEBAR */
+    /* Sidebar */
     .sidebar {
       width: 250px;
       min-height: 100vh;
@@ -122,7 +119,7 @@
       flex-direction: column;
       transition: width 180ms ease;
       position: sticky;
-      top: 0
+      top: 0;
     }
 
     .sidebar-logo {
@@ -130,7 +127,7 @@
       display: block;
       margin: 0 auto 18px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .25));
-      transition: width 180ms ease, margin 180ms ease
+      transition: width 180ms ease, margin 180ms ease;
     }
 
     .sidebar a.menu-item {
@@ -144,37 +141,22 @@
       text-decoration: none;
       margin-bottom: 18px;
       font-weight: 600;
-      transition: background .2s, color .2s, transform .12s
-    }
-
-    .sidebar a.menu-item i {
-      width: 21px;
-      text-align: center;
-      flex: 0 0 21px
+      transition: background .2s, color .2s, transform .12s;
     }
 
     .sidebar a.menu-item:hover {
       background: #fff;
       color: var(--brand-blue-solid);
-      transform: translateX(4px)
-    }
-
-    .sidebar a.menu-item:hover i {
-      color: var(--brand-blue-solid)
+      transform: translateX(4px);
     }
 
     .sidebar a.menu-item.active {
-      color: #fff;
-      background: var(--brand-grad);
-      box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
+      background: #fff;
+      color: var(--brand-blue-solid);
     }
 
     .sidebar-spacer {
-      flex: 1 1 auto
-    }
-
-    .sidebar a.menu-item.logout {
-      color: #e5e7eb
+      flex: 1 1 auto;
     }
 
     .sidebar-toggle {
@@ -187,101 +169,69 @@
       cursor: pointer;
       margin-bottom: 14px;
       transition: background .2s, border-color .2s, transform .12s;
-      font-size: 12px
+      font-size: 12px;
     }
 
     .sidebar-toggle:hover {
       background: #fff;
       color: var(--brand-blue-solid);
       border-color: #fff;
-      transform: translateY(-1px)
+      transform: translateY(-1px);
     }
 
     .sidebar.is-collapsed {
-      width: 76px
+      width: 76px;
     }
 
     .sidebar.is-collapsed .sidebar-logo {
       width: 44px;
-      margin: 0 auto 22px
+      margin: 0 auto 22px;
     }
 
     .sidebar.is-collapsed .menu-item {
       justify-content: center;
       gap: 0;
       padding: 12px 0;
-      margin-bottom: 18px
     }
 
     .sidebar.is-collapsed .menu-item .label {
-      display: none
+      display: none;
     }
 
     .sidebar.is-collapsed .sidebar-toggle i {
-      transform: rotate(180deg)
+      transform: rotate(180deg);
     }
 
-    /* CONTEÚDO */
+    /* Content */
     .content {
       flex-grow: 1;
       padding: 36px;
-      min-width: 0;
+      background: var(--bg);
       text-align: center;
-      background: var(--bg)
     }
 
     .logo-img {
-      height: 120px;
+      height: 90px;
       display: block;
-      margin: 0 auto 10px;
-      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .12))
+      margin: 0 auto 12px;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .1));
     }
 
     .subtitle {
-      max-width: 820px;
-      margin: 8px auto 22px;
       color: var(--ink-dim);
-      font-size: 16px
-    }
-
-    .row-actions {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap
-    }
-
-    .btn-chip {
-      padding: 10px 14px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 13px;
-      cursor: pointer;
-      transition: .2s;
-      color: var(--ink);
-      background: #fff;
-      border: 1px solid var(--border)
-    }
-
-    .btn-chip:hover,
-    .btn-chip.active {
-      color: #fff;
-      background: var(--brand-grad);
-      border-color: transparent;
-      box-shadow: 0 6px 18px rgba(2, 6, 23, .12);
-      transform: translateY(-1px)
+      max-width: 800px;
+      margin: 0 auto 26px;
     }
 
     .panel {
       background: var(--surface);
-      padding: 24px;
+      padding: 28px;
       border-radius: 16px;
       box-shadow: var(--shadow);
-      max-width: 760px;
-      margin: 0 auto 18px;
+      max-width: 700px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
       text-align: left;
-      border: 1px solid var(--border)
     }
 
     .drop-zone {
@@ -292,191 +242,106 @@
       background: #fff;
       color: var(--ink-dim);
       font-size: 14px;
-      margin: 0 auto 16px;
       cursor: pointer;
-      user-select: none;
-      transition: border-color .25s, background-color .25s, transform .2s, box-shadow .2s
+      transition: .25s;
     }
 
     .drop-zone:hover {
       border-color: var(--brand-blue-solid);
       background: #f1f5f9;
-      transform: translateY(-2px);
-      box-shadow: 0 10px 26px rgba(2, 6, 23, .10);
-      color: var(--ink)
+      color: var(--ink);
     }
 
-    .drop-zone.dragover {
-      border-color: #60a5fa;
-      background: #eef2ff;
-      color: var(--ink)
-    }
-
-    .send-options {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 18px
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--btn-h);
+      min-width: var(--btn-minw);
+      padding: 0 22px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 14px;
+      border: 1px solid var(--brand-blue-solid);
+      cursor: pointer;
+      text-decoration: none;
+      color: #fff;
+      background: var(--brand-grad);
+      box-shadow: var(--shadow);
     }
 
     .send-options label {
       display: flex;
       align-items: center;
       gap: 8px;
-      cursor: pointer;
-      font-weight: 700
+      font-weight: 700;
+      margin-top: 10px;
     }
 
-    .send-options input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      cursor: pointer
-    }
-
-    .phone-field {
-      margin-left: 28px;
-      margin-top: 8px;
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.98);
       display: none;
-    }
-
-    .menu-input {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 14px;
-      color: var(--ink);
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      outline: none;
-      transition: .2s;
-      font-family: var(--font-family)
-    }
-
-    .menu-textarea {
-      width: 100%;
-      padding: 12px 14px;
-      font-size: 14px;
-      color: var(--ink);
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      outline: none;
-      transition: .2s;
-      font-family: var(--font-family);
-      min-height: 120px;
-      resize: vertical
-    }
-
-    .actions {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap
-    }
-
-    .btn {
-      display: inline-block;
-      padding: 12px 18px;
-      border-radius: 999px;
-      font-weight: 800;
-      font-size: 14px;
-      border: 1px solid var(--brand-blue-solid);
-      cursor: pointer;
-      transition: .22s;
-      text-decoration: none;
-      color: #fff;
-      background: var(--brand-grad);
-      box-shadow: var(--shadow);
-      height: var(--btn-h);
-      min-width: var(--btn-minw)
-    }
-
-    .btn.btn-outline {
-      color: var(--brand-blue-solid);
-      background: #fff;
-      border: 1px solid var(--brand-blue-solid)
-    }
-
-    .btn.btn-outline:hover {
-      box-shadow: 0 8px 18px rgba(2, 6, 23, .10)
-    }
-
-    .manual-grid {
-      max-width: 720px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px
-    }
-
-    .manual-grid textarea {
-      grid-column: 1 / -1
-    }
-
-    .success-bubble {
-      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 14px;
-      padding: 18px 26px;
-      border-radius: 20px;
-      background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-      color: #065f46;
-      font-weight: 700;
-      box-shadow: 0 8px 22px rgba(6, 95, 70, 0.25);
-      border: 2px solid #6ee7b7;
-      max-width: 600px;
-      margin: 22px auto;
-      animation: bubbleFade 0.4s ease-in-out;
+      z-index: 9999;
+      backdrop-filter: blur(8px);
     }
 
-    .bubble-icon {
-      font-size: 26px;
+    .loading-overlay.active {
+      display: flex;
     }
 
-    .bubble-text a {
-      color: #065f46;
-      font-weight: 800;
-      text-decoration: underline;
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid #d1d5db;
+      border-top: 4px solid var(--brand-blue-solid);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
     }
 
-    @keyframes bubbleFade {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-
+    @keyframes spin {
       to {
-        opacity: 1;
-        transform: translateY(0);
+        transform: rotate(360deg);
       }
     }
   </style>
 </head>
 
 <body>
+  <!-- Loading -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div>
+      <div class="loading-spinner"></div>
+      <p>Analisando PDF ...</p>
+    </div>
+  </div>
+
   <div class="top-profile">
     <a href="{{ url_for('account') }}" class="icon-btn" title="Minha conta"><i class="fa fa-user"></i></a>
-    <button class="icon-btn" type="button" title="Notificações">
+    <button class="icon-btn" title="Notificações">
       <i class="fa fa-bell"></i><span class="badge">{{ (notifications_unread or 0) }}</span>
     </button>
   </div>
 
-  <!-- Sidebar padronizada -->
+  <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button>
     <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
 
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
-    <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
+    <a href="{{ url_for('upload') }}" class="menu-item active"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
         class="label">Cotações</span></a>
-
-    <!-- ✅ Novo link para Profissionais -->
-
-
     <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
         class="label">Pacientes</span></a>
     <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
@@ -495,151 +360,111 @@
         class="label">Sair</span></a>
   </div>
 
+  <!-- Main content -->
   <div class="content">
-    <img src="{{ url_for('static', filename='images/PonzaLab.svg') }}" alt="Logo Ponza Lab" class="logo-img">
+    <img src="{{ url_for('static', filename='images/PonzaLab.svg') }}" class="logo-img" alt="Ponza Lab">
     <p class="subtitle">
-      Envie um PDF de exames para análise.
-      Preencha manualmente o nome e telefone do médico e/ou paciente se desejar enviar o resultado via WhatsApp.
+      Envie um PDF de exames para análise automática. O sistema exibirá os resultados após a leitura.
     </p>
 
-    {% if error %}
-    <div class="alert alert-error">{{ error }}</div>
-    {% elif success %}
-    <div class="success-bubble">
-      <div class="bubble-icon">✅</div>
-      <div class="bubble-text">
-        Análise realizada com sucesso!
-        <a href="{{ url_for('patient_result', patient_id=success_id) }}" target="_blank">Ver resultado</a>
-      </div>
-    </div>
-    {% endif %}
-
-    <div class="row-actions">
-      <button type="button" class="btn-chip active" id="btn-up" onclick="showSection('upload')">📎 Upload PDF</button>
-      <button type="button" class="btn-chip" id="btn-ma" onclick="showSection('manual')">📝 Inserir Manualmente</button>
-    </div>
-
-    <!-- Upload -->
-    <div id="upload-section" class="panel">
-      <form id="upload-form" method="post" enctype="multipart/form-data" onsubmit="return validateUpload()">
-        <input type="file" name="pdf_file" id="pdf_file" accept="application/pdf" style="display:none;" />
+    <div class="panel">
+      <form id="upload-form" method="post" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
+        <input type="file" name="pdf_file" id="pdf_file" accept="application/pdf" style="display:none;">
         <div id="drop-zone" class="drop-zone" tabindex="0">
-          <div id="drop-title" style="font-weight:800; color:var(--ink); font-size:16px; margin-bottom:6px;">
-            Selecione ou arraste um PDF aqui
+          <div id="drop-title" style="font-weight:800;">Clique ou arraste um PDF aqui</div>
+        </div>
+
+        <div class="send-options" style="margin-top: 22px;">
+          <label>
+            <input type="checkbox" id="send_doctor" name="send_doctor" value="1" onchange="togglePhoneFields()">
+            Enviar ao médico
+          </label>
+
+          <div id="doctor_phone_field" style="display:none; margin-top: 10px;">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <input type="text" name="doctor_name" placeholder="Nome do médico" class="menu-input"
+                style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+              <input type="text" name="doctor_phone" placeholder="Telefone WhatsApp do médico" class="menu-input"
+                style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+            </div>
           </div>
-          <div class="dz-sub" style="font-size:13px; color:var(--ink-dim);">
-            Tamanho máx. recomendado: 10MB
+
+          <label style="margin-top:14px;">
+            <input type="checkbox" id="send_patient" name="send_patient" value="1" onchange="togglePhoneFields()">
+            Enviar ao paciente
+          </label>
+
+          <div id="patient_phone_field" style="display:none; margin-top: 10px;">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <input type="text" name="patient_name" placeholder="Nome do paciente" class="menu-input"
+                style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+              <input type="text" name="patient_phone" placeholder="Telefone WhatsApp do paciente" class="menu-input"
+                style="width:100%; padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+            </div>
           </div>
         </div>
 
-        <div class="send-options">
-          <label><input type="checkbox" id="send_doctor" name="send_doctor" value="1" onchange="togglePhoneFields()">
-            Enviar ao médico</label>
-          <div id="doctor_phone_field" class="phone-field">
-            <input type="text" name="doctor_name" placeholder="Nome do médico" class="menu-input">
-            <input type="text" name="doctor_phone" placeholder="Telefone WhatsApp do médico" class="menu-input">
-          </div>
-
-          <label><input type="checkbox" id="send_patient" name="send_patient" value="1" onchange="togglePhoneFields()">
-            Enviar ao paciente</label>
-          <div id="patient_phone_field" class="phone-field">
-            <input type="text" name="patient_name" placeholder="Nome do paciente" class="menu-input">
-            <input type="text" name="patient_phone" placeholder="Telefone WhatsApp do paciente" class="menu-input">
-          </div>
-        </div>
-
-        <div class="actions" style="margin-top:18px;">
-          <button type="submit" class="btn">Enviar</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Inserção Manual -->
-    <div id="manual-section" class="panel" style="display:none;">
-      <form method="post" style="margin-top:4px; text-align:left;">
-        <input type="hidden" name="manual_entry" value="1">
-        <div class="manual-grid">
-          <input type="text" name="name" placeholder="Nome do Paciente" class="menu-input" required>
-          <input type="number" name="age" placeholder="Idade" class="menu-input">
-          <input type="text" name="cpf" placeholder="CPF" class="menu-input">
-          <input type="text" name="gender" placeholder="Sexo" class="menu-input">
-          <input type="text" name="phone" placeholder="Telefone do Paciente (WhatsApp)" class="menu-input">
-          <input type="text" name="doctor" placeholder="Nome do Médico" class="menu-input">
-          <input type="text" name="doctor_phone" placeholder="Telefone do Médico (WhatsApp)" class="menu-input">
-          <textarea name="lab_results" rows="8" placeholder="Digite os resultados e observações..."
-            class="menu-textarea" required></textarea>
-          <div class="send-options">
-            <label><input type="checkbox" name="send_doctor" value="1"> Enviar ao médico</label>
-            <label><input type="checkbox" name="send_patient" value="1"> Enviar ao paciente</label>
-          </div>
-        </div>
-        <div style="text-align:center; margin-top:12px;">
-          <button type="submit" class="btn">Analisar Manualmente</button>
+        <div style="text-align:center; margin-top:24px;">
+          <button type="submit" class="btn">Analisar</button>
         </div>
       </form>
     </div>
-  </div>
 
-  <script>
-    function showSection(section) {
-      const up = document.getElementById('upload-section');
-      const ma = document.getElementById('manual-section');
-      document.getElementById('btn-up').classList.toggle('active', section === 'upload');
-      document.getElementById('btn-ma').classList.toggle('active', section === 'manual');
-      up.style.display = section === 'upload' ? 'block' : 'none';
-      ma.style.display = section === 'manual' ? 'block' : 'none';
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    <script>
+      function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const collapsed = sidebar.classList.toggle('is-collapsed');
+        document.body.classList.toggle('sidebar-collapsed', collapsed);
+        localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+      }
 
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('pdf_file');
-    const dropTitle = document.getElementById('drop-title');
+      document.addEventListener('DOMContentLoaded', () => {
+        if (localStorage.getItem('sidebarCollapsed') === '1') {
+          document.querySelector('.sidebar').classList.add('is-collapsed');
+          document.body.classList.add('sidebar-collapsed');
+        }
+      });
 
-    ['dragover', 'drop'].forEach(evt => window.addEventListener(evt, e => e.preventDefault()));
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
-    fileInput.addEventListener('change', () => { dropTitle.textContent = fileInput.files.length ? fileInput.files[0].name : 'Selecione ou arraste um PDF aqui'; });
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault(); dropZone.classList.remove('dragover');
-      if (e.dataTransfer.files && e.dataTransfer.files.length) {
+      const overlay = document.getElementById('loadingOverlay');
+      const fileInput = document.getElementById('pdf_file');
+      const dropZone = document.getElementById('drop-zone');
+      const dropTitle = document.getElementById('drop-title');
+
+      ['dragover', 'drop'].forEach(evt => window.addEventListener(evt, e => e.preventDefault()));
+      dropZone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        dropTitle.textContent = fileInput.files.length ? fileInput.files[0].name : 'Clique ou arraste um PDF aqui';
+      });
+      dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+      dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
-        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          fileInput.files = e.dataTransfer.files; dropTitle.textContent = file.name;
-        } else { alert('Por favor, envie um arquivo PDF.'); }
+        if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+          fileInput.files = e.dataTransfer.files;
+          dropTitle.textContent = file.name;
+        } else {
+          alert('Por favor, envie um arquivo PDF.');
+        }
+      });
+
+      function handleFormSubmit() {
+        if (!fileInput.files.length) {
+          alert("Selecione um PDF antes de enviar.");
+          return false;
+        }
+        overlay.classList.add('active');
+        return true;
       }
-    });
 
-    function validateUpload() {
-      if (!fileInput.files.length) { alert("Por favor, selecione um arquivo PDF antes de enviar."); return false; }
-      return true;
-    }
-
-    function togglePhoneFields() {
-      document.getElementById('doctor_phone_field').style.display =
-        document.getElementById('send_doctor').checked ? 'block' : 'none';
-      document.getElementById('patient_phone_field').style.display =
-        document.getElementById('send_patient').checked ? 'block' : 'none';
-    }
-
-    // Sidebar igual ao index.html
-    function toggleSidebar() {
-      const sidebar = document.querySelector('.sidebar');
-      const body = document.body;
-      sidebar.classList.toggle('is-collapsed');
-      const collapsed = sidebar.classList.contains('is-collapsed');
-      body.classList.toggle('sidebar-collapsed', collapsed);
-      localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
-      if (collapsed) {
-        document.querySelector('.sidebar')?.classList.add('is-collapsed');
-        document.body.classList.add('sidebar-collapsed');
+      function togglePhoneFields() {
+        document.getElementById('doctor_phone_field').style.display =
+          document.getElementById('send_doctor').checked ? 'block' : 'none';
+        document.getElementById('patient_phone_field').style.display =
+          document.getElementById('send_patient').checked ? 'block' : 'none';
       }
-    });
-  </script>
+    </script>
 </body>
 
 </html>

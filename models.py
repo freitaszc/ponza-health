@@ -117,12 +117,20 @@ class Product(db.Model, BaseModel):
     application_route = db.Column(db.String(80))
     min_stock         = db.Column(db.Integer, default=0)
 
-    user           = relationship("User", back_populates="products")
+    user = db.relationship("User", back_populates="products")
+
+    movements = db.relationship(
+        "StockMovement",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
 
     __table_args__ = (
         Index("ix_products_status", "status"),
         Index("ix_products_created_at", "created_at"),
     )
+
 
 
 class Doctor(db.Model, BaseModel):
@@ -438,3 +446,20 @@ class ScheduledEmail(db.Model, BaseModel):
         self.template = template
         self.send_at = send_at
         self.sent = sent
+
+class StockMovement(db.Model, BaseModel):
+    __tablename__ = "stock_movements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    product_id = db.Column(
+        db.Integer,
+        db.ForeignKey("products.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    quantity = db.Column(db.Integer, nullable=False)
+    type = db.Column(db.String(10), nullable=False)
+    notes = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    product = db.relationship("Product", back_populates="movements")

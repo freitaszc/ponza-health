@@ -33,19 +33,20 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import select, text, func, or_
 from werkzeug.middleware.proxy_fix import ProxyFix
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BackgroundScheduler #type: ignore
 from jinja2 import TemplateNotFound
 
 from models import (
     db, User, Patient, Doctor, Consult, PackageUsage,
     Supplier, Product, AgendaEvent, Quote,
     SecureFile, PdfFile, WaitlistItem, ScheduledEmail,
+    StockMovement,
 )
 
 # ------------------------------------------------------------------------------
 # Inicialização / Config
 # ------------------------------------------------------------------------------
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 app = Flask(__name__)
 
 if os.getenv("RENDER"):
@@ -81,8 +82,6 @@ app.config.update(
 )
 
 mail = Mail(app)
-
-migrate = Migrate(app, db)
 
 def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=None, inline_images=None):
     """
@@ -167,6 +166,9 @@ app.config.update(
 from sqlalchemy import inspect, text
 
 db.init_app(app)
+
+migrate = Migrate(app, db)
+
 
 with app.app_context():
     try:
@@ -1342,6 +1344,7 @@ def update_password():
 # ------------------------------------------------------------------------------
 # Upload / Prescrição
 # ------------------------------------------------------------------------------
+
 def _project_references_json() -> str:
     """
     Return an existing references.json path. We look in common safe locations:
@@ -1419,22 +1422,11 @@ def _handle_manual_entry(request, u, analyze_pdf):
     if not lab_results:
         return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
 
-    # --------------------------------------
-    # Analisar texto inserido manualmente
-    # --------------------------------------
     refs_path = _project_references_json()
     dgn, rx, *_ = analyze_pdf(lab_results, references_path=refs_path, manual=True)
 
-    # Criar/atualizar paciente
     p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
     _attach_consult_and_notes(p, dgn, rx)
-
-    # --------------------------------------
-    # Envio via WhatsApp
-    # --------------------------------------
-    # Como não há arquivo PDF físico, usamos links genéricos
-    analyzed_link = f"{request.url_root}manual_result/{p.id}"
-    original_link = f"{request.url_root}manual_original/{p.id}"
 
     if send_doctor and doctor_phone:
         send_pdf_whatsapp_template(
@@ -1445,7 +1437,6 @@ def _handle_manual_entry(request, u, analyze_pdf):
             p.id
         )
 
-
     if send_patient and patient_phone:
         send_pdf_whatsapp_patient(
             patient_name or p.name,
@@ -1454,7 +1445,7 @@ def _handle_manual_entry(request, u, analyze_pdf):
             clinic_phone=u.clinic_phone
         )
 
-    return redirect(url_for('upload', success=1, success_id=p.id))
+    return redirect(url_for('result', patient_id=p.id))
 
 def _handle_pdf_upload(request, u, analyze_pdf):
     """Processa upload de arquivo PDF, analisa e envia relatórios via WhatsApp."""
@@ -1469,9 +1460,6 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     if not content:
         return redirect(url_for('upload', error="PDF vazio ou inválido."))
 
-    # ==========================================================
-    # Salvar PDF original de forma segura
-    # ==========================================================
     sf = SecureFile(
         owner_user_id=u.id,
         kind="upload_pdf",
@@ -1492,18 +1480,15 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     db.session.add(pf)
     db.session.commit()
 
-    # ==========================================================
-    # Analisar PDF e gerar diagnóstico
-    # ==========================================================
     refs_path = _project_references_json()
+    import tempfile
     fd, tmp = tempfile.mkstemp(suffix=".pdf")
     with os.fdopen(fd, "wb") as fh:
         fh.write(content)
 
-    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai = analyze_pdf(tmp, references_path=refs_path, manual=False)
+    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = analyze_pdf(tmp, references_path=refs_path, manual=False)
     os.remove(tmp)
 
-    # Cria/atualiza paciente
     p = _get_or_create_patient(
         u,
         name=name_ai,
@@ -1516,9 +1501,6 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     pf.patient_id = p.id
     db.session.commit()
 
-    # ==========================================================
-    # Envio via WhatsApp (médico e paciente)
-    # ==========================================================
     send_doctor  = request.form.get('send_doctor') == '1'
     send_patient = request.form.get('send_patient') == '1'
 
@@ -1527,11 +1509,6 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     patient_name  = (request.form.get('patient_name') or '').strip()
     patient_phone = (request.form.get('patient_phone') or '').strip()
 
-    # links públicos
-    analyzed_link = f"{request.url_root}public_download/{pf.id}"
-    original_link = f"{request.url_root}public_original/{pf.id}"
-
-    # Enviar relatório para médico
     if send_doctor and doctor_phone:
         send_pdf_whatsapp_template(
             "relatorio_ponza",
@@ -1541,7 +1518,6 @@ def _handle_pdf_upload(request, u, analyze_pdf):
             p.id
         )
 
-    # Enviar relatório para paciente
     if send_patient and patient_phone:
         send_pdf_whatsapp_patient(
             patient_name or p.name,
@@ -1550,11 +1526,9 @@ def _handle_pdf_upload(request, u, analyze_pdf):
             clinic_phone=u.clinic_phone
         )
 
-    return redirect(url_for('upload', success=1, success_id=p.id))
-
+    return redirect(url_for('result', patient_id=p.id))
 
 def _get_or_create_patient(u, *, name=None, cpf=None, gender=None, phone=None):
-    """Obtém ou cria paciente do usuário."""
     p = None
     if cpf:
         p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first()
@@ -1572,6 +1546,9 @@ def _get_or_create_patient(u, *, name=None, cpf=None, gender=None, phone=None):
         db.session.commit()
     return p
 
+# ------------------------------------------------------------------------------
+# Resultados (HTML e PDF)
+# ------------------------------------------------------------------------------
 
 def _attach_consult_and_notes(p, dgn, rx):
     """Cria consulta e anexa diagnóstico/prescrição ao paciente."""
@@ -1581,28 +1558,77 @@ def _attach_consult_and_notes(p, dgn, rx):
     db.session.commit()
     return notes_blob
 
-
-@app.route('/download_pdf/<int:patient_id>')
+@app.route('/patient_result/<int:patient_id>')
 @login_required
-def download_pdf(patient_id):
-    from weasyprint import HTML
+def patient_result(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
     if patient.owner_user_id != u.id:
         abort(403)
 
-    consults = Consult.query.filter_by(patient_id=patient_id).order_by(Consult.id.asc()).all()
-    if consults:
-        latest = consults[-1].notes or ""
-        parts = latest.split("Prescrição:\n", 1)
-        diagnostic_text  = parts[0].strip()
-        prescription_text = parts[1].strip() if len(parts) > 1 else ""
-        latest_consult_id = consults[-1].id
-    else:
-        diagnostic_text  = "Nenhuma consulta registrada."
-        prescription_text = ""
-        latest_consult_id = None
+    consult = (
+        Consult.query
+        .filter_by(patient_id=patient_id)
+        .order_by(Consult.date.desc())
+        .first()
+    )
 
+    notes = consult.notes if consult else ""
+    diagnosis, prescription = "", ""
+    if "Prescrição:" in notes:
+        parts = notes.split("Prescrição:", 1)
+        diagnosis = parts[0].strip()
+        prescription = parts[1].strip()
+
+    return render_template(
+        'result.html',
+        patient=patient,
+        diagnostic_text=diagnosis,
+        prescription_text=prescription,
+        notifications_unread=0,
+    )
+
+@app.route('/download_pdf/<int:patient_id>')
+@login_required
+def download_pdf(patient_id):
+    """
+    Gera e faz download do PDF de resultados do paciente (com dados e assinatura).
+    """
+    from weasyprint import HTML
+    from flask import send_file
+    import tempfile
+
+    u = current_user()
+    patient = Patient.query.get_or_404(patient_id)
+    if patient.owner_user_id != u.id:
+        abort(403)
+
+    # Última consulta e diagnóstico/prescrição
+    consult = (
+        Consult.query
+        .filter_by(patient_id=patient_id)
+        .order_by(Consult.date.desc())
+        .first()
+    )
+
+    notes = consult.notes if consult else ""
+    diagnosis, prescription = "", ""
+    if notes:
+        split_key = None
+        for key in ["Prescrição:", "Prescricao:", "Prescrição\n", "Prescricao\n"]:
+            if key in notes:
+                split_key = key
+                break
+
+        if split_key:
+            parts = notes.split(split_key, 1)
+            diagnosis = parts[0].strip()
+            prescription = parts[1].strip() if len(parts) > 1 else ""
+        else:
+            diagnosis = notes.strip()
+            prescription = ""
+
+    # Calcular idade
     def _calc_age(birthdate):
         try:
             today = datetime.today().date()
@@ -1616,114 +1642,44 @@ def download_pdf(patient_id):
         if age_val is not None:
             age_str = f"{age_val} anos"
 
+    # Dados básicos do paciente
     sex_str = (patient.sex or "").strip()
     cpf_str = (patient.cpf or "").strip()
     phones = [x for x in [(patient.phone_primary or "").strip(), (patient.phone_secondary or "").strip()] if x]
     phone_str = " / ".join(phones)
 
-    patient_lines = [
+    patient_info = [
         f"Nome: {patient.name or '—'}",
         f"Data de nascimento: {patient.birthdate.strftime('%d/%m/%Y') if patient.birthdate else '—'}",
     ]
-    if age_str: patient_lines.append(f"Idade: {age_str}")
-    if sex_str: patient_lines.append(f"Sexo: {sex_str}")
-    if cpf_str: patient_lines.append(f"CPF: {cpf_str}")
-    if phone_str: patient_lines.append(f"Telefone: {phone_str}")
-    patient_info = "\n".join(patient_lines)
+    if age_str: patient_info.append(f"Idade: {age_str}")
+    if sex_str: patient_info.append(f"Sexo: {sex_str}")
+    if cpf_str: patient_info.append(f"CPF: {cpf_str}")
+    if phone_str: patient_info.append(f"Telefone: {phone_str}")
 
     html_str = render_template(
         "result_pdf.html",
-        patient_info=patient_info,
-        diagnostic_text=diagnostic_text,
-        prescription_text=prescription_text,
+        patient_info="\n".join(patient_info),
+        diagnostic_text=diagnosis,
+        prescription_text=prescription,
         doctor_name=(getattr(u, "name", None) or u.username),
     )
 
+    # === Gera PDF ===
     pdf_io = BytesIO()
-    pdf_ok = False
+    HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
+    pdf_io.seek(0)
 
-    # 1) Tenta WeasyPrint
-    try:
-        HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
-        pdf_io.seek(0)
-        pdf_ok = True
-    except Exception as e:
-        print("[PDF] WeasyPrint error, tentando ReportLab:", e)
-
-    # 2) Fallback ReportLab
-    if not pdf_ok:
-        try:
-            from reportlab.lib.pagesizes import A4  # type: ignore
-            from reportlab.pdfgen import canvas    # type: ignore
-            from reportlab.lib.units import mm     # type: ignore
-            from reportlab.lib.utils import ImageReader  # type: ignore
-
-            c = canvas.Canvas(pdf_io, pagesize=A4)
-            width, height = A4
-
-            png_path = os.path.join(STATIC_DIR, "images", "logo.png")
-            if os.path.exists(png_path):
-                try:
-                    img = ImageReader(png_path)
-                    target_w = 40 * mm
-                    iw, ih = img.getSize()
-                    ratio = target_w / iw
-                    target_h = ih * ratio
-                    c.drawImage(img, width - target_w - 15*mm, height - target_h - 15*mm,
-                                width=target_w, height=target_h, preserveAspectRatio=True, mask='auto')
-                except Exception:
-                    pass
-
-            c.setFont("Times-Bold", 16)
-            c.drawCentredString(width / 2, height - 20 * mm, "Resultado da Análise - Ponza Health")
-
-            c.setFont("Times-Roman", 11)
-            y = height - 35 * mm
-            for ln in patient_info.splitlines():
-                c.drawString(20 * mm, y, ln)
-                y -= 6 * mm
-
-            y -= 4 * mm
-            c.setFont("Times-Bold", 12)
-            c.drawString(20 * mm, y, "Diagnóstico:")
-            y -= 7 * mm
-            c.setFont("Times-Roman", 11)
-            for ln in (diagnostic_text or "—").splitlines():
-                c.drawString(22 * mm, y, ln)
-                y -= 6 * mm
-                if y < 25 * mm:
-                    c.showPage(); y = height - 20 * mm
-
-            y -= 4 * mm
-            c.setFont("Times-Bold", 12)
-            c.drawString(20 * mm, y, "Prescrição:")
-            y -= 7 * mm
-            c.setFont("Times-Roman", 11)
-            for ln in (prescription_text or "—").splitlines():
-                c.drawString(22 * mm, y, ln)
-                y -= 6 * mm
-                if y < 40 * mm:
-                    c.showPage(); y = height - 20 * mm
-
-            c.setFont("Times-Roman", 11)
-            c.line(60 * mm, 25 * mm, 150 * mm, 25 * mm)
-            c.drawCentredString(105 * mm, 20 * mm, getattr(u, "name", None) or u.username)
-
-            c.showPage()
-            c.save()
-            pdf_io.seek(0)
-            pdf_ok = True
-        except Exception as e2:
-            return jsonify(success=False, error=f"Falha ao gerar PDF: {e2}"), 500
-
-    # === Persistir o PDF gerado no banco (🔗 já vinculado ao paciente/consulta) ===
+    # === Salva PDF no banco ===
     try:
         pdf_bytes = pdf_io.getvalue()
         display_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
+        consult_id = consult.id if consult else None
+
         _save_pdf_bytes_to_db(
             owner_user_id=u.id,
             patient_id=patient.id,
-            consult_id=latest_consult_id,
+            consult_id=consult_id,
             original_name=display_name,
             data=pdf_bytes,
             kind="result_pdf",
@@ -1732,147 +1688,16 @@ def download_pdf(patient_id):
         db.session.rollback()
         print("[PDF] erro ao salvar PDF gerado no DB:", e)
 
+    # === Envia PDF ao usuário ===
     download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
     pdf_io.seek(0)
     return send_file(pdf_io, as_attachment=True, download_name=download_name, mimetype="application/pdf")
 
-@app.route('/public_download/<token>')
-def public_download(token):
-    """Allow external users (e.g., via WhatsApp link) to download the latest PDF result."""
-    from itsdangerous import URLSafeSerializer
-    s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-    try:
-        patient_id = s.loads(token)
-    except Exception:
-        abort(403)  # invalid or tampered token
-
-    patient = Patient.query.get_or_404(patient_id)
-    consults = (
-        Consult.query.filter_by(patient_id=patient.id)
-        .order_by(Consult.id.desc())
-        .all()
-    )
-    if not consults:
-        return jsonify({"error": "Nenhuma consulta encontrada"}), 404
-
-    latest = consults[0].notes or ""
-    parts = latest.split("Prescrição:\n", 1)
-    diagnostic_text  = parts[0].strip()
-    prescription_text = parts[1].strip() if len(parts) > 1 else ""
-
-    pdf_bytes = generate_result_pdf_bytes(
-        patient=patient,
-        diagnostic_text=diagnostic_text,
-        prescription_text=prescription_text,
-        doctor_display_name=(getattr(patient, "doctor_name", None) or "Médico")
-    )
-
-    download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
-    return send_file(BytesIO(pdf_bytes),
-                     as_attachment=True,
-                     download_name=download_name,
-                     mimetype="application/pdf")
-
-
-def _generate_patient_pdf(patient_id: int):
-    """
-    Internal helper to build the PDF exactly like download_pdf,
-    without requiring login.
-    """
-    from weasyprint import HTML
-    patient = Patient.query.get_or_404(patient_id)
-
-    consults = Consult.query.filter_by(patient_id=patient_id).order_by(Consult.id.asc()).all()
-    if consults:
-        latest = consults[-1].notes or ""
-        parts = latest.split("Prescrição:\n", 1)
-        diagnostic_text  = parts[0].strip()
-        prescription_text = parts[1].strip() if len(parts) > 1 else ""
-        latest_consult_id = consults[-1].id
-    else:
-        diagnostic_text  = "Nenhuma consulta registrada."
-        prescription_text = ""
-        latest_consult_id = None
-
-    def _calc_age(birthdate):
-        try:
-            today = datetime.today().date()
-            return today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
-        except Exception:
-            return None
-
-    age_str = ""
-    if getattr(patient, "birthdate", None):
-        age_val = _calc_age(patient.birthdate)
-        if age_val is not None:
-            age_str = f"{age_val} anos"
-
-    sex_str = (patient.sex or "").strip()
-    cpf_str = (patient.cpf or "").strip()
-    phones = [x for x in [(patient.phone_primary or "").strip(), (patient.phone_secondary or "").strip()] if x]
-    phone_str = " / ".join(phones)
-
-    patient_lines = [
-        f"Nome: {patient.name or '—'}",
-        f"Data de nascimento: {patient.birthdate.strftime('%d/%m/%Y') if patient.birthdate else '—'}",
-    ]
-    if age_str: patient_lines.append(f"Idade: {age_str}")
-    if sex_str: patient_lines.append(f"Sexo: {sex_str}")
-    if cpf_str: patient_lines.append(f"CPF: {cpf_str}")
-    if phone_str: patient_lines.append(f"Telefone: {phone_str}")
-    patient_info = "\n".join(patient_lines)
-
-    html_str = render_template(
-        "result_pdf.html",
-        patient_info=patient_info,
-        diagnostic_text=diagnostic_text,
-        prescription_text=prescription_text,
-        doctor_name="Ponza Health",  # no current_user, so generic signature
-    )
-
-    pdf_io = BytesIO()
-    HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
-    pdf_io.seek(0)
-
-    download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
-    return send_file(pdf_io, as_attachment=True, download_name=download_name, mimetype="application/pdf")
-
-@app.route('/files/pdf/<int:pdf_id>')
+@app.route('/result/<int:patient_id>')
 @login_required
-def serve_pdf(pdf_id):
-    return _serve_pdf_from_db(pdf_id)
-
-@app.route('/patients/<int:patient_id>/pdfs', methods=['GET'])
-@login_required
-def patient_pdfs(patient_id: int):
-    u = current_user()
-    p = Patient.query.get_or_404(patient_id)
-    if p.owner_user_id != u.id:
-        abort(403)
-
-    # traz todos os PDFs do paciente (uploads e resultados)
-    rows = (
-        db.session.query(PdfFile, SecureFile)
-        .join(SecureFile, PdfFile.secure_file_id == SecureFile.id)
-        .filter(
-            PdfFile.patient_id == patient_id,
-            SecureFile.owner_user_id == u.id
-        )
-        .order_by(PdfFile.uploaded_at.desc())
-        .all()
-    )
-
-    out = []
-    for pf, sf in rows:
-        out.append({
-            "id": pf.id,
-            "original_name": pf.original_name or pf.filename,
-            "size_bytes": pf.size_bytes,
-            "uploaded_at": pf.uploaded_at.isoformat(),
-            "kind": sf.kind,
-            "download_url": url_for('serve_pdf', pdf_id=pf.id)
-        })
-    return jsonify(out)
+def result(patient_id):
+    """Alias compatível para patient_result (mantém links antigos funcionando)."""
+    return redirect(url_for('patient_result', patient_id=patient_id))
 
 # ------------------------------------------------------------------------------
 # Agenda (tela)
@@ -2401,36 +2226,6 @@ def edit_patient(patient_id):
         return redirect(url_for('catalog'))
 
     return render_template('edit_patient.html', patient=patient)
-
-# ------------------------------------------------------------------------------
-# Visualizar resultado e prescrição do paciente
-# ------------------------------------------------------------------------------
-@app.route('/patient_result/<int:patient_id>')
-@login_required
-def patient_result(patient_id):
-    u = current_user()
-    patient = Patient.query.get_or_404(patient_id)
-    if patient.owner_user_id != u.id:
-        abort(403)
-
-    consults = Consult.query.filter_by(patient_id=patient_id).order_by(Consult.id.asc()).all()
-    if consults:
-        latest = consults[-1].notes or ""
-        parts = latest.split("Prescrição:\n", 1)
-        diagnostic_text  = parts[0].strip()
-        prescription_text = parts[1].strip() if len(parts) > 1 else ""
-    else:
-        diagnostic_text  = "Nenhuma consulta registrada."
-        prescription_text = ""
-
-    return render_template(
-        'result.html',
-        patient=patient,
-        diagnostic_text=diagnostic_text,
-        prescription_text=prescription_text,
-        doctor_name=getattr(u, "name", u.username)
-    )
-
 
 # ------------------------------------------------------------------------------
 # Foto do paciente (upload/remover) — compatível com SecureFile
@@ -3225,12 +3020,26 @@ def api_stock_movement():
         return jsonify(success=False, error='Estoque insuficiente para saída.'), 400
 
     try:
+        # Atualiza a quantidade
         p.quantity = new_qty
+
+        # ✅ Registra movimentação
+        movement = StockMovement(
+            user_id=u.id,
+            product_id=p.id,
+            quantity=qty,
+            type=type_,
+            notes=notes,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(movement)
         db.session.commit()
+
         return jsonify(success=True, product_id=p.id, quantity=p.quantity)
     except Exception as e:
         db.session.rollback()
         return jsonify(success=False, error=f'Falha ao registrar movimentação: {e}'), 500
+
 
 @app.route('/stock_movement', methods=['POST'])
 @login_required
@@ -3241,10 +3050,12 @@ def stock_movement():
         data = request.get_json(silent=True) or {}
         product_id = _to_int(data.get('product_id'), 0)
         qty        = _to_int(data.get('quantity'), 0)
+        notes      = (data.get('notes') or '').strip()
         type_      = (data.get('type') or '').strip().lower()
     else:
         product_id = _to_int(request.form.get('product_id'), 0)
         qty        = _to_int(request.form.get('quantity'), 0)
+        notes      = (request.form.get('notes') or '').strip()
         type_      = (request.form.get('type') or '').strip().lower()
 
     if not product_id or not qty:
@@ -3258,7 +3069,7 @@ def stock_movement():
     if type_ == 'out':
         qty = -abs(qty)
     elif type_ == 'in':
-        qty =  abs(qty)
+        qty = abs(qty)
 
     new_qty = (p.quantity or 0) + qty
     if new_qty < 0:
@@ -3266,14 +3077,56 @@ def stock_movement():
         return redirect(url_for('products'))
 
     try:
+        # Atualiza a quantidade
         p.quantity = new_qty
+
+        # ✅ Registra movimentação
+        movement = StockMovement(
+            user_id=u.id,
+            product_id=p.id,
+            quantity=qty,
+            type=type_,
+            notes=notes,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(movement)
         db.session.commit()
-        flash('Movimentação registrado!', 'success')
+
+        flash('Movimentação registrada!', 'success')
     except Exception as e:
         db.session.rollback()
         flash(f'Falha ao registrar movimentação: {e}', 'warning')
 
     return redirect(url_for('products'))
+
+
+# ✅ NOVA ROTA - Histórico de movimentações (últimos 30 dias)
+@app.route('/api/stock_history')
+@login_required
+def api_stock_history():
+    u = current_user()
+    limit_date = datetime.utcnow() - timedelta(days=30)
+
+    movements = (
+        db.session.query(StockMovement, Product.name)
+        .join(Product, Product.id == StockMovement.product_id)
+        .filter(StockMovement.user_id == u.id)
+        .filter(StockMovement.created_at >= limit_date)
+        .order_by(StockMovement.created_at.desc())
+        .all()
+    )
+
+    records = []
+    for m, product_name in movements:
+        records.append({
+            "date": m.created_at.strftime("%d/%m/%Y %H:%M"),
+            "product": product_name,
+            "type": "Entrada" if m.type == "in" else "Saída",
+            "quantity": abs(m.quantity),
+            "notes": m.notes
+        })
+
+    return jsonify(success=True, records=records)
 
 @app.route('/products/add', methods=['POST'])
 @login_required
@@ -3573,10 +3426,11 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
     Gera o PDF (mesma aparência do /download_pdf) e retorna os bytes.
     Também salva uma cópia no banco (PdfFile/SecureFile) para histórico.
     """
-
     from weasyprint import HTML
+    from flask import current_app
     u = current_user()
 
+    # --- Calcula idade ---
     def _calc_age(birthdate):
         try:
             today = datetime.today().date()
@@ -3590,6 +3444,7 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
         if age_val is not None:
             age_str = f"{age_val} anos"
 
+    # --- Informações básicas ---
     sex_str = (patient.sex or "").strip()
     cpf_str = (patient.cpf or "").strip()
     phones = [x for x in [(patient.phone_primary or "").strip(), (patient.phone_secondary or "").strip()] if x]
@@ -3605,6 +3460,7 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
     if phone_str: patient_lines.append(f"Telefone: {phone_str}")
     patient_info = "\n".join(patient_lines)
 
+    # --- Gera HTML com o template padrão ---
     html_str = render_template(
         "result_pdf.html",
         patient_info=patient_info,
@@ -3615,17 +3471,17 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
 
     pdf_io = BytesIO()
 
-    # 1) Tenta WeasyPrint
+    # --- 1) Geração via WeasyPrint ---
     try:
-        HTML(string=html_str, base_url=request.host_url).write_pdf(pdf_io)
+        HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
         pdf_io.seek(0)
     except Exception as e:
         print("[PDF/gen] WeasyPrint error, fallback ReportLab:", e)
-        # 2) Fallback ReportLab
-        from reportlab.lib.pagesizes import A4  # type: ignore
-        from reportlab.pdfgen import canvas    # type: ignore
-        from reportlab.lib.units import mm     # type: ignore
-        from reportlab.lib.utils import ImageReader  # type: ignore
+        # --- 2) Fallback ReportLab ---
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.units import mm
+        from reportlab.lib.utils import ImageReader
 
         c = canvas.Canvas(pdf_io, pagesize=A4)
         width, height = A4
@@ -3638,7 +3494,7 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
                 iw, ih = img.getSize()
                 ratio = target_w / iw
                 target_h = ih * ratio
-                c.drawImage(img, width - target_w - 15*mm, height - target_h - 15*mm,
+                c.drawImage(img, width - target_w - 15 * mm, height - target_h - 15 * mm,
                             width=target_w, height=target_h, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
@@ -3649,38 +3505,51 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
         c.setFont("Times-Roman", 11)
         y = height - 35 * mm
         for ln in patient_info.splitlines():
-            c.drawString(20 * mm, y, ln); y -= 6 * mm
+            c.drawString(20 * mm, y, ln)
+            y -= 6 * mm
 
         y -= 4 * mm
-        c.setFont("Times-Bold", 12); c.drawString(20 * mm, y, "Diagnóstico:"); y -= 7 * mm
+        c.setFont("Times-Bold", 12)
+        c.drawString(20 * mm, y, "Diagnóstico:")
+        y -= 7 * mm
         c.setFont("Times-Roman", 11)
         for ln in (diagnostic_text or "—").splitlines():
-            c.drawString(22 * mm, y, ln); y -= 6 * mm
-            if y < 25 * mm: c.showPage(); y = height - 20 * mm
+            c.drawString(22 * mm, y, ln)
+            y -= 6 * mm
+            if y < 25 * mm:
+                c.showPage()
+                y = height - 20 * mm
 
         y -= 4 * mm
-        c.setFont("Times-Bold", 12); c.drawString(20 * mm, y, "Prescrição:"); y -= 7 * mm
+        c.setFont("Times-Bold", 12)
+        c.drawString(20 * mm, y, "Prescrição:")
+        y -= 7 * mm
         c.setFont("Times-Roman", 11)
         for ln in (prescription_text or "—").splitlines():
-            c.drawString(22 * mm, y, ln); y -= 6 * mm
-            if y < 40 * mm: c.showPage(); y = height - 20 * mm
+            c.drawString(22 * mm, y, ln)
+            y -= 6 * mm
+            if y < 40 * mm:
+                c.showPage()
+                y = height - 20 * mm
 
         c.setFont("Times-Roman", 11)
         c.line(60 * mm, 25 * mm, 150 * mm, 25 * mm)
         c.drawCentredString(105 * mm, 20 * mm, doctor_display_name or (getattr(u, "name", None) or u.username))
-
         c.showPage()
         c.save()
         pdf_io.seek(0)
 
-    # Salva cópia no banco
+    # --- Salva cópia no banco ---
     try:
         pdf_bytes = pdf_io.getvalue()
+        consult = Consult.query.filter_by(patient_id=patient.id).order_by(Consult.date.desc()).first()
+        consult_id = consult.id if consult else None
         display_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
+
         _save_pdf_bytes_to_db(
             owner_user_id=u.id,
             patient_id=patient.id,
-            consult_id=None,  # pode anexar depois se quiser
+            consult_id=consult_id,
             original_name=display_name,
             data=pdf_bytes,
             kind="result_pdf",

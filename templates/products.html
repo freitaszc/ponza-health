@@ -556,29 +556,33 @@
   </div>
 
   <!-- Sidebar -->
-<div class="sidebar" id="sidebar">
-  <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-      class="fa fa-angle-double-left"></i></button>
-  <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
+        class="fa fa-angle-double-left"></i></button>
+    <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
 
-  <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
-  <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza Lab</span></a>
-  <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span class="label">Cotações</span></a>
+    <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
+    <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
+        Lab</span></a>
+    <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span
+        class="label">Cotações</span></a>
+    <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span
+        class="label">Pacientes</span></a>
+    <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span
+        class="label">Estoque</span></a>
+    <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span
+        class="label">Agenda</span></a>
+    <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span
+        class="label">Pagamentos</span></a>
 
-  <!-- ✅ Novo link para Profissionais -->
-  <a href="{{ url_for('doctors') }}" class="menu-item"><i class="fa fa-user-md"></i><span class="label">Profissionais</span></a>
-
-  <a href="{{ url_for('catalog') }}" class="menu-item"><i class="fa fa-users"></i><span class="label">Pacientes</span></a>
-  <a href="{{ url_for('products') }}" class="menu-item"><i class="fa fa-archive"></i><span class="label">Estoque</span></a>
-  <a href="{{ url_for('agenda') }}" class="menu-item"><i class="fa fa-calendar"></i><span class="label">Agenda</span></a>
-  <a href="{{ url_for('purchase') }}" class="menu-item"><i class="fa fa-credit-card"></i><span class="label">Pagamentos</span></a>
-
-  <div class="sidebar-spacer"></div>
-  {% if session.username and session.username|lower == 'admin' %}
-  <a href="{{ url_for('admin_users') }}" class="menu-item"><i class="fa fa-shield"></i><span class="label">Admin</span></a>
-  {% endif %}
-  <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span class="label">Sair</span></a>
-</div>
+    <div class="sidebar-spacer"></div>
+    {% if session.username and session.username|lower == 'admin' %}
+    <a href="{{ url_for('admin_users') }}" class="menu-item"><i class="fa fa-shield"></i><span
+        class="label">Admin</span></a>
+    {% endif %}
+    <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
+        class="label">Sair</span></a>
+  </div>
 
 
   <!-- Conteúdo -->
@@ -587,6 +591,34 @@
 
     <div class="actions-row">
       <button class="btn" onclick="openAddProductModal()">Cadastrar Produto</button>
+      <!-- ✅ Novo botão -->
+      <button class="btn btn-outline" onclick="openStockHistoryModal()">Movimentações (últimos 30 dias)</button>
+    </div>
+
+    <!-- ===== NOVO MODAL DE HISTÓRICO ===== -->
+    <div id="stockHistoryModal" class="modal">
+      <div class="modal-card" style="max-width:700px;">
+        <button class="modal-close" onclick="closeStockHistoryModal()">×</button>
+        <h3>Movimentações dos últimos 30 dias</h3>
+        <div id="stockHistoryContainer" style="max-height:400px;overflow-y:auto;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:var(--brand-grad);color:#fff;">
+                <th style="padding:8px;">Data</th>
+                <th style="padding:8px;">Produto</th>
+                <th style="padding:8px;">Tipo</th>
+                <th style="padding:8px;">Quantidade</th>
+                <th style="padding:8px;">Observação</th>
+              </tr>
+            </thead>
+            <tbody id="stockHistoryTableBody">
+              <tr>
+                <td colspan="5" style="text-align:center;color:var(--ink-dim);padding:10px;">Carregando...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- Filtros -->
@@ -645,9 +677,10 @@
                 </button>
 
                 <!-- Excluir -->
-                <form method="post" action="{{ url_for('delete_product', product_id=prod.id) }}"
-                  onsubmit="return confirm('Deseja realmente remover este produto?')" style="margin:0;">
-                  <button type="submit" class="icon-square danger" title="Remover Produto" aria-label="Remover Produto">
+                <form method="POST" action="{{ url_for('delete_product', product_id=prod.id) }}" style="display:inline;"
+                  onsubmit="return confirmDelete(event)">
+                  <button type="submit" class="icon-square danger" title="Remover Produto" aria-label="Remover Produto"
+                    style="border:none;background:none;">
                     <i class="fa fa-trash"></i>
                   </button>
                 </form>
@@ -764,6 +797,51 @@
       }
     });
   </script>
+  <script>
+    async function openStockHistoryModal() {
+      const modal = document.getElementById('stockHistoryModal');
+      const tbody = document.getElementById('stockHistoryTableBody');
+      modal.classList.add('is-open');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--ink-dim);padding:10px;">Carregando...</td></tr>';
+
+      try {
+        const res = await fetch('/api/stock_history');
+        if (!res.ok) throw new Error('Erro na resposta');
+        const data = await res.json();
+
+        if (!data.success || !Array.isArray(data.records) || data.records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--ink-dim);padding:10px;">Nenhuma movimentação nos últimos 30 dias.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.records.map(rec => `
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:8px;text-align:center;">${rec.date}</td>
+        <td style="padding:8px;text-align:center;">${rec.product}</td>
+        <td style="padding:8px;text-align:center;color:${rec.type === 'Entrada' ? '#16a34a' : '#dc2626'};">${rec.type}</td>
+        <td style="padding:8px;text-align:center;">${rec.quantity}</td>
+        <td style="padding:8px;text-align:center;">${rec.notes || '-'}</td>
+      </tr>
+    `).join('');
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:red;padding:10px;">Erro ao carregar histórico.</td></tr>';
+      }
+    }
+
+    function closeStockHistoryModal() {
+      document.getElementById('stockHistoryModal').classList.remove('is-open');
+    }
+  </script>
+  <script>
+    function confirmDelete(e) {
+      if (!confirm('Deseja realmente remover este produto?')) {
+        e.preventDefault();
+        return false;
+      }
+      return true;
+    }
+  </script>
+
 </body>
 
 </html>

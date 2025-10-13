@@ -6,11 +6,9 @@
     <title>Resultado - Ponza Health</title>
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
 
-    <!-- Fonte -->
+    <!-- Fonte e base visual -->
     <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;600;700;800&display=swap"
         rel="stylesheet" />
-
-    <!-- CSS base do site -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ponza-base.css') }}" />
 
     <style>
@@ -21,10 +19,8 @@
             --border: #e5e7eb;
             --ink: #0b1220;
             --ink-dim: #475569;
-
             --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
             --brand-solid: #131d35;
-
             --shadow: 0 8px 20px rgba(2, 6, 23, .06);
             --radius: 12px;
             --btn-h: 44px;
@@ -51,7 +47,202 @@
             font-size: 16px;
         }
 
-        /* Cabeçalho simples com logo central */
+        /* =======================
+           LOADING SCREEN
+        ======================= */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.6s ease-out;
+        }
+
+        .loading-screen.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+        }
+
+        .loading-logo {
+            width: 180px;
+            height: auto;
+            margin: 0 auto 32px;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
+            animation: logoFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes logoFloat {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 24px 0;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--brand-grad);
+            border-radius: 999px;
+            width: 0%;
+            animation: progressAnimation 3s ease-out forwards;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes progressAnimation {
+            0% {
+                width: 0%;
+            }
+
+            20% {
+                width: 25%;
+            }
+
+            50% {
+                width: 60%;
+            }
+
+            80% {
+                width: 85%;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .loading-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--ink);
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .loading-subtitle {
+            font-size: 16px;
+            color: var(--ink-dim);
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .loading-steps {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 32px;
+            flex-wrap: wrap;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.3;
+            transition: opacity 0.5s ease;
+        }
+
+        .step.active {
+            opacity: 1;
+        }
+
+        .step-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--brand-grad);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: 800;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        }
+
+        .step.active .step-icon {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+            }
+
+            50% {
+                box-shadow: 0 4px 24px rgba(15, 23, 42, 0.4);
+            }
+        }
+
+        .step-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--ink-dim);
+        }
+
+        /* =======================
+           RESULT CONTENT
+        ======================= */
+        .content-wrapper {
+            opacity: 0;
+            transition: opacity 0.6s ease-in;
+        }
+
+        .content-wrapper.show {
+            opacity: 1;
+        }
+
         .header {
             padding: 28px 16px 8px;
             text-align: center;
@@ -63,7 +254,6 @@
             filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .15));
         }
 
-        /* Título com barra gradiente abaixo (igual páginas internas) */
         h2 {
             font-size: 32px;
             text-align: center;
@@ -85,11 +275,10 @@
             box-shadow: 0 0 8px rgba(0, 0, 0, .12);
         }
 
-        /* Container / painel central */
         .container {
             width: 100%;
             max-width: 980px;
-            margin: 0 auto 28px auto;
+            margin: 0 auto 28px;
             padding: 0 16px 24px;
         }
 
@@ -99,6 +288,19 @@
             border-radius: 16px;
             box-shadow: var(--shadow);
             padding: 24px;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .section-title {
@@ -111,7 +313,6 @@
             text-align: left;
         }
 
-        /* Caixa de texto (substitui o <pre> escuro do layout antigo) */
         .text-box {
             background: #fff;
             border: 1px solid var(--border);
@@ -124,7 +325,6 @@
             box-shadow: inset 0 1px 0 rgba(2, 6, 23, .02);
         }
 
-        /* Botões padrão Ponza */
         .actions {
             margin-top: 24px;
             display: flex;
@@ -133,25 +333,7 @@
             flex-wrap: wrap;
         }
 
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            height: var(--btn-h);
-            min-width: var(--btn-minw);
-            padding: 0 22px;
-            border-radius: 999px;
-            font-weight: 800;
-            font-size: 14px;
-            border: 1px solid var(--brand-solid);
-            cursor: pointer;
-            transition: .22s;
-            text-decoration: none;
-            color: #fff;
-            background: var(--brand-grad);
-            box-shadow: var(--shadow);
-        }
-
+        .btn,
         .menu-button {
             display: inline-flex;
             align-items: center;
@@ -171,7 +353,8 @@
             box-shadow: var(--shadow);
         }
 
-        .btn:hover {
+        .btn:hover,
+        .menu-button:hover {
             transform: translateY(-2px) scale(1.02);
             box-shadow: 0 12px 24px rgba(2, 6, 23, .12);
         }
@@ -183,43 +366,129 @@
         }
 
         @media (max-width:720px) {
-            .btn {
-                min-width: 100%
+
+            .btn,
+            .menu-button {
+                min-width: 100%;
+            }
+
+            .loading-steps {
+                gap: 16px;
             }
         }
     </style>
 </head>
 
 <body>
-    <!-- Header simples (sem sidebar) -->
-    <header class="header">
-        <a href="{{ url_for('index') }}">
-            <img src="{{ url_for('static', filename='images/8.svg') }}" class="logo-img" alt="Ponza Health" />
-        </a>
-    </header>
+    <!-- ========== LOADING ========== -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-container">
+            <img src="{{ url_for('static', filename='images/PonzaLab.svg') }}" class="loading-logo" alt="Ponza Lab" />
 
-    <main class="container">
-        <h2>Resultado da Análise</h2>
+            <div class="loading-title">Processando Análise</div>
+            <div class="loading-subtitle">
+                Estamos analisando seu documento com inteligência artificial...
+            </div>
 
-        <div class="panel">
-            <div class="section-title">Diagnóstico</div>
-            <div class="text-box">{{ diagnostic_text }}</div>
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
 
-            <div class="section-title" style="margin-top:18px;">Prescrição</div>
-            <div class="text-box">{{ prescription_text }}</div>
-
-            <!-- Botões no rodapé: Download + Ir para Início -->
-            <div class="actions">
-                <a href="{{ url_for('download_pdf', patient_id=patient.id) }}" target="_blank" rel="noopener noreferrer"
-                    class="menu-button">
-                    Download PDF
-                </a>
-                <a class="btn btn-outline" href="{{ url_for('index') }}">
-                    Ir para Início
-                </a>
+            <div class="loading-steps">
+                <div class="step active" id="step1">
+                    <div class="step-icon">1</div>
+                    <div class="step-label">Leitura</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-icon">2</div>
+                    <div class="step-label">Análise</div>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-icon">3</div>
+                    <div class="step-label">Geração</div>
+                </div>
             </div>
         </div>
-    </main>
+    </div>
+
+    <!-- ========== RESULT CONTENT ========== -->
+    <div class="content-wrapper" id="contentWrapper">
+        <header class="header">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='images/8.svg') }}" class="logo-img" alt="Ponza Health" />
+            </a>
+        </header>
+
+        <main class="container">
+            <h2>Resultado da Análise</h2>
+
+            <div class="panel">
+                <div class="section-title">Diagnóstico</div>
+                <div class="text-box">{{ diagnostic_text }}</div>
+
+                <div class="section-title" style="margin-top:18px;">Prescrição</div>
+                <div class="text-box">{{ prescription_text }}</div>
+
+                <div class="actions">
+                    <a href="{{ url_for('download_pdf', patient_id=patient.id) }}" target="_blank"
+                        rel="noopener noreferrer" class="menu-button">
+                        Download PDF
+                    </a>
+                    <a class="btn btn-outline" href="{{ url_for('index') }}">
+                        Ir para Início
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ======================
+         SCRIPT
+    ====================== -->
+    <script>
+        const steps = [
+            { id: 'step1', duration: 1000 },
+            { id: 'step2', duration: 1500 },
+            { id: 'step3', duration: 1000 }
+        ];
+
+        let currentStep = 0;
+
+        function activateStep(index) {
+            if (index < steps.length) {
+                document.getElementById(steps[index].id).classList.add('active');
+                currentStep++;
+
+                if (currentStep < steps.length) {
+                    setTimeout(() => activateStep(currentStep), steps[index].duration);
+                } else {
+                    setTimeout(showResults, 500);
+                }
+            }
+        }
+
+        function showResults() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const contentWrapper = document.getElementById('contentWrapper');
+
+            loadingScreen.classList.add('hide');
+            contentWrapper.classList.add('show');
+
+            // Remove loader after fade-out
+            setTimeout(() => { loadingScreen.style.display = 'none'; }, 600);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => activateStep(0), 300);
+        });
+
+        // Fallback: force show after 10s
+        setTimeout(() => {
+            if (!document.getElementById('contentWrapper').classList.contains('show')) {
+                showResults();
+            }
+        }, 10000);
+    </script>
 </body>
 
 </html>
