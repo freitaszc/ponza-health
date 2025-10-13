@@ -2,7 +2,7 @@ import os
 import re
 import json
 import requests
-import pymupdf as fitz
+import fitz
 from datetime import datetime
 from typing import Optional, List
 from flask import current_app, url_for
