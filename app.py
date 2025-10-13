@@ -2,7 +2,6 @@ import os
 import re
 import secrets
 from flask_migrate import Migrate
-from models import db
 from io import BytesIO
 from mercado_pago import generate_subscription_link
 from functools import wraps
@@ -16,7 +15,14 @@ import tempfile
 import requests
 from itsdangerous import URLSafeTimedSerializer, URLSafeSerializer, BadSignature, SignatureExpired
 from flask_mail import Mail, Message
-from whatsapp import send_pdf_whatsapp_patient, send_pdf_whatsapp_template, send_quote_whatsapp, send_reminder_doctor, send_reminder_patient
+from prescription import (
+    analyze_pdf,
+    send_pdf_whatsapp_template,
+    send_pdf_whatsapp_patient,
+    send_reminder_doctor,
+    send_reminder_patient,
+    send_quote_whatsapp,
+)
 
 from dotenv import load_dotenv
 from flask import (
@@ -1396,14 +1402,16 @@ def upload():
 
 def _handle_manual_entry(request, u, analyze_pdf):
     """Processa inserção manual de resultados."""
-    name        = (request.form.get('name') or '').strip()
-    age         = (request.form.get('age') or '').strip()
-    cpf         = (request.form.get('cpf') or '').strip()
-    gender      = (request.form.get('gender') or '').strip()
-    phone       = (request.form.get('phone') or '').strip()
-    doctor_name = (request.form.get('doctor') or '').strip()
-    doctor_phone= (request.form.get('doctor_phone') or '').strip()
-    lab_results = (request.form.get('lab_results') or '').strip()
+    name          = (request.form.get('name') or '').strip()
+    age           = (request.form.get('age') or '').strip()
+    cpf           = (request.form.get('cpf') or '').strip()
+    gender        = (request.form.get('gender') or '').strip()
+    phone         = (request.form.get('phone') or '').strip()
+    doctor_name   = (request.form.get('doctor') or '').strip()
+    doctor_phone  = (request.form.get('doctor_phone') or '').strip()
+    patient_name  = (request.form.get('patient_name') or '').strip()
+    patient_phone = (request.form.get('patient_phone') or '').strip()
+    lab_results   = (request.form.get('lab_results') or '').strip()
 
     send_doctor  = request.form.get('send_doctor') == '1'
     send_patient = request.form.get('send_patient') == '1'
@@ -1411,24 +1419,48 @@ def _handle_manual_entry(request, u, analyze_pdf):
     if not lab_results:
         return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
 
+    # --------------------------------------
+    # Analisar texto inserido manualmente
+    # --------------------------------------
     refs_path = _project_references_json()
     dgn, rx, *_ = analyze_pdf(lab_results, references_path=refs_path, manual=True)
 
+    # Criar/atualizar paciente
     p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
+    _attach_consult_and_notes(p, dgn, rx)
 
-    notes_blob = _attach_consult_and_notes(p, dgn, rx)
-
+    # --------------------------------------
     # Envio via WhatsApp
+    # --------------------------------------
+    # Como não há arquivo PDF físico, usamos links genéricos
+    analyzed_link = f"{request.url_root}manual_result/{p.id}"
+    original_link = f"{request.url_root}manual_original/{p.id}"
+
     if send_doctor and doctor_phone:
-        send_pdf_whatsapp_template('relatorio_ponza', doctor_name, p.name, doctor_phone, p.id)
-    if send_patient and phone:
-        send_pdf_whatsapp_patient(p.name, phone, p.id, clinic_phone=u.phone)
+        send_pdf_whatsapp_template(
+            "relatorio_ponza",
+            doctor_name,
+            p.name,
+            doctor_phone,
+            p.id
+        )
+
+
+    if send_patient and patient_phone:
+        send_pdf_whatsapp_patient(
+            patient_name or p.name,
+            patient_phone,
+            p.id,
+            clinic_phone=u.clinic_phone
+        )
 
     return redirect(url_for('upload', success=1, success_id=p.id))
 
-
 def _handle_pdf_upload(request, u, analyze_pdf):
-    """Processa upload de arquivo PDF e cria/atualiza paciente e consulta."""
+    """Processa upload de arquivo PDF, analisa e envia relatórios via WhatsApp."""
+    import tempfile
+    from prescription import send_pdf_whatsapp_template, send_pdf_whatsapp_patient
+
     file = request.files.get('pdf_file')
     if not file or not file.filename.lower().endswith('.pdf'):
         return redirect(url_for('upload', error="Nenhum PDF válido enviado."))
@@ -1437,7 +1469,9 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     if not content:
         return redirect(url_for('upload', error="PDF vazio ou inválido."))
 
-    # salva arquivo seguro
+    # ==========================================================
+    # Salvar PDF original de forma segura
+    # ==========================================================
     sf = SecureFile(
         owner_user_id=u.id,
         kind="upload_pdf",
@@ -1458,15 +1492,18 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     db.session.add(pf)
     db.session.commit()
 
-    # analisa o PDF
+    # ==========================================================
+    # Analisar PDF e gerar diagnóstico
+    # ==========================================================
     refs_path = _project_references_json()
     fd, tmp = tempfile.mkstemp(suffix=".pdf")
     with os.fdopen(fd, "wb") as fh:
         fh.write(content)
 
-    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, _ = analyze_pdf(tmp, references_path=refs_path, manual=False)
+    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai = analyze_pdf(tmp, references_path=refs_path, manual=False)
     os.remove(tmp)
 
+    # Cria/atualiza paciente
     p = _get_or_create_patient(
         u,
         name=name_ai,
@@ -1476,25 +1513,42 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     )
 
     notes_blob = _attach_consult_and_notes(p, dgn, rx)
+    pf.patient_id = p.id
+    db.session.commit()
 
-    # envio WhatsApp
+    # ==========================================================
+    # Envio via WhatsApp (médico e paciente)
+    # ==========================================================
     send_doctor  = request.form.get('send_doctor') == '1'
     send_patient = request.form.get('send_patient') == '1'
-    doctor_name  = (request.form.get('doctor_name') or '').strip()
-    doctor_phone = (request.form.get('doctor_phone') or '').strip()
-    patient_name = (request.form.get('patient_name') or '').strip()
-    patient_phone= (request.form.get('patient_phone') or '').strip()
 
+    doctor_name   = (request.form.get('doctor_name') or '').strip()
+    doctor_phone  = (request.form.get('doctor_phone') or '').strip()
+    patient_name  = (request.form.get('patient_name') or '').strip()
+    patient_phone = (request.form.get('patient_phone') or '').strip()
+
+    # links públicos
+    analyzed_link = f"{request.url_root}public_download/{pf.id}"
+    original_link = f"{request.url_root}public_original/{pf.id}"
+
+    # Enviar relatório para médico
     if send_doctor and doctor_phone:
-        send_pdf_whatsapp_template('relatorio_ponza', doctor_name, p.name, doctor_phone, p.id)
-    if send_patient and patient_phone:
-        send_pdf_whatsapp_patient(patient_name or p.name, patient_phone, p.id, clinic_phone=u.phone)
+        send_pdf_whatsapp_template(
+            "relatorio_ponza",
+            doctor_name,
+            p.name,
+            doctor_phone,
+            p.id
+        )
 
-    pf.patient_id = p.id
-    # vincula a última consulta criada
-    latest_consult = Consult.query.filter_by(patient_id=p.id).order_by(Consult.id.desc()).first()
-    pf.consult_id = latest_consult.id if latest_consult else None
-    db.session.commit()
+    # Enviar relatório para paciente
+    if send_patient and patient_phone:
+        send_pdf_whatsapp_patient(
+            patient_name or p.name,
+            patient_phone,
+            pf.id,
+            clinic_phone=u.clinic_phone
+        )
 
     return redirect(url_for('upload', success=1, success_id=p.id))
 
@@ -1902,28 +1956,6 @@ def api_events():
             },
         })
 
-    # Consultas (somente leitura) — filtradas pelo range se disponível
-    cq = (
-        Consult.query
-        .join(Patient, Patient.id == Consult.patient_id)
-        .filter(Patient.owner_user_id == u.id)
-    )
-    if start_dt and end_dt:
-        cq = cq.filter(Consult.date >= start_dt.date(), Consult.date <= end_dt.date())
-
-    for c in cq.all():
-        if c.time:
-            start = datetime.combine(c.date, c.time).isoformat()
-            ev = {"title": c.notes or "Consulta", "start": start, "allDay": False}
-        else:
-            ev = {"title": c.notes or "Consulta", "start": c.date.isoformat(), "allDay": True}
-        ev.update({
-            "className": "patient-event",
-            "extendedProps": {"type": "consulta"},
-            "editable": False,  # <- impede arrastar/redimensionar
-        })
-        events.append(ev)
-
     return jsonify(events)
 
 
@@ -1973,7 +2005,6 @@ def api_add_event():
     db.session.commit()
 
     # === WhatsApp lembretes ===
-    from whatsapp import send_reminder_doctor, send_reminder_patient
     from app import schedule_whatsapp_job  # garante o scheduler
 
     # Dados do lembrete
