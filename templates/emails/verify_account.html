@@ -6,24 +6,11 @@
     <title>Confirmação de Conta — Ponza Health</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-        :root {
-            --bg-primary: #f5f7fa;
-            --bg-card: #ffffff;
-            --text-primary: #1e293b;
-            --text-muted: #64748b;
-            --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
-            --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
-            --font-family: 'Funnel Sans', system-ui, sans-serif;
-            --fs-title: 28px;
-            --fs-small: 15px;
-            --btn-height: 48px;
-        }
-
         body {
             margin: 0;
-            background: var(--bg-primary);
-            font-family: var(--font-family);
-            color: var(--text-primary);
+            background: #f5f7fa;
+            font-family: 'Funnel Sans', Arial, Helvetica, sans-serif;
+            color: #1e293b;
         }
 
         .container {
@@ -33,7 +20,7 @@
         }
 
         .card {
-            background: var(--bg-card);
+            background: #ffffff;
             border-radius: 18px;
             padding: 40px 32px;
             box-shadow: 0 12px 32px rgba(19, 29, 53, 0.15);
@@ -41,30 +28,32 @@
         }
 
         h2 {
-            font-size: var(--fs-title);
+            font-size: 26px;
             margin: 0 0 20px;
+            color: #0a1628;
         }
 
         p {
-            font-size: var(--fs-small);
-            color: var(--text-muted);
+            font-size: 15px;
+            color: #475569;
             line-height: 1.6;
         }
 
         .btn-primary {
             display: inline-block;
             width: 100%;
-            background: var(--brand-grad);
+            background: linear-gradient(135deg, #0a1628, #1e293b, #334155);
             color: #fff;
             text-decoration: none;
             font-weight: 700;
             padding: 14px 0;
             border-radius: 999px;
-            transition: all .25s ease;
+            margin: 25px 0 15px;
+            transition: opacity .25s ease;
         }
 
         .btn-primary:hover {
-            background: var(--brand-grad-hover);
+            opacity: 0.9;
         }
 
         .footer {
@@ -72,6 +61,7 @@
             text-align: center;
             font-size: 13px;
             color: #94a3b8;
+            line-height: 1.5;
         }
 
         .footer a {
@@ -87,18 +77,24 @@
 
 <body>
     <div class="container">
-        <div style="text-align:center;margin-bottom:20px;">
+        <div style="text-align:center; margin-bottom:20px;">
             <img src="cid:logo" alt="Ponza Health" style="max-width:220px;height:auto;">
         </div>
+
         <div class="card">
             <h2>Confirme sua Conta</h2>
-            <p>Olá {{ username }},</p>
-            <p>Obrigado por se cadastrar na <strong>Ponza Health</strong>.
+            <p>Olá <strong>{{ username }}</strong>,</p>
+            <p>Obrigado por se cadastrar na <strong>Ponza Health</strong>.<br>
                 Para ativar sua conta, clique no botão abaixo:</p>
+
             <a href="{{ confirm_url }}" class="btn-primary">Confirmar E-mail</a>
-            <p>Se você não criou uma conta conosco, ignore este e-mail.</p>
-            <p><strong>WhatsApp:</strong> <a href="https://wa.me/5533984613689">+55 33 98461-3689</a></p>
+
+            <p>Se você não criou uma conta conosco, basta ignorar este e-mail.</p>
+            <p><strong>WhatsApp:</strong>
+                <a href="https://wa.me/5533984613689" style="color:#0a1628; text-decoration:none;">+55 33 98461-3689</a>
+            </p>
         </div>
+
         <div class="footer">
             © {{ current_year }} Ponza Health. Todos os direitos reservados.<br>
             <a href="{{ url_for('privacy_policy', _external=True) }}">Política de Privacidade</a> •

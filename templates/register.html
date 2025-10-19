@@ -223,7 +223,7 @@
         <div class="notice notice-success">
           <strong>Teste gratuito de 14 dias:</strong>
           Ao criar sua conta, você terá <strong>14 dias de acesso gratuito</strong>.
-          Após esse período, será necessário assinar o plano de <strong>R$79,90/mês</strong> para continuar.
+          Após esse período, será necessário assinar o plano de mensal ou anual para continuar.
         </div>
 
         {% if success_message %}
@@ -234,6 +234,8 @@
         {% endif %}
 
         <form class="auth-form" action="{{ url_for('auth.register') }}" method="post">
+          <input type="hidden" name="plan" value="{{ request.args.get('plan', '') }}">
+
           <div class="field">
             <label for="username">Nome de usuário</label>
             <input id="username" name="username" type="text" class="input" required autofocus>
@@ -256,7 +258,17 @@
             <label for="confirm">Confirmar senha</label>
             <input id="confirm" name="confirm" type="password" class="input" required>
           </div>
-          <button type="submit" class="btn-primary">Cadastrar e iniciar teste</button>
+
+          <button type="submit" class="btn-primary">
+            {% if request.args.get('plan') == 'monthly' %}
+            Criar conta e assinar plano mensal
+            {% elif request.args.get('plan') == 'yearly' %}
+            Criar conta e assinar plano anual
+            {% else %}
+            Cadastrar e iniciar teste gratuito
+            {% endif %}
+          </button>
+
           <p class="muted">Já tem conta? <a href="{{ url_for('login') }}" class="link">Entrar</a></p>
         </form>
       </div>

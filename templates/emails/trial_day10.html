@@ -1,28 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Ponza Health — Faltam 4 dias para o fim do teste</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
 
 <body style="font-family:Arial,Helvetica,sans-serif; background:#f5f7fa; margin:0; padding:0;">
   <div
-    style="max-width:640px; margin:40px auto; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0 12px 32px rgba(19,29,53,0.15); text-align:center;">
+    style="max-width:640px; margin:40px auto; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0 12px 32px rgba(19,29,53,0.15);">
 
-    <div style="text-align:center;">
-      <img src="cid:logo" alt="Ponza Health" style="max-width:220px;height:auto;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="cid:logo" alt="Ponza Health" style="max-width:200px; height:auto;">
     </div>
 
-    <h2 style="color:#0a1628;">Faltam 4 dias para o fim do teste, {{ user.username }} ⏳</h2>
-    <p style="color:#1e293b; font-size:16px;">Seu teste gratuito termina em breve. Para não perder o acesso, assine o
-      plano mensal de <strong>R$ 79,90</strong>.</p>
-    <p style="color:#1e293b; font-size:16px;">
-      <a href="{{ url_for('prices', _external=True) }}" style="color:#0a1628;">Clique aqui para assinar agora</a>.
+    <h2 style="text-align:center; color:#0a1628; font-size:24px; margin-bottom:20px;">
+      Faltam 4 dias para o fim do seu teste, {{ user.username }} ⏳
+    </h2>
+
+    <p style="color:#334155; font-size:16px; line-height:1.6; text-align:center;">
+      Seu período de teste gratuito está quase terminando.
+      Para continuar aproveitando todos os recursos do <strong>Ponza Health</strong> sem interrupções,
+      basta escolher um dos planos disponíveis:
     </p>
 
-    <hr style="margin:30px 0;">
-    <p style="font-size:15px; color:#64748b;">
-      Dúvidas? WhatsApp:
-      <a href="https://wa.me/5533984613689">+55 33 98461-3689</a>
+    <ul style="color:#475569; font-size:16px; line-height:1.6; text-align:left; margin:20px auto; max-width:500px;">
+      <li><strong>Plano Mensal:</strong> R$ 89,90/mês, com cancelamento a qualquer momento.</li>
+      <li><strong>Plano Anual:</strong> R$ 79,90/mês (pagamento único de R$ 958,80) — <strong>economize 12%</strong>.
+      </li>
+    </ul>
+
+    <div style="text-align:center; margin-top:30px;">
+      <a href="{{ url_for('prices', _external=True) }}" style="display:inline-block; background:linear-gradient(135deg,#0a1628,#1e293b); color:#fff;
+                text-decoration:none; font-weight:bold; padding:14px 26px; border-radius:999px;
+                font-size:15px; transition:all 0.3s ease;">
+        Assinar agora
+      </a>
+    </div>
+
+    <p style="color:#475569; font-size:15px; line-height:1.6; text-align:center; margin-top:24px;">
+      Se precisar de ajuda, responda a este e-mail ou fale conosco pelo WhatsApp:<br>
+      <a href="https://wa.me/5533984613689" style="color:#0a1628; text-decoration:none; font-weight:bold;">+55 33
+        98461-3689</a>.
     </p>
+
+    <hr style="margin:30px 0; border:none; border-top:1px solid #e2e8f0;">
+
+    <p style="font-size:13px; color:#94a3b8; text-align:center;">
+      © {{ current_year }} Ponza Health — Todos os direitos reservados
     </p>
-    <p style="font-size:13px; color:#94a3b8;">© {{ current_year }} Ponza Health</p>
   </div>
 </body>
 

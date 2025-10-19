@@ -1,13 +1,13 @@
 import os
 import re
 import secrets
+import stripe
 from flask_migrate import Migrate
 from io import BytesIO
-from mercado_pago import generate_subscription_link
 from functools import wraps
 from typing import Any, Optional, Callable, cast
 from decimal import Decimal, InvalidOperation
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from zoneinfo import ZoneInfo
 from uuid import uuid4
 import json
@@ -26,7 +26,7 @@ from prescription import (
 
 from dotenv import load_dotenv
 from flask import (
-    Flask, render_template, render_template_string, request, redirect, url_for,
+    Flask, Blueprint, render_template, render_template_string, request, redirect, url_for,
     session, flash, jsonify, abort, send_file, g, current_app
 )
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -132,9 +132,11 @@ mail = Mail(app)
 ts = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 # ------------------------------------------------------------------------------
-# Database (Render Postgres, fallback SQLite)
+# Database (Supabase PostgreSQL)
 # ------------------------------------------------------------------------------
+
 def normalize_db_url(url: str) -> str:
+    """Normaliza a URL do banco, garantindo compatibilidade com SQLAlchemy e SSL."""
     if not url:
         return url
     if url.startswith("postgres://"):
@@ -145,13 +147,20 @@ def normalize_db_url(url: str) -> str:
         url += ("&" if "?" in url else "?") + "sslmode=require"
     return url
 
-RAW_DATABASE_URL = (os.getenv('DATABASE_URL') or "").strip()
-if RAW_DATABASE_URL:
-    DATABASE_URL = normalize_db_url(RAW_DATABASE_URL)
+
+# Lê a URL do Supabase do .env
+SUPABASE_DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
+
+if SUPABASE_DATABASE_URL:
+    DATABASE_URL = normalize_db_url(SUPABASE_DATABASE_URL)
 else:
+    # Fallback local para testes
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'instance'))
+    os.makedirs(BASE_DIR, exist_ok=True)
     db_path = os.path.join(BASE_DIR, 'web.db')
     DATABASE_URL = f"sqlite:///{db_path}"
 
+# Configura o SQLAlchemy para conectar ao Supabase
 app.config.update(
     SQLALCHEMY_DATABASE_URI=DATABASE_URL,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
@@ -163,147 +172,39 @@ app.config.update(
     },
 )
 
-from sqlalchemy import inspect, text
-
 db.init_app(app)
-
 migrate = Migrate(app, db)
 
-
+# ------------------------------------------------------------------------------
+# Conexão e verificação
+# ------------------------------------------------------------------------------
 with app.app_context():
     try:
-        # Cria todas as tabelas conhecidas pelos modelos
-        db.create_all()
-
-        # ➜ criação segura da tabela de associação quote_suppliers
+        from sqlalchemy import inspect
         insp = inspect(db.engine)
-        if not insp.has_table("quote_suppliers"):
-            # Nova forma: abrir uma conexão explícita e usar text()
-            with db.engine.connect() as conn:
-                conn.execute(text("""
-                    CREATE TABLE quote_suppliers (
-                        quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
-                        supplier_id INTEGER NOT NULL REFERENCES suppliers(id) ON DELETE CASCADE,
-                        PRIMARY KEY (quote_id, supplier_id)
-                    )
-                """))
-                conn.commit()  # importante em SQLAlchemy 2.x
-
+        print("[DB] ✅ Conectado ao Supabase PostgreSQL com sucesso!")
+        print(f"[DB] Tabelas detectadas: {insp.get_table_names()}")
     except Exception as e:
-        print("[DB] create_all error:", e)
-        try:
-            # Fallback: garantir modo WAL e recriar tabelas
-            with db.engine.connect() as conn:
-                conn.execute(text("PRAGMA journal_mode=WAL"))
-                conn.commit()
-            db.create_all()
-        except Exception as e2:
-            print("[DB] create_all fallback error:", e2)
+        print("[DB] ❌ Erro ao conectar ao Supabase:", e)
 
 # ------------------------------------------------------------------------------
-# Migration
+# Migração mínima (não necessária, pois o Supabase já tem as tabelas)
 # ------------------------------------------------------------------------------
 def apply_minimal_migrations():
-    """
-    Adiciona colunas/campos novos usados no app, caso ainda não existam.
-    Não remove/renomeia; evita erros de 'no such column' em bases antigas.
-    """
-    with app.app_context():
-        engine = db.engine
-        dialect = engine.dialect.name  # 'sqlite' ou 'postgresql'
+    """Desativada — o Supabase já possui todas as tabelas e colunas criadas."""
+    pass
 
-        def get_existing_columns(table: str):
-            if dialect == "sqlite":
-                q = text(f'PRAGMA table_info("{table}")')
-                with engine.connect() as c:
-                    rows = c.execute(q).fetchall()
-                return {r[1] for r in rows}
-            else:
-                q = text("""
-                    SELECT column_name
-                    FROM information_schema.columns
-                    WHERE table_name = :tname
-                """)
-                with engine.connect() as c:
-                    rows = c.execute(q, {"tname": table}).fetchall()
-                return {r[0] for r in rows}
-
-        def add_column_if_missing(table: str, coldef: str, colname: str):
-            if colname not in get_existing_columns(table):
-                try:
-                    with engine.connect() as c:
-                        c.execute(text(f'ALTER TABLE {table} ADD COLUMN {coldef}'))
-                    print(f"[MIGRATION] {table}.{colname} criado.")
-                except Exception as e:
-                    print(f"[MIGRATION] Falha ao criar {table}.{colname}: {e}")
-
-        # USERS
-        add_column_if_missing("users", "company_id INTEGER", "company_id")
-        add_column_if_missing("users", "plan VARCHAR(20)", "plan")
-        add_column_if_missing("users", "plan_status VARCHAR(20)", "plan_status")
-        add_column_if_missing("users", "plan_expires_at DATETIME", "plan_expires_at")
-        add_column_if_missing("users", "trial_until DATETIME", "trial_until")
-        add_column_if_missing("users", "profile_image VARCHAR(200)", "profile_image")
-        add_column_if_missing("users", "birthdate DATE", "birthdate")
-        add_column_if_missing("users", "name VARCHAR(120)", "name")
-
-        # QUOTES
-        add_column_if_missing("quotes", "user_id INTEGER", "user_id")
-
-        # PATIENTS
-        add_column_if_missing("patients", "owner_user_id INTEGER", "owner_user_id")
-        add_column_if_missing("patients", "birthdate DATE", "birthdate")
-        add_column_if_missing("patients", "sex VARCHAR(20)", "sex")
-        add_column_if_missing("patients", "email VARCHAR(120)", "email")
-        add_column_if_missing("patients", "notes TEXT", "notes")
-        add_column_if_missing("patients", "phone_primary VARCHAR(20)", "phone_primary")
-        add_column_if_missing("patients", "phone_secondary VARCHAR(20)", "phone_secondary")
-        add_column_if_missing("patients", "address_cep VARCHAR(12)", "address_cep")
-        add_column_if_missing("patients", "address_street VARCHAR(200)", "address_street")
-        add_column_if_missing("patients", "address_number VARCHAR(20)", "address_number")
-        add_column_if_missing("patients", "address_complement VARCHAR(100)", "address_complement")
-        add_column_if_missing("patients", "address_district VARCHAR(120)", "address_district")
-        add_column_if_missing("patients", "address_city VARCHAR(120)", "address_city")
-        add_column_if_missing("patients", "address_state VARCHAR(2)", "address_state")
-        add_column_if_missing("patients", "profile_image VARCHAR(200)", "profile_image")
-
-        # AGENDA_EVENTS
-        add_column_if_missing("agenda_events", "notes TEXT", "notes")
-        add_column_if_missing("agenda_events", "type VARCHAR(20)", "type")
-        add_column_if_missing("agenda_events", "billing VARCHAR(20)", "billing")
-        add_column_if_missing("agenda_events", "insurer VARCHAR(120)", "insurer")
-
-        # PRODUCTS
-        add_column_if_missing("products", "code VARCHAR(64)", "code")
-        add_column_if_missing("products", "category VARCHAR(80)", "category")
-        add_column_if_missing("products", "application_route VARCHAR(80)", "application_route")
-        add_column_if_missing("products", "min_stock INTEGER DEFAULT 0", "min_stock")
-        add_column_if_missing("products", "user_id INTEGER", "user_id")
-        add_column_if_missing("products", "purchase_price FLOAT", "purchase_price")
-        add_column_if_missing("products", "sale_price FLOAT", "sale_price")
-        add_column_if_missing("products", "quantity INTEGER DEFAULT 0", "quantity")
-        add_column_if_missing("products", "status VARCHAR(20) DEFAULT 'Ativo'", "status")
-        add_column_if_missing("products", "created_at TIMESTAMP", "created_at")
-
-        # DOCTORS
-        add_column_if_missing("doctors", "user_id INTEGER", "user_id")
-        add_column_if_missing("doctors", "crm VARCHAR(50)", "crm")
-        add_column_if_missing("doctors", "email VARCHAR(120)", "email")
-        add_column_if_missing("doctors", "phone VARCHAR(50)", "phone")
-        add_column_if_missing("doctors", "specialty VARCHAR(120)", "specialty")
-
-        # PDF_FILES
-        add_column_if_missing("pdf_files", "patient_id INTEGER", "patient_id")
-        add_column_if_missing("pdf_files", "consult_id INTEGER", "consult_id")
-
-def _save_pdf_bytes_to_db(*, owner_user_id: int, patient_id: Optional[int], consult_id: Optional[int],
+# ------------------------------------------------------------------------------
+# Funções auxiliares de armazenamento de PDFs
+# ------------------------------------------------------------------------------
+def _save_pdf_bytes_to_db(*, user_id: int, patient_id: Optional[int], consult_id: Optional[int],
                           original_name: str, data: bytes, kind: str) -> int:
     """
     Guarda o PDF em SecureFile (blob) + PdfFile (metadados/vínculo) e retorna o id do PdfFile.
     """
     unique_name = f"{secure_filename(os.path.splitext(original_name)[0])}_{int(datetime.utcnow().timestamp())}.pdf"
     sf = SecureFile(
-        owner_user_id=owner_user_id,
+        user_id=user_id,
         kind=kind,
         filename=unique_name,
         mime_type="application/pdf",
@@ -328,15 +229,17 @@ def _save_pdf_bytes_to_db(*, owner_user_id: int, patient_id: Optional[int], cons
 
 def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None):
     """
-    Envia um PDF armazenado (verifica owner).
+    Envia um PDF armazenado no banco (verifica o owner antes).
     """
     u = current_user()
     pf = PdfFile.query.get_or_404(pdf_file_id)
     sf = pf.secure_file
-    if not sf or (sf.owner_user_id is not None and sf.owner_user_id != u.id):
+    if not sf or (sf.user_id is not None and sf.user_id != u.id):
         abort(403)
+
     bio = BytesIO(sf.data)
     bio.seek(0)
+
     return send_file(
         bio,
         as_attachment=bool(download_name),
@@ -354,7 +257,9 @@ def admin_users():
         abort(403)
 
     all_users = User.query.order_by(User.created_at.desc()).all()
-    return render_template("admin_users.html", users=all_users)
+    # Convert current time to date for comparisons in the template
+    now = datetime.utcnow().date()
+    return render_template("admin_users.html", users=all_users, now=now)
 
 
 @app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
@@ -371,6 +276,45 @@ def delete_user(user_id):
         db.session.commit()
         flash("Usuário excluído com sucesso.", "success")
     return redirect(url_for("admin_users"))
+
+@app.route("/admin/users/extend", methods=["POST"])
+def admin_extend_subscription():
+    u = get_logged_user()
+    if not u or (u.username or "").lower() != "admin":
+        abort(403)
+
+    user_id = request.form.get("user_id", type=int)
+    months: int = request.form.get("months", type=int) or 0
+    if months <= 0:
+        flash("Selecione um número válido de meses.", "warning")
+        return redirect(url_for("admin_users"))
+
+    target = User.query.get_or_404(user_id)
+    if (target.username or "").lower() == "admin":
+        flash("A conta admin não pode ser alterada.", "warning")
+        return redirect(url_for("admin_users"))
+
+    now = datetime.utcnow()
+
+    # ✅ Ensure plan_expiration is datetime (not str)
+    plan_exp = target.plan_expiration
+    if isinstance(plan_exp, str):
+        try:
+            plan_exp = datetime.fromisoformat(plan_exp)
+        except Exception:
+            plan_exp = None
+
+    # ✅ Choose base date for extension
+    base_date = plan_exp if plan_exp and plan_exp > now else now
+
+    target.plan_status = "paid"
+    target.plan_expiration = base_date + timedelta(days=30 * months)
+
+    db.session.commit()
+
+    flash(f"Assinatura de {target.username} estendida por {months} mês(es).", "success")
+    return redirect(url_for("admin_users"))
+
 
 # ------------------------------------------------------------------------------
 # Esqueci a senha
@@ -480,13 +424,31 @@ def pw_reset(token):
 # ------------------------------------------------------------------------------
 @app.template_filter("brt")
 def brt(dt):
-    """Converte um datetime UTC para horário de Brasília (America/Sao_Paulo)."""
-    if dt is None:
+    """Converte datetime/date/str para horário de Brasília."""
+    if not dt:
         return None
-    if dt.tzinfo is None:
-        # assume que vem em UTC
-        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
-    return dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+
+    # Handle strings
+    if isinstance(dt, str):
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"):
+            try:
+                dt = datetime.strptime(dt, fmt)
+                break
+            except ValueError:
+                continue
+
+    # Handle datetime
+    if isinstance(dt, datetime):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+
+    # Handle date
+    if isinstance(dt, date):
+        return dt
+
+    return None
+
 
 @app.context_processor
 def url_helpers():
@@ -504,10 +466,10 @@ def _extract_securefile_id_from_url(url: str) -> Optional[int]:
     except Exception:
         return None
 
-def _delete_securefile_if_owned(file_id: int, owner_user_id: int):
+def _delete_securefile_if_owned(file_id: int, user_id: int):
     try:
         sf = SecureFile.query.get(file_id)
-        if sf and (sf.owner_user_id is None or sf.owner_user_id == owner_user_id):
+        if sf and (sf.user_id is None or sf.user_id == user_id):
             db.session.delete(sf)
             db.session.commit()
     except Exception:
@@ -520,11 +482,6 @@ def get_logged_user() -> Optional[User]:
 def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator de login que também valida trial / assinatura.
-    Regras:
-      - Usuário com username "admin" tem acesso vitalício (bypass).
-      - Se user.plan_status == 'paid' e plan_expires_at >= agora => permitido.
-      - Se user.trial_until >= agora => permitido.
-      - Caso contrário redireciona para a página de planos (/planos) para pagamento.
     """
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -533,34 +490,32 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
             return redirect(url_for('login'))
         g.user = u
 
-        # Admin sempre permite (acesso vitalício)
-        try:
-            uname = getattr(u, "username", "") or ""
-        except Exception:
-            uname = ""
-
-        if uname.lower() == "admin":
-            # admin tem acesso vitalício
+        # Admin bypass
+        uname = (getattr(u, "username", "") or "").lower()
+        if uname == "admin":
             return f(*args, **kwargs)
 
-        # verificar se está em trial válido
+        # Get relevant fields
         now = datetime.utcnow()
-        trial_until = getattr(u, "trial_until", None)
+        now_date = now.date()  # 👈 convert once for safe comparison
+        trial_expiration = getattr(u, "trial_expiration", None)
         plan_status = getattr(u, "plan_status", None)
-        plan_expires = getattr(u, "plan_expires_at", None)
+        plan_expires = getattr(u, "plan_expiration", None)
 
-        # Usuário pago com plan_expires_at em futuro
-        if plan_status == "paid":
-            if (plan_expires is None) or (plan_expires and plan_expires >= now):
-                return f(*args, **kwargs)
-
-        # Usuário em trial válido
-        if trial_until and trial_until >= now:
+        # Paid users: allow if still valid
+        if plan_status == "paid" and (
+            plan_expires is None or plan_expires >= now
+        ):
             return f(*args, **kwargs)
 
-        # Caso contrário: sem trial válido nem pagamento -> bloquear acesso
-        # Redireciona para a página de planos / preços (página de compra)
-        flash("Seu período de teste de 14 dias expirou. Faça a assinatura para continuar usando o sistema.", "trial_expired")
+        # Trial users: compare dates only
+        if trial_expiration and trial_expiration >= now_date:
+            return f(*args, **kwargs)
+
+        flash(
+            "Seu período de teste de 14 dias expirou. Faça a assinatura para continuar usando o sistema.",
+            "trial_expired"
+        )
         return redirect(url_for('prices'))
 
     return wrapper
@@ -597,15 +552,11 @@ def inject_user_context():
         }
     }
 
-# ------------------------------------------------------------------------------
-# Registering (Blueprint com verificação de e-mail e agendamentos)
-# ------------------------------------------------------------------------------
-from flask import Blueprint
-from itsdangerous import URLSafeTimedSerializer
-from datetime import datetime, timedelta
-
 auth_bp = Blueprint('auth', __name__, template_folder='templates/auth')
 
+# ------------------------------------------------------------------------------
+# Cadastro com verificação de e-mail e suporte a plano (trial / mensal / anual)
+# ------------------------------------------------------------------------------
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -613,11 +564,9 @@ def register():
         email = (request.form.get('email') or '').strip().lower()
         password = request.form.get('password') or ''
         confirm = request.form.get('confirm') or ''
+        plan = (request.form.get('plan') or '').strip()  # <- novo campo
 
-        import re
-        # ------------------------------
         # 1️⃣ Validação de senha
-        # ------------------------------
         if len(password) < 8:
             return render_template("register.html",
                                    error_message="A senha deve ter pelo menos <strong>8 caracteres</strong>.")
@@ -631,47 +580,40 @@ def register():
             return render_template("register.html",
                                    error_message="A senha deve conter pelo menos <strong>um caractere especial</strong>.")
 
-        # ------------------------------
         # 2️⃣ Confirmação de senha
-        # ------------------------------
         if password != confirm:
             return render_template("register.html",
                                    error_message="As senhas não coincidem.")
 
-        # ------------------------------
-        # 3️⃣ Verificar se username/email já existem (case-insensitive p/ email)
-        # ------------------------------
+        # 3️⃣ Verificar duplicações
         if not username:
             return render_template("register.html",
-                                error_message="Informe um <strong>nome de usuário</strong>.")
+                                   error_message="Informe um <strong>nome de usuário</strong>.")
 
         if User.query.filter_by(username=username).first():
             return render_template("register.html",
-                                error_message="Este <strong>nome de usuário</strong> já está em uso.")
+                                   error_message="Este <strong>nome de usuário</strong> já está em uso.")
 
         existing_email = User.query.filter(func.lower(User.email) == email.lower()).first()
         if existing_email:
             return render_template("register.html",
-                                error_message="Este <strong>e-mail</strong> já está cadastrado.")
+                                   error_message="Este <strong>e-mail</strong> já está cadastrado.")
 
-        # ------------------------------
         # 4️⃣ Criar token de verificação
-        # ------------------------------
         s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         token = s.dumps(
             {
                 'username': username,
                 'email': email,
-                'password_hash': generate_password_hash(password)
+                'password_hash': generate_password_hash(password),
+                'plan': plan  # <- incluímos o plano no token
             },
             salt='email-confirm'
         )
 
         confirm_url = url_for('auth.verify_email', token=token, _external=True)
 
-        # ------------------------------
-        # 5️⃣ Montar e enviar o e-mail com a logo 1.png inline
-        # ------------------------------
+        # 5️⃣ Enviar e-mail de verificação
         html = render_template(
             "emails/verify_account.html",
             username=username,
@@ -684,14 +626,12 @@ def register():
             html=html,
             inline_images=[{
                 "filename": "logo.png",
-                "path": os.path.join("static", "images", "1.png"),  # ✅ usa 1.png
+                "path": os.path.join("static", "images", "1.png"),
                 "cid": "logo"
             }]
         )
 
-        # ------------------------------
-        # 6️⃣ Mensagem para o usuário
-        # ------------------------------
+        # 6️⃣ Mensagem de sucesso
         success_message = (
             "Cadastro realizado com sucesso! "
             f"Abra seu e-mail <strong>{email}</strong> e clique no link enviado para confirmar sua conta. "
@@ -702,41 +642,93 @@ def register():
     # GET
     return render_template("register.html")
 
+
+# ------------------------------------------------------------------------------
+# Verificação de e-mail (cria usuário e aciona Stripe se tiver plano)
+# ------------------------------------------------------------------------------
 @auth_bp.route('/verify_email/<token>')
 def verify_email(token):
     s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
     try:
-        data = s.loads(token, salt='email-confirm', max_age=3600*24)
-    except (SignatureExpired, BadSignature):
+        data = s.loads(token, salt='email-confirm', max_age=3600 * 24)
+    except SignatureExpired:
+        flash("O link de verificação expirou. Cadastre-se novamente.", "warning")
+        return redirect(url_for('auth.register'))
+    except BadSignature:
         abort(400)
 
     now = datetime.utcnow()
+    plan = (data.get('plan') or '').strip().lower()
 
+    # Evita duplicação: se o e-mail já foi confirmado antes
+    existing_user = User.query.filter(func.lower(User.email) == data['email'].lower()).first()
+    if existing_user:
+        flash("Esta conta já foi confirmada anteriormente. Faça login.", "info")
+        return redirect(url_for('login'))
+
+    # Criação do novo usuário
     new_user = User(
         username=data['username'],
         email=data['email'].lower(),
         password_hash=data['password_hash'],
         created_at=now,
-        plan_status='trial',          # <- controle simples de status
-        trial_until=now + timedelta(days=14),
-        plan_expires_at=None
+        plan_status='pending_payment' if plan else 'trial',
+        trial_expiration=None if plan else now + timedelta(days=14),
+        plan_expiration=None
     )
     db.session.add(new_user)
     db.session.commit()
 
-    # agenda os e-mails de trial (4, 7, 10, 14 e 15 dias)
-    try:
-        schedule_trial_emails(new_user.id)
-    except Exception:
-        current_app.logger.exception("Falha ao agendar e-mails de trial")
+    # Agendar e-mails do trial apenas se não houver plano
+    if not plan:
+        try:
+            schedule_trial_emails(new_user.id)
+        except Exception:
+            current_app.logger.exception("Falha ao agendar e-mails de trial")
 
-    flash('Conta confirmada com sucesso. Agora você pode entrar.', 'success')
+    # Se o usuário escolheu um plano (mensal/anual), envia direto pro Stripe
+    if plan in ['monthly', 'yearly']:
+        stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+        base_url = request.host_url.rstrip('/')
+        price_amount = 958.80 if plan == 'yearly' else 89.90
+        interval = 'year' if plan == 'yearly' else 'month'
+        plan_name = f"Plano {'Anual' if plan == 'yearly' else 'Mensal'} Ponza Health"
+
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                mode='subscription',
+                line_items=[{
+                    'price_data': {
+                        'currency': 'brl',
+                        'unit_amount': int(price_amount * 100),
+                        'product_data': {'name': plan_name},
+                        'recurring': {'interval': interval}
+                    },
+                    'quantity': 1
+                }],
+                metadata={'user_id': str(new_user.id), 'plan': plan},
+                success_url=f"{base_url}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{base_url}/planos"
+            )
+            # Redireciona para o checkout Stripe (nova aba / link)
+            url = session.url or url_for("payments")
+            return redirect(url, code=303)
+        except Exception as e:
+            current_app.logger.error(f"[Stripe] Erro ao criar sessão de checkout: {e}")
+            flash("Erro ao iniciar pagamento. Tente novamente mais tarde.", "danger")
+            return redirect(url_for('prices'))
+
+    # Caso padrão: usuário sem plano → trial gratuito
+    flash('Conta confirmada com sucesso! Você já pode fazer login.', 'success')
     return redirect(url_for('login'))
 
+
+# ------------------------------------------------------------------------------
+# Agendamento de e-mails de trial
+# ------------------------------------------------------------------------------
 def schedule_trial_emails(user_id: int) -> None:
-    """
-    Agenda e-mails automáticos para +4, +7, +10, +14 e +15 dias após a criação da conta.
-    """
     now = datetime.utcnow()
     offsets = [4, 7, 10, 14, 15]
     templates = ['trial_day4', 'trial_day7', 'trial_day10', 'trial_day14', 'trial_day15']
@@ -751,6 +743,10 @@ def schedule_trial_emails(user_id: int) -> None:
         )
     db.session.commit()
 
+
+# ------------------------------------------------------------------------------
+# Cron de envio de e-mails agendados
+# ------------------------------------------------------------------------------
 @auth_bp.route('/cron/dispatch_emails')
 def dispatch_emails():
     key = request.args.get('key')
@@ -758,7 +754,7 @@ def dispatch_emails():
         return 'Unauthorized', 403
 
     emails = (ScheduledEmail.query
-              .filter(ScheduledEmail.sent.is_(False), #type:ignore
+              .filter(ScheduledEmail.sent.is_(False),
                       ScheduledEmail.send_at <= func.now())
               .all())
 
@@ -775,7 +771,7 @@ def dispatch_emails():
             html=html,
             inline_images=[{
                 "filename": "logo.png",
-                "path": os.path.join("static", "images", "1.png"),  # ✅ usa 1.png também nos trials
+                "path": os.path.join("static", "images", "1.png"),
                 "cid": "logo"
             }]
         )
@@ -784,7 +780,6 @@ def dispatch_emails():
 
     db.session.commit()
     return f'{sent_count} e-mails enviados.', 200
-
 # Não esqueça de registrar o blueprint
 app.register_blueprint(auth_bp)
 
@@ -872,11 +867,11 @@ def index():
     # ---------------------------------------
     # Métricas gerais
     # ---------------------------------------
-    total_patients = Patient.query.filter_by(owner_user_id=u.id).count()
+    total_patients = Patient.query.filter_by(user_id=u.id).count()
     total_consults = (
         Consult.query
         .join(Patient, Patient.id == Consult.patient_id)
-        .filter(Patient.owner_user_id == u.id)
+        .filter(Patient.user_id == u.id)
         .count()
     )
 
@@ -926,7 +921,7 @@ def index():
             func.min(Consult.date).label("first_date")
         )
         .join(Patient, Patient.id == Consult.patient_id)
-        .filter(Patient.owner_user_id == u.id)
+        .filter(Patient.user_id == u.id)
         .group_by(Consult.patient_id)
         .all()
     )
@@ -936,7 +931,7 @@ def index():
         db.session.query(Consult.patient_id)
         .join(Patient, Patient.id == Consult.patient_id)
         .filter(
-            Patient.owner_user_id == u.id,
+            Patient.user_id == u.id,
             Consult.date >= start_30,
             Consult.date <= today
         )
@@ -962,7 +957,7 @@ def index():
 
     patients_30_objs = (
         Patient.query
-        .filter(Patient.owner_user_id == u.id)
+        .filter(Patient.user_id == u.id)
         .all()
     )
     male_count = sum(1 for p in patients_30_objs if (p.sex or "").strip().lower() in male_aliases)
@@ -1103,7 +1098,8 @@ def index():
         quotes_pending=quotes_pending,
         quotes_items=quotes_items,
         notifications_unread=0,
-        trial_active=u.trial_until and u.trial_until >= datetime.utcnow(),
+        trial_active = (u.trial_expiration and u.trial_expiration >= datetime.utcnow().date())
+
     )
 
 # ------------------------------------------------------------------------------
@@ -1113,20 +1109,42 @@ def index():
 @login_required
 def purchase():
     """
-    Mantém a lógica de compra de pacotes, mas renderiza a página unificada
-    e processa POST de pacotes normalmente.
+    Página de compra de pacotes de análises (Stripe Checkout).
+    Se for GET, mostra a página.
+    Se for POST, cria uma sessão de pagamento Stripe e redireciona o usuário.
     """
     if request.method == 'POST':
         pacote = request.form.get('package', '')
-        valor = {'50': 120, '150': 300, '500': 950}.get(pacote)
-        if not valor:
+        price_map = {
+            '50': STRIPE_PRICE_PACKAGE_50,
+            '150': STRIPE_PRICE_PACKAGE_150,
+            '500': STRIPE_PRICE_PACKAGE_500,
+        }
+        price_id = price_map.get(pacote)
+
+        if not price_id:
             flash('Selecione um pacote válido.', 'warning')
             return redirect(url_for('payments'))
-        from mercado_pago import generate_payment_link
-        link = generate_payment_link(pacote, valor)
-        return redirect(link or url_for('payments'))
-    
+
+        try:
+            session = stripe.checkout.Session.create(
+                mode='payment',
+                payment_method_types=['card'],
+                line_items=[{'price': price_id, 'quantity': 1}],
+                success_url=f"{url_for('payments', _external=True)}?success=true",
+                cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+            )
+            print(f"[Stripe] ✅ Sessão criada para pacote {pacote}")
+            return redirect(session.url or url_for('payments'), code=303)
+
+        except Exception as e:
+            print("[Stripe] ❌ Erro ao criar sessão:", e)
+            flash("Erro ao iniciar pagamento. Tente novamente mais tarde.", "danger")
+            return redirect(url_for('payments'))
+
+    # Se for GET, só renderiza a página
     return render_template('purchase.html', notifications_unread=0)
+
 
 @app.route('/payments', methods=['GET'])
 @login_required
@@ -1151,21 +1169,21 @@ def account():
     now = datetime.utcnow()
 
     # calcular dados do trial
-    trial_until = getattr(u, "trial_until", None)
-    if trial_until:
-        remaining_td = trial_until - now
+    trial_expiration = getattr(u, "trial_expiration", None)
+    if trial_expiration:
+        remaining_td = trial_expiration - now.date()
         remaining_days = max(0, remaining_td.days)
-        trial_active = (trial_until >= now)
+        trial_active = (trial_expiration >= now.date())
     else:
         remaining_days = 0
         trial_active = False
 
     # status pago?
     plan_status = getattr(u, "plan_status", None) or "inactive"
-    plan_expires_at = getattr(u, "plan_expires_at", None)
+    plan_expiration = getattr(u, "plan_expiration", None)
     is_paid_active = False
     if plan_status == "paid":
-        if (plan_expires_at is None) or (plan_expires_at and plan_expires_at >= now):
+        if (plan_expiration is None) or (plan_expiration and plan_expiration >= now):
             is_paid_active = True
 
     # admin bypass
@@ -1177,7 +1195,7 @@ def account():
         trial_active=trial_active,
         trial_remaining_days=remaining_days,
         plan_status=plan_status,
-        plan_expires_at=plan_expires_at,
+        plan_expiration=plan_expiration,
         is_paid_active=is_paid_active,
         is_admin=is_admin
     )
@@ -1188,7 +1206,7 @@ def subscribe():
     """
     Fluxo simples de assinatura:
       - GET: mostra página de preços (ou redireciona para /planos)
-      - POST: marca usuário como 'paid' e define plan_expires_at = agora + 30 dias
+      - POST: marca usuário como 'paid' e define plan_expiration = agora + 30 dias
     Observação: aqui é o lugar para integrar MercadoPago / Stripe / gateway real.
     """
     u = current_user()
@@ -1196,32 +1214,126 @@ def subscribe():
 
     # Se vier POST -> "confirmar pagamento" (simulação)
     if request.method == "POST":
-        # Aqui você integraria com MercadoPago/Stripe.
         # Simulação: marcar como pago por 30 dias
         u.plan_status = "paid"
-        u.plan_expires_at = now + timedelta(days=30)
+        u.plan_expiration = now + timedelta(days=30)
         # remover trial (opcional)
-        u.trial_until = None
+        u.trial_expiration = None
         db.session.commit()
         flash("Pagamento registrado. Obrigado! Sua assinatura foi ativada por 30 dias.", "success")
         return redirect(url_for('account'))
 
     # GET -> renderizar a página de preços / checkout
     # Se já está pago, redireciona para a conta
-    if (u.plan_status == "paid") and (not u.plan_expires_at or u.plan_expires_at >= now):
+    if (u.plan_status == "paid") and (not u.plan_expiration or u.plan_expiration >= now):
         flash("Sua assinatura já está ativa.", "info")
         return redirect(url_for('account'))
 
     # renderiza a página de preços (ou template de checkout)
     return render_template('prices.html')
 
-@app.route('/subscribe/pay')
+# ------------------------------------------------------------------------------
+# Stripe Subscription Integration
+# ------------------------------------------------------------------------------
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+STRIPE_PRICE_MONTHLY = os.getenv("STRIPE_PRICE_MONTHLY", "")
+STRIPE_PRICE_YEARLY = os.getenv("STRIPE_PRICE_YEARLY", "")
+STRIPE_PRICE_PACKAGE_50 = os.getenv("STRIPE_PRICE_PACKAGE_50", "")
+STRIPE_PRICE_PACKAGE_150 = os.getenv("STRIPE_PRICE_PACKAGE_150", "")
+STRIPE_PRICE_PACKAGE_500 = os.getenv("STRIPE_PRICE_PACKAGE_500", "")
+
+@app.route("/subscribe_pay_mensal")
 @login_required
-def subscribe_pay():
-    u = current_user()
-    from mercado_pago import generate_subscription_link
-    link = generate_subscription_link(u.id)
-    return redirect(link or url_for('payments'))
+def subscribe_pay_mensal():
+    """Gera link de pagamento do Stripe para o plano mensal (R$ 89,90)."""
+    user = current_user()
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        payment_method_types=["card"],
+        line_items=[{"price": STRIPE_PRICE_MONTHLY, "quantity": 1}],
+        metadata={"user_id": str(user.id), "plan": "monthly"},
+        success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+    )
+    print("[Stripe] ✅ Sessão criada: plano mensal")
+    url = session.url or url_for("payments")
+    return redirect(url, code=303)
+
+@app.route("/subscribe_pay_anual")
+@login_required
+def subscribe_pay_anual():
+    """Gera link de pagamento do Stripe para o plano anual (R$ 958,80)."""
+    user = current_user()
+    session = stripe.checkout.Session.create(
+        mode="subscription",
+        payment_method_types=["card"],
+        line_items=[{"price": STRIPE_PRICE_YEARLY, "quantity": 1}],
+        metadata={"user_id": str(user.id), "plan": "yearly"},
+        success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+    )
+    print("[Stripe] ✅ Sessão criada: plano anual")
+    url = session.url or url_for("payments")
+    return redirect(url, code=303)
+        
+@app.route("/purchase_package/<int:package>")
+@login_required
+def purchase_package(package):
+    """Cria link de checkout Stripe para os pacotes de análises (50, 150, 500)."""
+    price_map = {
+        50: STRIPE_PRICE_PACKAGE_50,
+        150: STRIPE_PRICE_PACKAGE_150,
+        500: STRIPE_PRICE_PACKAGE_500,
+    }
+    price_id = price_map.get(package)
+    if not price_id:
+        flash("Pacote inválido.", "danger")
+        return redirect(url_for("payments"))
+
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        payment_method_types=["card"],
+        line_items=[{"price": price_id, "quantity": 1}],
+        success_url=f"{url_for('payments', _external=True)}?success=true",
+        cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+    )
+    print(f"[Stripe] ✅ Sessão criada: pacote {package}")
+    url = session.url or url_for("payments")
+    return redirect(url, code=303)
+
+@app.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook():
+    """Recebe notificações do Stripe (pagamento confirmado)."""
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+    except ValueError:
+        return "Invalid payload", 400
+    except stripe.error.SignatureVerificationError:
+        return "Invalid signature", 400
+
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        user_id = session.get('metadata', {}).get('user_id')
+        plan = session.get('metadata', {}).get('plan', 'monthly')
+
+        from datetime import timedelta
+        user = User.query.get(int(user_id)) if user_id else None
+        if user:
+            user.plan_status = 'paid'
+            user.trial_expiration = None
+            if plan == 'yearly':
+                user.plan_expiration = datetime.utcnow() + timedelta(days=365)
+            else:
+                user.plan_expiration = datetime.utcnow() + timedelta(days=30)
+            db.session.commit()
+            print(f"[Stripe] Plano {plan} ativado para o usuário {user.email}")
+    return jsonify(success=True)
+
 
 @app.route('/subscription/success')
 def subscription_success():
@@ -1230,11 +1342,26 @@ def subscription_success():
         user = User.query.get(int(user_id))
         if user:
             user.plan_status = 'paid'
-            user.plan_expires_at = datetime.utcnow() + timedelta(days=30)
-            user.trial_until = None
+            user.plan_expiration = datetime.utcnow() + timedelta(days=30)
+            user.trial_expiration = None
             db.session.commit()
     flash("Assinatura ativada por 30 dias.", "success")
     return redirect(url_for('account'))
+
+@app.route("/cancel_subscription", methods=["POST"])
+@login_required
+def cancel_subscription():
+    """
+    Cancela a assinatura do usuário no Stripe.
+    """
+    try:
+        stripe.Subscription.delete(current_user.subscription_id)
+        flash("Assinatura cancelada com sucesso.", "success")
+    except Exception as e:
+        print("[Stripe] ❌ Erro ao cancelar:", e)
+        flash("Erro ao cancelar a assinatura.", "danger")
+    return redirect(url_for("account"))
+
 
 @app.route('/remove_profile_image', methods=['POST'], endpoint='remove_profile_image')
 @login_required
@@ -1304,7 +1431,7 @@ def update_personal_info():
 
         new_name = f"user_{u.id}_{int(_time.time())}.{ext}"
         sf = SecureFile(
-            owner_user_id=u.id,
+            user_id=u.id,
             kind="profile_image",
             filename=new_name,
             mime_type=file.mimetype or f"image/{ext}",
@@ -1461,7 +1588,7 @@ def _handle_pdf_upload(request, u, analyze_pdf):
         return redirect(url_for('upload', error="PDF vazio ou inválido."))
 
     sf = SecureFile(
-        owner_user_id=u.id,
+        user_id=u.id,
         kind="upload_pdf",
         filename=secure_filename(file.filename),
         mime_type="application/pdf",
@@ -1531,10 +1658,10 @@ def _handle_pdf_upload(request, u, analyze_pdf):
 def _get_or_create_patient(u, *, name=None, cpf=None, gender=None, phone=None):
     p = None
     if cpf:
-        p = Patient.query.filter_by(owner_user_id=u.id, cpf=cpf).first()
+        p = Patient.query.filter_by(user_id=u.id, cpf=cpf).first()
     if not p:
         p = Patient(
-            owner_user_id=u.id,
+            user_id=u.id,
             name=name or f"Paciente ({datetime.now():%d/%m/%Y %H:%M})",
             sex=gender or None,
             cpf=cpf or None,
@@ -1563,7 +1690,7 @@ def _attach_consult_and_notes(p, dgn, rx):
 def patient_result(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.owner_user_id != u.id:
+    if patient.user_id != u.id:
         abort(403)
 
     consult = (
@@ -1600,7 +1727,7 @@ def download_pdf(patient_id):
 
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.owner_user_id != u.id:
+    if patient.user_id != u.id:
         abort(403)
 
     # Última consulta e diagnóstico/prescrição
@@ -1677,7 +1804,7 @@ def download_pdf(patient_id):
         consult_id = consult.id if consult else None
 
         _save_pdf_bytes_to_db(
-            owner_user_id=u.id,
+            user_id=u.id,
             patient_id=patient.id,
             consult_id=consult_id,
             original_name=display_name,
@@ -2055,7 +2182,7 @@ def register_patient():
 
         # -------- cria paciente
         p = Patient(
-            owner_user_id=u.id,
+            user_id=u.id,
             doctor_id=doctor_id,
             name=name,
             birthdate=birthdate,
@@ -2091,7 +2218,7 @@ def catalog():
     search = request.args.get('search', '').strip().lower()
     status = request.args.get('status', '').strip()
 
-    patients = Patient.query.filter_by(owner_user_id=u.id).all()
+    patients = Patient.query.filter_by(user_id=u.id).all()
     if search:
         patients = [p for p in patients if search in (p.name or '').lower()]
     if status:
@@ -2115,7 +2242,7 @@ def edit_patient(patient_id):
 
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.owner_user_id != u.id:
+    if patient.user_id != u.id:
         abort(403)
 
     if request.method == 'POST':
@@ -2191,7 +2318,7 @@ def edit_patient(patient_id):
 
             new_name = f"patient_{u.id}_{int(_time.time())}.{ext}"
             sf = SecureFile(
-                owner_user_id=u.id,
+                user_id=u.id,
                 kind="patient_profile_image",
                 filename=new_name,
                 mime_type=file.mimetype or f"image/{ext}",
@@ -2255,7 +2382,7 @@ def patient_update_photo(patient_id: int):
 
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
-    if p.owner_user_id != u.id:
+    if p.user_id != u.id:
         abort(403)
 
     file = request.files.get("profile_image")
@@ -2288,7 +2415,7 @@ def patient_update_photo(patient_id: int):
 
     new_name = f"patient_{u.id}_{int(_time.time())}.{ext}"
     sf = SecureFile(
-        owner_user_id=u.id,
+        user_id=u.id,
         kind="patient_profile_image",
         filename=new_name,
         mime_type=file.mimetype or f"image/{ext}",
@@ -2314,7 +2441,7 @@ def patient_remove_photo(patient_id: int):
     """
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
-    if p.owner_user_id != u.id:
+    if p.user_id != u.id:
         abort(403)
 
     # remove imagem atual (do SecureFile ou física)
@@ -2341,7 +2468,7 @@ def serve_image(file_id: int):
     """
     u = current_user()
     sf = SecureFile.query.get_or_404(file_id)
-    if sf.owner_user_id is not None and sf.owner_user_id != u.id:
+    if sf.user_id is not None and sf.user_id != u.id:
         abort(403)
     if not (sf.mime_type or "").lower().startswith("image/"):
         abort(404)
@@ -2364,7 +2491,7 @@ def patient_info(patient_id):
     """
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
-    if patient.owner_user_id != u.id:
+    if patient.user_id != u.id:
         abort(403)
     return render_template('patient_info.html', patient=patient)
 
@@ -2421,7 +2548,7 @@ def api_add_patient():
 
     # ✅ sempre cria com a imagem padrão se nenhuma for enviada
     p = Patient(
-        owner_user_id=u.id,
+        user_id=u.id,
         doctor_id=doctor_id,
         name=name,
         birthdate=birthdate,
@@ -2453,7 +2580,7 @@ def delete_patient(patient_id):
     """
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
-    if p.owner_user_id != u.id:
+    if p.user_id != u.id:
         abort(403)
 
     Consult.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
@@ -2471,7 +2598,7 @@ def toggle_patient_status(patient_id, new_status):
     """
     u = current_user()
     p = Patient.query.get_or_404(patient_id)
-    if p.owner_user_id != u.id:
+    if p.user_id != u.id:
         abort(403)
 
     p.status = new_status
@@ -3547,7 +3674,7 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
         display_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
 
         _save_pdf_bytes_to_db(
-            owner_user_id=u.id,
+            user_id=u.id,
             patient_id=patient.id,
             consult_id=consult_id,
             original_name=display_name,

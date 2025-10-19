@@ -42,7 +42,7 @@ class Company(db.Model, BaseModel):
     )
 
 
-# ----------------------------
+# ---------------------------
 # Core
 # ----------------------------
 class User(db.Model, BaseModel):
@@ -64,8 +64,8 @@ class User(db.Model, BaseModel):
     # plano / assinatura
     plan            = db.Column(db.String(20), default="standard")
     plan_status     = db.Column(db.String(20), default="inactive")
-    plan_expires_at = db.Column(db.DateTime)
-    trial_until     = db.Column(db.DateTime)
+    plan_expiration = db.Column(db.DateTime)
+    trial_expiration     = db.Column(db.DateTime)
     created_at      = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     # Relacionamentos úteis ao app
@@ -161,8 +161,8 @@ class Patient(db.Model, BaseModel):
     __tablename__ = "patients"
 
     id            = db.Column(db.Integer, primary_key=True)
-    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
-    owner         = relationship("User", foreign_keys=[owner_user_id])
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    owner         = relationship("User", foreign_keys=[user_id])
 
     doctor_id    = db.Column(db.Integer, db.ForeignKey("doctors.id"), index=True)
     doctor       = relationship("Doctor", back_populates="patients")
@@ -197,7 +197,7 @@ class Patient(db.Model, BaseModel):
         Index("ix_patients_phone_primary", "phone_primary"),
         Index("ix_patients_cpf", "cpf"),
         Index("ix_patients_email", "email"),
-        Index("ix_patients_owner_user_id", "owner_user_id"),
+        Index("ix_patients_user_id", "user_id"),
     )
 
     # -------- Propriedades de compatibilidade com o template --------
@@ -363,7 +363,7 @@ class SecureFile(db.Model, BaseModel):
     __tablename__ = "secure_files"
 
     id            = db.Column(db.Integer, primary_key=True)
-    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     kind          = db.Column(db.String(40),  nullable=False)
     filename      = db.Column(db.String(255), nullable=False)
     mime_type     = db.Column(db.String(100), nullable=False)
@@ -371,7 +371,7 @@ class SecureFile(db.Model, BaseModel):
     data          = db.Column(db.LargeBinary, nullable=False)
     created_at    = db.Column(db.DateTime,    default=datetime.utcnow, nullable=False)
 
-    owner = relationship("User", back_populates="secure_files", foreign_keys=[owner_user_id])
+    owner = relationship("User", back_populates="secure_files", foreign_keys=[user_id])
 
 
 class PdfFile(db.Model, BaseModel):

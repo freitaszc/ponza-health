@@ -1,22 +1,54 @@
 <!DOCTYPE html>
-<html>
-  <body style="font-family:Arial,Helvetica,sans-serif; background:#f5f7fa; margin:0; padding:0;">
-    <div style="max-width:640px; margin:40px auto; background:#ffffff; border-radius:16px; padding:32px; box-shadow:0 12px 32px rgba(19,29,53,0.15); text-align:center;">
-      
-      <img src="{{ url_for('static', filename='images/7.svg', _external=True) }}" alt="Ponza Health" style="height:80px; margin-bottom:20px;">
+<html lang="pt-br">
 
-      <h2 style="color:#0a1628;">Último dia de teste gratuito, {{ user.username }} ⚠️</h2>
-      <p style="color:#1e293b; font-size:16px;">Seu período de teste de 14 dias termina hoje.</p>
-      <p style="color:#1e293b; font-size:16px;">
-        <a href="{{ url_for('prices', _external=True) }}" style="color:#0a1628;">Assine agora</a> para não perder o acesso.
-      </p>
+<head>
+  <meta charset="UTF-8">
+  <title>Ponza Health — Último dia do seu teste gratuito</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
 
-      <hr style="margin:30px 0;">
-      <p style="font-size:15px; color:#64748b;">
-        Dúvidas? WhatsApp:  
-        <a href="https://wa.me/5511999999999" style="color:#0a1628;">+55 11 99999-9999</a>
-      </p>
-      <p style="font-size:13px; color:#94a3b8;">© {{ current_year }} Ponza Health</p>
+<body style="font-family:Arial,Helvetica,sans-serif; background:#f5f7fa; margin:0; padding:0;">
+  <div style="max-width:640px; margin:40px auto; background:#ffffff; border-radius:16px; padding:32px;
+              box-shadow:0 12px 32px rgba(19,29,53,0.15); text-align:center;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+      <img src="{{ url_for('static', filename='images/7.svg', _external=True) }}" alt="Ponza Health"
+        style="height:80px;">
     </div>
-  </body>
+
+    <h2 style="color:#0a1628; font-size:24px; margin-bottom:16px;">
+      Último dia do seu teste gratuito, {{ user.username }} ⚠️
+    </h2>
+
+    <p style="color:#334155; font-size:16px; line-height:1.6;">
+      Seu período de teste de 14 dias termina <strong>hoje</strong>.
+      Para continuar usando o <strong>Ponza Health</strong> sem interrupções, basta escolher um plano.
+    </p>
+
+    <div style="margin:30px 0;">
+      <a href="{{ url_for('prices', _external=True) }}" style="display:inline-block; background:linear-gradient(135deg,#0a1628,#1e293b);
+                color:#fff; text-decoration:none; font-weight:bold; padding:14px 28px;
+                border-radius:999px; font-size:15px; transition:all 0.3s ease;">
+        Assinar agora
+      </a>
+    </div>
+
+    <p style="color:#475569; font-size:15px; line-height:1.6;">
+      Evite perder acesso ao seu painel, histórico de pacientes e configurações.
+      Após o período de teste, sua conta será temporariamente suspensa até a assinatura ser concluída.
+    </p>
+
+    <hr style="margin:30px 0; border:none; border-top:1px solid #e2e8f0;">
+
+    <p style="font-size:15px; color:#64748b;">
+      Dúvidas? Fale conosco no WhatsApp:
+      <a href="https://wa.me/5511999999999" style="color:#0a1628; text-decoration:none;">+55 11 99999-9999</a>
+    </p>
+
+    <p style="font-size:13px; color:#94a3b8; margin-top:20px;">
+      © {{ current_year }} Ponza Health — Todos os direitos reservados
+    </p>
+  </div>
+</body>
+
 </html>

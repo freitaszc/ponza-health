@@ -5,47 +5,46 @@ import os
 from getpass import getpass
 from pathlib import Path
 
-from sqlalchemy import Column, Integer, String, create_engine, select, UniqueConstraint
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
-# Resolve o diretório do projeto (este arquivo vive dentro de Web/)
-BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_SQLITE = f"sqlite:///{(BASE_DIR / 'instance' / 'web.db').as_posix()}"
+# Import your existing User model from models.py
+from models import User, db
 
-# Usa o mesmo banco do app por padrão: instance/web.db
-DATABASE_URL = os.getenv('DATABASE_URL', DEFAULT_SQLITE)
+# --------------------------------------------------------------------
+# Database connection
+# --------------------------------------------------------------------
+SUPABASE_DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, echo=False, future=True)
+if not SUPABASE_DATABASE_URL:
+    raise RuntimeError("❌ Missing SUPABASE_DATABASE_URL in your environment (.env) file.")
+
+# Make sure it’s the SQLAlchemy-compatible format
+if SUPABASE_DATABASE_URL.startswith("postgresql://") and "psycopg2" not in SUPABASE_DATABASE_URL:
+    SUPABASE_DATABASE_URL = SUPABASE_DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://")
+
+engine = create_engine(SUPABASE_DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
-Base = declarative_base()
 
-class User(Base):
-    __tablename__ = 'users'
-    id = Column(Integer, primary_key=True)
-    username = Column(String(80), nullable=False, unique=True, index=True)
-    email = Column(String(120), nullable=False, unique=True, index=True)
-    password_hash = Column(String(128), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint('username', name='uq_users_username'),
-        UniqueConstraint('email', name='uq_users_email'),
-    )
-
-def ensure_tables():
-    Base.metadata.create_all(engine)
-
+# --------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------
 def user_exists(sess, username=None, email=None):
+    """Check if a user already exists by username or email."""
     if username:
         if sess.execute(select(User.id).where(User.username == username)).scalar():
-            return 'username'
+            return "username"
     if email:
         if sess.execute(select(User.id).where(User.email == email)).scalar():
-            return 'email'
+            return "email"
     return None
 
+
 def create_user(sess, username: str, email: str, password: str):
+    """Create a new user with hashed password."""
     hashed = generate_password_hash(password)
     u = User(username=username, email=email.lower(), password_hash=hashed)
     sess.add(u)
@@ -53,51 +52,57 @@ def create_user(sess, username: str, email: str, password: str):
     sess.refresh(u)
     return u
 
+
+# --------------------------------------------------------------------
+# Main logic
+# --------------------------------------------------------------------
 def main():
-    parser = argparse.ArgumentParser(description='Cria usuários na base do site (instance/web.db por padrão).')
-    parser.add_argument('--username', '-u', help='Username (obrigatório).')
-    parser.add_argument('--email', '-e', help='E-mail (obrigatório).')
-    parser.add_argument('--password', '-p', help='Senha (opcional; se não informado, será solicitado).')
+    parser = argparse.ArgumentParser(description="Create users directly in the Supabase database.")
+    parser.add_argument("--username", "-u", help="Username (required).")
+    parser.add_argument("--email", "-e", help="Email (required).")
+    parser.add_argument("--password", "-p", help="Password (optional; will prompt if not provided).")
     args = parser.parse_args()
 
-    username = (args.username or '').strip()
-    email = (args.email or '').strip().lower()
+    username = (args.username or "").strip()
+    email = (args.email or "").strip().lower()
     password = args.password
 
     if not username:
-        username = input('Username: ').strip()
+        username = input("Username: ").strip()
     if not email:
-        email = input('E-mail: ').strip().lower()
+        email = input("E-mail: ").strip().lower()
     if not password:
         while True:
-            p1 = getpass('Senha: ')
-            p2 = getpass('Confirme a senha: ')
+            p1 = getpass("Password: ")
+            p2 = getpass("Confirm password: ")
             if p1 != p2:
-                print('As senhas não conferem. Tente novamente.')
+                print("Passwords do not match. Try again.")
             elif not p1:
-                print('A senha não pode ser vazia.')
+                print("Password cannot be empty.")
             else:
                 password = p1
                 break
 
-    ensure_tables()
+    # Run creation
     with SessionLocal() as sess:
         dup = user_exists(sess, username=username, email=email)
-        if dup == 'username':
-            print(f"Erro: já existe usuário com username '{username}'.")
+        if dup == "username":
+            print(f"❌ Error: username '{username}' already exists.")
             return
-        if dup == 'email':
-            print(f"Erro: já existe usuário com e-mail '{email}'.")
+        if dup == "email":
+            print(f"❌ Error: email '{email}' already exists.")
             return
 
         try:
             u = create_user(sess, username=username, email=email, password=password)
+            print(f"✅ User created successfully!")
+            print(f"   ID: {u.id}")
+            print(f"   Username: {u.username}")
+            print(f"   Email: {u.email}")
         except IntegrityError:
             sess.rollback()
-            print("Erro de integridade (username/e-mail duplicado).")
-            return
+            print("❌ Integrity error: duplicated username or email.")
 
-        print(f"Usuário criado: id={u.id}, username='{u.username}', email='{u.email}'")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
