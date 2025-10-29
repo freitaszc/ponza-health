@@ -1,4 +1,5 @@
 import os
+import io
 import re
 import secrets
 import stripe
@@ -26,14 +27,14 @@ from prescription import (
 
 from dotenv import load_dotenv
 from flask import (
-    Flask, Blueprint, render_template, render_template_string, request, redirect, url_for,
-    session, flash, jsonify, abort, send_file, g, current_app
+    Flask, Blueprint, render_template, request, redirect, url_for,
+    session, flash, jsonify, abort, send_file, g, current_app, send_file, abort
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
-from sqlalchemy import select, text, func, or_
+from sqlalchemy import select, func, or_
 from werkzeug.middleware.proxy_fix import ProxyFix
-from apscheduler.schedulers.background import BackgroundScheduler #type: ignore
+from apscheduler.schedulers.background import BackgroundScheduler #type:ignore
 from jinja2 import TemplateNotFound
 
 from models import (
@@ -67,6 +68,12 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 DEFAULT_USER_IMAGE = "images/user-icon.png"
 DEFAULT_PATIENT_IMAGE = "images/admin_profile.png"
+
+app.config["PUBLIC_BASE_URL"] = (
+    os.getenv("PUBLIC_BASE_URL")
+    or os.getenv("APP_BASE_URL")
+    or os.getenv("PUBLIC_APP_URL")
+)
 
 # Email
 app.config.update(
@@ -754,7 +761,7 @@ def dispatch_emails():
         return 'Unauthorized', 403
 
     emails = (ScheduledEmail.query
-              .filter(ScheduledEmail.sent.is_(False),
+              .filter(ScheduledEmail.sent.is_(False), #type:ignore
                       ScheduledEmail.send_at <= func.now())
               .all())
 
@@ -1313,7 +1320,7 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
     except ValueError:
         return "Invalid payload", 400
-    except stripe.error.SignatureVerificationError:
+    except stripe.error.SignatureVerificationError:  # type: ignore
         return "Invalid signature", 400
 
     if event['type'] == 'checkout.session.completed':
@@ -1553,7 +1560,11 @@ def _handle_manual_entry(request, u, analyze_pdf):
     dgn, rx, *_ = analyze_pdf(lab_results, references_path=refs_path, manual=True)
 
     p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
+    if doctor_name:
+        _assign_doctor_to_patient(u, p, doctor_name)
     _attach_consult_and_notes(p, dgn, rx)
+
+    clinic_contact = (u.clinic_phone or u.name or u.username or '').strip() or '-'
 
     if send_doctor and doctor_phone:
         send_pdf_whatsapp_template(
@@ -1561,7 +1572,8 @@ def _handle_manual_entry(request, u, analyze_pdf):
             doctor_name,
             p.name,
             doctor_phone,
-            p.id
+            p.id,
+            clinic_contact=clinic_contact,
         )
 
     if send_patient and patient_phone:
@@ -1621,8 +1633,12 @@ def _handle_pdf_upload(request, u, analyze_pdf):
         name=name_ai,
         cpf=(cpf_ai or '').strip(),
         gender=gender_ai,
-        phone=phone_ai
+        phone=phone_ai,
+        birthdate=birth_ai,
     )
+
+    if doctor_ai:
+        _assign_doctor_to_patient(u, p, doctor_ai)
 
     notes_blob = _attach_consult_and_notes(p, dgn, rx)
     pf.patient_id = p.id
@@ -1636,39 +1652,169 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     patient_name  = (request.form.get('patient_name') or '').strip()
     patient_phone = (request.form.get('patient_phone') or '').strip()
 
+    clinic_contact = (u.clinic_phone or u.name or u.username or '').strip() or '-'
+
     if send_doctor and doctor_phone:
         send_pdf_whatsapp_template(
             "relatorio_ponza",
             doctor_name,
             p.name,
             doctor_phone,
-            p.id
+            p.id,
+            clinic_contact=clinic_contact,
         )
 
     if send_patient and patient_phone:
         send_pdf_whatsapp_patient(
             patient_name or p.name,
             patient_phone,
-            pf.id,
+            p.id,
             clinic_phone=u.clinic_phone
         )
 
     return redirect(url_for('result', patient_id=p.id))
 
-def _get_or_create_patient(u, *, name=None, cpf=None, gender=None, phone=None):
+def _parse_birthdate(value: Optional[str]) -> Optional[date]:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(candidate, fmt).date()
+        except Exception:
+            continue
+    return None
+
+def _normalize_gender_label(gender: Optional[str]) -> Optional[str]:
+    if not gender:
+        return None
+    token = gender.strip()
+    if not token:
+        return None
+    upper = token.upper()
+    if upper in {"F", "FEMININO", "FEMALE"}:
+        return "Feminino"
+    if upper in {"M", "MASCULINO", "MALE"}:
+        return "Masculino"
+    return token.title()
+
+def _parse_doctor_text(doctor_text: Optional[str]) -> tuple[str, str, str]:
+    if not doctor_text:
+        return "", "", ""
+    raw = doctor_text.strip()
+    if not raw:
+        return "", "", ""
+    match = re.search(r"(?i)(crm|crf)(?:[-\s]?([A-Z]{2}))?[\s#:]*([0-9][0-9.\s]*)", raw)
+    name_part = raw
+    if match:
+        name_part = raw[:match.start()]
+    name_clean = re.sub(r"[\s\-,:]+$", "", name_part).strip()
+    name_clean = re.sub(r"(?i)^(dr\.?|dra\.?)\s+", "", name_clean)
+    name_clean = re.sub(r"\s+", " ", name_clean).strip()
+    cred_label = ""
+    cred_digits = ""
+    if match:
+        cred_label = match.group(1).upper()
+        if match.group(2):
+            cred_label = f"{cred_label}-{match.group(2).upper()}"
+        cred_digits = re.sub(r"\D", "", match.group(3) or "")
+    return name_clean, cred_label, cred_digits
+
+def _assign_doctor_to_patient(user, patient, doctor_text: Optional[str]):
+    name, cred_label, cred_digits = _parse_doctor_text(doctor_text)
+    if not name:
+        return None
+
+    display_name = name
+    cred_value = " ".join(part for part in (cred_label, cred_digits) if part).strip()
+
+    query = Doctor.query
+    if hasattr(Doctor, "user_id"):
+        query = query.filter(Doctor.user_id == user.id)
+
+    doctor = None
+    if cred_value:
+        doctor = query.filter(func.lower(Doctor.crm) == cred_value.lower()).first()
+    if not doctor:
+        doctor = query.filter(func.lower(Doctor.name) == display_name.lower()).first()
+
+    if not doctor:
+        doctor = Doctor(
+            user_id=user.id if hasattr(Doctor, "user_id") else None,
+            name=display_name,
+            crm=cred_value or None,
+        )
+        db.session.add(doctor)
+        db.session.flush()
+    else:
+        updated = False
+        if doctor.name.strip() != display_name:
+            doctor.name = display_name
+            updated = True
+        normalized_crm = (doctor.crm or "").strip()
+        if cred_value and normalized_crm.lower() != cred_value.lower():
+            doctor.crm = cred_value
+            updated = True
+        if updated:
+            db.session.add(doctor)
+
+    if patient.doctor_id != doctor.id:
+        patient.doctor = doctor
+        db.session.add(patient)
+
+    return doctor
+
+def _get_or_create_patient(u, *, name=None, cpf=None, gender=None, phone=None, birthdate=None):
     p = None
     if cpf:
         p = Patient.query.filter_by(user_id=u.id, cpf=cpf).first()
+    if not p and name:
+        p = Patient.query.filter_by(user_id=u.id, name=name).first()
     if not p:
         p = Patient(
             user_id=u.id,
             name=name or f"Paciente ({datetime.now():%d/%m/%Y %H:%M})",
-            sex=gender or None,
+            sex=_normalize_gender_label(gender) or None,
             cpf=cpf or None,
-            phone_primary=phone or '',
+            birthdate=_parse_birthdate(birthdate),
+            phone_primary=normalize_phone(phone) if phone else '',
             notes=None,
             profile_image=DEFAULT_PATIENT_IMAGE
         )
+        db.session.add(p)
+        db.session.commit()
+        return p
+
+    updated = False
+    if name:
+        candidate = name.strip()
+        if candidate and (not p.name or p.name.startswith("Paciente (") or len(candidate) > len(p.name) or p.name.lower() != candidate.lower()):
+            p.name = candidate
+            updated = True
+
+    gender_norm = _normalize_gender_label(gender)
+    if gender_norm and (p.sex or '').lower() != gender_norm.lower():
+        p.sex = gender_norm
+        updated = True
+
+    birth_dt = _parse_birthdate(birthdate)
+    if birth_dt and p.birthdate != birth_dt:
+        p.birthdate = birth_dt
+        updated = True
+
+    if cpf and (p.cpf or '').strip() != cpf.strip():
+        p.cpf = cpf.strip()
+        updated = True
+
+    if phone:
+        normalized_phone = normalize_phone(phone)
+        if normalized_phone and (p.phone_primary or '').strip() != normalized_phone:
+            p.phone_primary = normalized_phone
+            updated = True
+
+    if updated:
         db.session.add(p)
         db.session.commit()
     return p
@@ -1724,15 +1870,23 @@ def download_pdf(patient_id):
     from weasyprint import HTML
     from flask import send_file
     import tempfile
+    import re
+    import io
 
+    # === Usuário atual ===
     u = current_user()
-    patient = Patient.query.get_or_404(patient_id)
+
+    # Usa o método moderno do SQLAlchemy 2.0
+    patient = db.session.get(Patient, patient_id)
+    if not patient:
+        abort(404)
+
     if patient.user_id != u.id:
         abort(403)
 
     # Última consulta e diagnóstico/prescrição
     consult = (
-        Consult.query
+        db.session.query(Consult)
         .filter_by(patient_id=patient_id)
         .order_by(Consult.date.desc())
         .first()
@@ -1755,7 +1909,7 @@ def download_pdf(patient_id):
             diagnosis = notes.strip()
             prescription = ""
 
-    # Calcular idade
+    # === Cálculo da idade ===
     def _calc_age(birthdate):
         try:
             today = datetime.today().date()
@@ -1769,7 +1923,7 @@ def download_pdf(patient_id):
         if age_val is not None:
             age_str = f"{age_val} anos"
 
-    # Dados básicos do paciente
+    # === Dados básicos do paciente ===
     sex_str = (patient.sex or "").strip()
     cpf_str = (patient.cpf or "").strip()
     phones = [x for x in [(patient.phone_primary or "").strip(), (patient.phone_secondary or "").strip()] if x]
@@ -1779,21 +1933,34 @@ def download_pdf(patient_id):
         f"Nome: {patient.name or '—'}",
         f"Data de nascimento: {patient.birthdate.strftime('%d/%m/%Y') if patient.birthdate else '—'}",
     ]
-    if age_str: patient_info.append(f"Idade: {age_str}")
-    if sex_str: patient_info.append(f"Sexo: {sex_str}")
-    if cpf_str: patient_info.append(f"CPF: {cpf_str}")
-    if phone_str: patient_info.append(f"Telefone: {phone_str}")
+    if age_str:
+        patient_info.append(f"Idade: {age_str}")
+    if sex_str:
+        patient_info.append(f"Sexo: {sex_str}")
+    if cpf_str:
+        patient_info.append(f"CPF: {cpf_str}")
+    if phone_str:
+        patient_info.append(f"Telefone: {phone_str}")
 
+    public_base = current_app.config.get("PUBLIC_BASE_URL")
+    if public_base:
+        base = public_base.rstrip("/")
+        logo_url = f"{base}/static/images/1.png"
+    elif request:
+        logo_url = url_for("static", filename="images/1.png", _external=True)
+    else:
+        logo_url = os.path.join(current_app.root_path, "static", "images", "1.png")
     html_str = render_template(
         "result_pdf.html",
         patient_info="\n".join(patient_info),
         diagnostic_text=diagnosis,
         prescription_text=prescription,
         doctor_name=(getattr(u, "name", None) or u.username),
+        logo_url=logo_url,
     )
 
     # === Gera PDF ===
-    pdf_io = BytesIO()
+    pdf_io = io.BytesIO()
     HTML(string=html_str, base_url=current_app.root_path).write_pdf(pdf_io)
     pdf_io.seek(0)
 
@@ -1817,8 +1984,43 @@ def download_pdf(patient_id):
 
     # === Envia PDF ao usuário ===
     download_name = f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
+
+    # ✅ Sanitize filename to prevent newline or carriage return issues
+    download_name = re.sub(r'[\r\n]+', '', download_name).strip()
+
     pdf_io.seek(0)
-    return send_file(pdf_io, as_attachment=True, download_name=download_name, mimetype="application/pdf")
+    return send_file(
+        pdf_io,
+        as_attachment=True,
+        download_name=download_name,
+        mimetype="application/pdf"
+    )
+
+@app.route('/public_download')
+def public_download():
+    token = request.args.get('token')
+    if not token:
+        abort(400)
+    try:
+        s = URLSafeSerializer(app.config['SECRET_KEY'])
+        patient_id = s.loads(token)
+    except Exception:
+        abort(403)
+
+    pdf = PdfFile.query.filter_by(patient_id=patient_id).order_by(PdfFile.id.desc()).first()
+    if not pdf or not pdf.secure_file:
+        abort(404)
+
+    binary = getattr(pdf.secure_file, "data", None)
+    if binary is None:
+        abort(404)
+
+    return send_file(
+        io.BytesIO(binary),
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=f"relatorio_{patient_id}.pdf"
+    )
 
 @app.route('/result/<int:patient_id>')
 @login_required
