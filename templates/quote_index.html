@@ -324,6 +324,10 @@
       font-size: 14px
     }
 
+    table.catalog-table tbody tr {
+      transition: background .2s ease, opacity .2s ease;
+    }
+
     table.catalog-table tbody tr:nth-child(even) {
       background: #fafafa
     }
@@ -331,6 +335,10 @@
     table.catalog-table tbody tr:hover {
       background: rgba(19, 29, 53, .06);
       cursor: pointer
+    }
+
+    table.catalog-table tbody tr.is-removing {
+      opacity: 0;
     }
 
     td.cell-actions {
@@ -362,6 +370,11 @@
       box-shadow: 0 8px 18px rgba(2, 6, 23, .10);
       border-color: var(--brand-solid);
       transform: scale(1.02)
+    }
+
+    .icon-btn-row.is-loading {
+      pointer-events: none;
+      opacity: .6;
     }
 
     @media (max-width:720px) {
@@ -466,8 +479,7 @@
                 {{ quote.responses_count }}
               </td>
               <td class="cell-actions">
-                <form method="post" action="{{ url_for('quote_delete', quote_id=quote.id) }}"
-                  onsubmit="return confirm('Deseja realmente excluir esta cotação?')">
+                <form method="post" action="{{ url_for('quote_delete', quote_id=quote.id) }}" class="js-quote-delete">
                   <button type="submit" title="Excluir" class="icon-btn-row">×</button>
                 </form>
               </td>
@@ -483,6 +495,64 @@
     </div>
     {% endif %}
   </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('.js-quote-delete');
+    forms.forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!window.confirm('Deseja realmente excluir esta cotação?')) {
+          return;
+        }
+
+        const button = form.querySelector('button');
+        const row = form.closest('tr');
+        if (!button) {
+          form.submit();
+          return;
+        }
+
+        const originalLabel = button.textContent;
+        button.textContent = '…';
+        button.classList.add('is-loading');
+        button.disabled = true;
+
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'application/json'
+            },
+            body: new FormData(form)
+          });
+
+          if (!response.ok) {
+            throw new Error(`Status ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (!data?.success) {
+            throw new Error(data?.message || 'Erro desconhecido');
+          }
+
+          if (row) {
+            row.classList.add('is-removing');
+            window.setTimeout(() => row.remove(), 200);
+          }
+        } catch (err) {
+          console.error('[quote-delete]', err);
+          button.disabled = false;
+          button.classList.remove('is-loading');
+          button.textContent = originalLabel;
+          window.alert('Não foi possível excluir a cotação. Tente novamente.');
+        }
+      });
+    });
+  });
+</script>
+
 </body>
 
 </html>

@@ -333,7 +333,7 @@ class QuoteResponse(db.Model, BaseModel):
     id          = db.Column(db.Integer, primary_key=True)
     quote_id    = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False, index=True)
-    answers     = db.Column(db.Text, nullable=False)
+    answers     = db.Column("answer", db.Text, nullable=False)
     submitted_at= db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     quote       = db.relationship("Quote", back_populates="responses")

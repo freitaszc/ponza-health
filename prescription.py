@@ -844,19 +844,49 @@ def build_diagnosis_and_prescriptions(results):
 # =============== ANÁLISE GERAL DE PDF =================
 # ======================================================
 
-def analyze_pdf(source, references_path="json/references.json", manual=False):
+def _normalize_patient_gender(value: str) -> str:
+    if not value:
+        return ""
+    token = value.strip()
+    if not token:
+        return ""
+    lower = token.lower()
+    if lower in {"f", "fem", "feminino", "female"}:
+        return "Feminino"
+    if lower in {"m", "masc", "masculino", "male"}:
+        return "Masculino"
+    return token.title()
+
+
+def analyze_pdf(source, references_path="json/references.json", manual=False, manual_overrides=None):
     """
     Analisa o PDF e retorna diagnóstico, prescrição e dados do paciente.
     Inclui data de nascimento detectada pelo extrator.
     """
+    manual_overrides = manual_overrides or {}
     references = read_references(references_path)
 
     if manual:
         lines = [l.strip() for l in source.splitlines() if l.strip()]
-        gender = "F"
+        gender_raw = manual_overrides.get("gender")
+        override_gender = _normalize_patient_gender(gender_raw) if isinstance(gender_raw, str) else ""
+        gender = override_gender or "F"
         results = scan_results(lines, references, gender)
         diagnosis, prescriptions = build_diagnosis_and_prescriptions(results)
-        return diagnosis, prescriptions, "", gender, 0, "", "", "", ""
+        name_raw = manual_overrides.get("name") if manual_overrides else ""
+        name = name_raw.strip() if isinstance(name_raw, str) else ""
+        phone_raw = manual_overrides.get("phone") if manual_overrides else None
+        phone = normalize_phone(phone_raw) if isinstance(phone_raw, str) and phone_raw.strip() else ""
+        age_val = manual_overrides.get("age") if manual_overrides else None
+        age_int = 0
+        if isinstance(age_val, (int, float)):
+            age_int = int(age_val)
+        elif isinstance(age_val, str) and age_val.strip():
+            try:
+                age_int = int(age_val.strip())
+            except ValueError:
+                age_int = 0
+        return diagnosis, prescriptions, name, gender, age_int, "", phone, "", ""
 
     lines = read_pdf(source)
     if not lines or not references:
@@ -869,6 +899,33 @@ def analyze_pdf(source, references_path="json/references.json", manual=False):
     except Exception as e:
         print(f"[analyze_pdf] Erro ao extrair dados pessoais: {e}")
         name, gender, age, cpf, phone, doctor, birth_date = "", "", 0, "", "", "", ""
+
+    # Overrides informados manualmente pelo médico
+    name_raw_override = manual_overrides.get("name") if manual_overrides else None
+    override_name = name_raw_override.strip() if isinstance(name_raw_override, str) else ""
+
+    gender_raw_override = manual_overrides.get("gender") if manual_overrides else None
+    override_gender = _normalize_patient_gender(gender_raw_override) if isinstance(gender_raw_override, str) else ""
+
+    phone_raw_override = manual_overrides.get("phone") if manual_overrides else None
+    override_phone = normalize_phone(phone_raw_override) if isinstance(phone_raw_override, str) and phone_raw_override.strip() else ""
+
+    override_age = manual_overrides.get("age") if manual_overrides else None
+
+    if override_name:
+        name = override_name
+    if override_gender:
+        gender = override_gender
+    if override_phone:
+        phone = override_phone
+    if override_age is not None:
+        if isinstance(override_age, (int, float)):
+            age = int(override_age)
+        elif isinstance(override_age, str) and override_age.strip():
+            try:
+                age = int(override_age.strip())
+            except ValueError:
+                pass
 
     # Correção de resultados via IA
     results = scan_results(lines, references, gender)
@@ -919,10 +976,29 @@ def normalize_phone(msisdn: str) -> str:
     if not msisdn:
         return msisdn
     digits = re.sub(r"\D", "", msisdn)
+    if not digits:
+        return ""
+
+    # Remove prefix '00' (discagem internacional comum)
+    if digits.startswith("00"):
+        digits = digits[2:]
+
+    # Mantém números que já possuem DDI brasileiro completo (55 + DDD + número)
     if digits.startswith("55") and len(digits) in (12, 13):
         return digits
+
+    # Mantém números internacionais já com código do país (ex.: 1XXXXXXXXXX para EUA)
+    if digits.startswith("1") and len(digits) in (11, 12):
+        return digits
+
+    # Se recebeu um número local dos EUA (10 dígitos), prefixa código do país
+    if len(digits) == 10:
+        return f"1{digits}"
+
+    # Se recebeu um número brasileiro sem DDI (11 dígitos), adiciona 55
     if len(digits) == 11 and not digits.startswith("55"):
         return f"55{digits}"
+
     return digits
 
 # ======================================================

@@ -14,6 +14,7 @@ from uuid import uuid4
 import json
 import tempfile
 import requests
+from urllib.parse import urljoin
 from itsdangerous import URLSafeTimedSerializer, URLSafeSerializer, BadSignature, SignatureExpired
 from flask_mail import Mail, Message
 from prescription import (
@@ -39,7 +40,7 @@ from jinja2 import TemplateNotFound
 
 from models import (
     db, User, Patient, Doctor, Consult, PackageUsage,
-    Supplier, Product, AgendaEvent, Quote,
+    Supplier, Product, AgendaEvent, Quote, QuoteResponse,
     SecureFile, PdfFile, WaitlistItem, ScheduledEmail,
     StockMovement,
 )
@@ -1557,7 +1558,17 @@ def _handle_manual_entry(request, u, analyze_pdf):
         return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
 
     refs_path = _project_references_json()
-    dgn, rx, *_ = analyze_pdf(lab_results, references_path=refs_path, manual=True)
+    dgn, rx, *_ = analyze_pdf(
+        lab_results,
+        references_path=refs_path,
+        manual=True,
+        manual_overrides={
+            'name': name,
+            'age': age,
+            'gender': gender,
+            'phone': phone,
+        }
+    )
 
     p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
     if doctor_name:
@@ -1625,16 +1636,43 @@ def _handle_pdf_upload(request, u, analyze_pdf):
     with os.fdopen(fd, "wb") as fh:
         fh.write(content)
 
-    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = analyze_pdf(tmp, references_path=refs_path, manual=False)
+    # Dados informados manualmente pelo médico no formulário
+    manual_name = (request.form.get('patient_manual_name') or '').strip()
+    manual_age  = (request.form.get('patient_manual_age') or '').strip()
+    manual_gender = (request.form.get('patient_manual_sex') or '').strip()
+    manual_phone  = (request.form.get('patient_manual_phone') or '').strip()
+
+    manual_birthdate_str = None
+    if manual_age:
+        try:
+            age_int = int(manual_age)
+            today = date.today()
+            candidate_year = max(1900, today.year - age_int)
+            # Mantém o mês/dia atuais para estimar nascimento e preservar cálculo da idade exibida
+            manual_birthdate_str = date(candidate_year, today.month, today.day).strftime('%d/%m/%Y')
+        except ValueError:
+            manual_birthdate_str = None
+
+    dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = analyze_pdf(
+        tmp,
+        references_path=refs_path,
+        manual=False,
+        manual_overrides={
+            'name': manual_name,
+            'age': manual_age,
+            'gender': manual_gender,
+            'phone': manual_phone,
+        }
+    )
     os.remove(tmp)
 
     p = _get_or_create_patient(
         u,
-        name=name_ai,
+        name=manual_name or name_ai,
         cpf=(cpf_ai or '').strip(),
-        gender=gender_ai,
-        phone=phone_ai,
-        birthdate=birth_ai,
+        gender=manual_gender or gender_ai,
+        phone=manual_phone or phone_ai,
+        birthdate=manual_birthdate_str or birth_ai,
     )
 
     if doctor_ai:
@@ -3108,6 +3146,30 @@ def quote_results(quote_id: int):
     )
 
 
+def _quote_response_serializer() -> URLSafeTimedSerializer:
+    try:
+        secret = current_app.config['SECRET_KEY']
+    except RuntimeError:
+        secret = app.config['SECRET_KEY']
+    return URLSafeTimedSerializer(secret, salt="quote-response-link")
+
+
+def _build_supplier_quote_link(quote_id: int, supplier_id: int) -> str:
+    serializer = _quote_response_serializer()
+    token = serializer.dumps({"q": quote_id, "s": supplier_id})
+    relative_url = url_for('public_quote_response', token=token, _external=False)
+    base_url = (
+        current_app.config.get("PUBLIC_BASE_URL")
+        or current_app.config.get("APP_BASE_URL")
+        or os.getenv("PUBLIC_APP_URL")
+        or os.getenv("APP_BASE_URL")
+    )
+    if base_url:
+        base = base_url.rstrip('/') + '/'
+        return urljoin(base, relative_url.lstrip('/'))
+    return url_for('public_quote_response', token=token, _external=True)
+
+
 @app.route('/quotes/create', methods=['GET', 'POST'], endpoint='create_quote')
 @login_required
 def create_quote():
@@ -3134,29 +3196,23 @@ def create_quote():
         db.session.add(q)
         db.session.commit()
 
-        # === ✅ WhatsApp sending with signed public link ===
+        # === ✅ WhatsApp sending with per-supplier signed public link ===
         try:
-            from itsdangerous import URLSafeSerializer
-            s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-            token = s.dumps(q.id)
-
-            # Link that suppliers will click to view the quote publicly
-            public_link = url_for('quote_view', quote_id=q.id, _external=True)
-
-            # send WhatsApp message to every selected supplier
             for s_item in selected_suppliers:
-                if s_item.phone:
-                    wa_err = send_quote_whatsapp(
-                        supplier_name=s_item.name,
-                        quote_title=title,
-                        phone=s_item.phone,
-                        quote_items=items_list,
-                        response_url=public_link
+                if not s_item.phone:
+                    continue
+                response_link = _build_supplier_quote_link(q.id, s_item.id)
+                wa_err = send_quote_whatsapp(
+                    supplier_name=s_item.name,
+                    quote_title=title,
+                    phone=s_item.phone,
+                    quote_items=items_list,
+                    response_url=response_link,
+                )
+                if wa_err:
+                    current_app.logger.error(
+                        f"[WA] send_quote_whatsapp failed for supplier {s_item.name}: {wa_err}"
                     )
-                    if wa_err:
-                        current_app.logger.error(
-                            f"[WA] send_quote_whatsapp failed for supplier {s_item.name}: {wa_err}"
-                        )
         except Exception as e:
             current_app.logger.error(f"[WA] erro no pipeline de envio da cotação: {e}")
 
@@ -3167,6 +3223,133 @@ def create_quote():
     return render_template('create_quote.html', suppliers=suppliers)
 
 
+@app.route('/quotes/respond/<token>', methods=['GET', 'POST'], endpoint='public_quote_response')
+def public_quote_response(token: str):
+    serializer = _quote_response_serializer()
+    max_age = int(os.getenv("QUOTE_RESPONSE_TOKEN_MAX_AGE", 60 * 60 * 24 * 30))
+    expired_token = False
+    data: Optional[dict[str, Any]] = None
+    try:
+        decoded = serializer.loads(token, max_age=max_age)
+        if isinstance(decoded, dict):
+            data = decoded
+    except SignatureExpired as exc:
+        expired_token = True
+        payload = exc.payload if exc.payload is not None else token
+        try:
+            decoded = serializer.loads(payload)
+            if isinstance(decoded, dict):
+                data = decoded
+        except Exception:
+            data = None
+    except BadSignature:
+        abort(404)
+
+    if not data:
+        abort(404)
+
+    quote_id = data.get("q")
+    supplier_id = data.get("s")
+    if not quote_id or not supplier_id:
+        abort(404)
+
+    quote = Quote.query.get_or_404(quote_id)
+    supplier = Supplier.query.get_or_404(supplier_id)
+
+    if supplier not in (quote.suppliers or []):
+        abort(403)
+
+    if expired_token:
+        clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
+        clinic_name = clinic_name or (quote.user.username if quote.user else "")
+        return render_template(
+            'quote_public_response.html',
+            quote=quote,
+            supplier=supplier,
+            items=[],
+            prefill_prices=[],
+            prefill_deadlines=[],
+            submitted=False,
+            expired=True,
+            clinic_name=clinic_name,
+            error_message="",
+        ), 410
+
+    try:
+        items_raw = json.loads(quote.items or "[]")
+        if isinstance(items_raw, list):
+            items = [str(x).strip() for x in items_raw if str(x).strip()]
+        else:
+            items = []
+    except Exception:
+        items = [ln.strip() for ln in (quote.items or "").splitlines() if ln.strip()]
+
+    response_obj = QuoteResponse.query.filter_by(quote_id=quote.id, supplier_id=supplier.id).first()
+    existing_answers: list[dict[str, Any]] = []
+    if response_obj and response_obj.answers:
+        try:
+            payload = json.loads(response_obj.answers)
+            if isinstance(payload, list):
+                existing_answers = payload
+        except Exception:
+            existing_answers = []
+
+    prefill_prices: list[str] = []
+    prefill_deadlines: list[str] = []
+    for idx in range(len(items)):
+        ans = existing_answers[idx] if idx < len(existing_answers) and isinstance(existing_answers[idx], dict) else {}
+        prefill_prices.append(str(ans.get("price", "")).strip())
+        prefill_deadlines.append(str(ans.get("deadline", "")).strip())
+
+    submitted = False
+    error_message = ""
+    if request.method == 'POST':
+        answers_payload: list[dict[str, str]] = []
+        for idx, item in enumerate(items):
+            price_val = (request.form.get(f'price_{idx}') or '').strip()
+            deadline_val = (request.form.get(f'deadline_{idx}') or '').strip()
+            prefill_prices[idx] = price_val
+            prefill_deadlines[idx] = deadline_val
+            answers_payload.append({
+                "item": item,
+                "price": price_val,
+                "deadline": deadline_val,
+            })
+
+        if not answers_payload:
+            error_message = "Nenhum item para responder."
+        else:
+            if not response_obj:
+                response_obj = QuoteResponse(
+                    quote_id=quote.id,
+                    supplier_id=supplier.id,
+                    answers=json.dumps(answers_payload, ensure_ascii=False),
+                )
+                db.session.add(response_obj)
+            else:
+                response_obj.answers = json.dumps(answers_payload, ensure_ascii=False)
+            response_obj.submitted_at = datetime.utcnow()
+            db.session.commit()
+            submitted = True
+            error_message = ""
+
+    clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
+    clinic_name = clinic_name or (quote.user.username if quote.user else "")
+
+    return render_template(
+        'quote_public_response.html',
+        quote=quote,
+        supplier=supplier,
+        items=list(enumerate(items)),
+        prefill_prices=prefill_prices,
+        prefill_deadlines=prefill_deadlines,
+        submitted=submitted,
+        expired=False,
+        clinic_name=clinic_name,
+        error_message=error_message,
+    )
+
+
 @app.route('/quotes/<int:quote_id>', methods=['GET'], endpoint='quote_view')
 @login_required
 def quotes_view(quote_id):
@@ -3174,7 +3357,83 @@ def quotes_view(quote_id):
     q = Quote.query.get_or_404(quote_id)
     if q.user_id != u.id:
         abort(403)
-    return render_template('quote_view.html', quote=q)
+    items: list[str] = []
+    try:
+        parsed = json.loads(q.items or "[]")
+        if isinstance(parsed, list):
+            items = [str(x).strip() for x in parsed if str(x).strip()]
+    except Exception:
+        raw = (q.items or "").strip()
+        if raw:
+            items = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+
+    responses_data: list[dict[str, Any]] = []
+    for resp in q.responses or []:
+        answers_payload: list[Any] = []
+        try:
+            payload = json.loads(resp.answers or "[]")
+            if isinstance(payload, list):
+                answers_payload = payload
+            elif isinstance(payload, dict) and "answers" in payload:
+                candidate = payload.get("answers")
+                if isinstance(candidate, list):
+                    answers_payload = candidate
+        except Exception:
+            answers_payload = []
+
+        normalized_answers: list[dict[str, Any]] = []
+        for idx, ans in enumerate(answers_payload):
+            if not isinstance(ans, dict):
+                continue
+            price_raw = str(ans.get("price", "")).strip()
+            deadline_raw = ans.get("deadline", "")
+            item_label = str(ans.get("item", "")).strip()
+
+            price_display = price_raw
+            if price_raw:
+                sanitized = price_raw.replace(".", "").replace(",", ".")
+                try:
+                    price_decimal = Decimal(sanitized)
+                    price_display = f"{price_decimal:.2f}".replace(".", ",")
+                except (InvalidOperation, ValueError):
+                    price_display = price_raw
+            deadline_display = ""
+            if isinstance(deadline_raw, (int, float)):
+                deadline_display = str(int(deadline_raw))
+            elif deadline_raw:
+                deadline_display = str(deadline_raw).strip()
+            if not item_label:
+                item_label = items[idx] if idx < len(items) else f"Item {idx + 1}"
+
+            normalized_answers.append({
+                "index": idx,
+                "item": item_label,
+                "price": price_display or "—",
+                "deadline": deadline_display or "—",
+            })
+
+        submitted_at = (
+            resp.submitted_at.astimezone(ZoneInfo("America/Sao_Paulo"))
+            if getattr(resp, "submitted_at", None)
+            else None
+        )
+
+        responses_data.append({
+            "supplier": (resp.supplier.name if resp.supplier else f"Fornecedor #{resp.supplier_id}"),
+            "submitted_at": submitted_at,
+            "answers": normalized_answers,
+        })
+
+    created_at_br = q.created_at.astimezone(ZoneInfo("America/Sao_Paulo")) if q.created_at else None
+
+    return render_template(
+        'quote_view.html',
+        quote=q,
+        items=items,
+        responses=responses_data,
+        created_at_br=created_at_br,
+        notifications_unread=0,
+    )
 
 
 @app.route('/quotes/<int:quote_id>/delete', methods=['POST'], endpoint='quote_delete')
@@ -3186,6 +3445,12 @@ def quotes_delete(quote_id):
         abort(403)
     db.session.delete(q)
     db.session.commit()
+    prefers_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if prefers_json:
+        return jsonify({"success": True, "message": "Cotação removida."})
     flash('Cotação removida.', 'info')
     return redirect(url_for('quote_index'))
 
