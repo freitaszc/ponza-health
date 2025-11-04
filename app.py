@@ -1397,6 +1397,7 @@ def update_personal_info():
 
     name = (request.form.get("name") or "").strip()
     clinic_phone = (request.form.get("clinic_phone") or "").strip()
+    clinic_address = (request.form.get("clinic_address") or "").strip()
     birthdate_str = (request.form.get("birthdate") or "").strip()
     email = (request.form.get("email") or "").strip().lower()
 
@@ -1405,6 +1406,8 @@ def update_personal_info():
 
     if clinic_phone:
         u.clinic_phone = clinic_phone
+
+    u.clinic_address = clinic_address or None
 
     if email:
         u.email = email
@@ -3262,6 +3265,7 @@ def public_quote_response(token: str):
     if expired_token:
         clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
         clinic_name = clinic_name or (quote.user.username if quote.user else "")
+        clinic_address = getattr(quote.user, "clinic_address", "") if quote.user else ""
         return render_template(
             'quote_public_response.html',
             quote=quote,
@@ -3272,6 +3276,7 @@ def public_quote_response(token: str):
             submitted=False,
             expired=True,
             clinic_name=clinic_name,
+            clinic_address=clinic_address,
             error_message="",
         ), 410
 
@@ -3335,6 +3340,7 @@ def public_quote_response(token: str):
 
     clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
     clinic_name = clinic_name or (quote.user.username if quote.user else "")
+    clinic_address = getattr(quote.user, "clinic_address", "") if quote.user else ""
 
     return render_template(
         'quote_public_response.html',
@@ -3346,6 +3352,7 @@ def public_quote_response(token: str):
         submitted=submitted,
         expired=False,
         clinic_name=clinic_name,
+        clinic_address=clinic_address,
         error_message=error_message,
     )
 

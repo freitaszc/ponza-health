@@ -111,6 +111,8 @@
       border: 1px solid var(--border);
       background: white;
       font-size: 14px;
+      resize: vertical;
+      min-height: 44px;
     }
 
     .input:focus {
@@ -300,6 +302,14 @@
             <label for="email">EMAIL</label>
             <input class="input" type="email" id="email" name="email" value="{{ user.email or '' }}"
               placeholder="email@exemplo.com">
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:14px;">
+          <div class="half" style="flex:1 1 100%;">
+            <label for="clinic_address">ENDEREÇO DA CLÍNICA</label>
+            <textarea class="input" id="clinic_address" name="clinic_address" rows="3"
+              placeholder="Rua, número, complemento, cidade e estado">{{ user.clinic_address or '' }}</textarea>
           </div>
         </div>
 
