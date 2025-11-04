@@ -293,6 +293,7 @@ class AgendaEvent(db.Model, BaseModel):
     type    = db.Column(db.String(20))
     billing = db.Column(db.String(20))
     insurer = db.Column(db.String(120))
+    send_reminders = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
 
     user    = relationship("User", back_populates="agenda_events")
 

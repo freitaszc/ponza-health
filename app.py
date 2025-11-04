@@ -392,28 +392,28 @@ def pw_forgot():
 def pw_reset(token):
     email = verify_reset_token(token)
     if not email:
-        flash("Link inválido ou expirado. Solicite novamente.", "warning")
+        flash("Link inválido ou expirado.", "danger")
         return redirect(url_for("pw_forgot"))
 
     if request.method == "POST":
-        new_password = request.form.get("password") or ""
-        confirm = request.form.get("confirm") or ""
-        if len(new_password) < 8:
-            flash("A senha deve ter pelo menos 8 caracteres.", "danger")
-            return redirect(url_for("pw_reset", token=token))
-        if new_password != confirm:
-            flash("As senhas não coincidem.", "danger")
-            return redirect(url_for("pw_reset", token=token))
+        password = (request.form.get("password") or "").strip()
+        confirm = (request.form.get("confirm") or "").strip()
 
-        user = User.query.filter_by(email=email).first()
+        if not password or len(password) < 6:
+            flash("Informe uma nova senha com pelo menos 6 caracteres.", "danger")
+            return redirect(request.url)
+        if password != confirm:
+            flash("As senhas não coincidem.", "danger")
+            return redirect(request.url)
+
+        user = User.query.filter(func.lower(User.email) == email.lower()).first()
         if not user:
             flash("Usuário não encontrado.", "danger")
-            return redirect(url_for("pw_forgot"))
+            return redirect(url_for("login"))
 
-        user.password_hash = generate_password_hash(new_password)
+        user.set_password(password)
         db.session.commit()
 
-        # E-mail opcional de confirmação
         try:
             send_email(
                 subject="Sua senha foi alterada — Ponza Health",
@@ -432,8 +432,7 @@ def pw_reset(token):
         flash("Senha alterada com sucesso. Faça login.", "success")
         return redirect(url_for("login"))
 
-    # GET
-    return render_template("reset_password.html", token=token)
+    return render_template("pw_reset.html", token=token)
 
 # ------------------------------------------------------------------------------
 # Helpers / Auth
@@ -2080,11 +2079,114 @@ def result(patient_id):
 # ------------------------------------------------------------------------------
 # Agenda (tela)
 # ------------------------------------------------------------------------------
+def build_agenda_snapshot(user: 'User') -> dict[str, Any]:
+    now = datetime.utcnow()
+    today_start = datetime(now.year, now.month, now.day)
+    tomorrow_start = today_start + timedelta(days=1)
+    week_start = today_start - timedelta(days=today_start.weekday())
+    week_end = week_start + timedelta(days=7)
+    next_window_end = now + timedelta(days=7)
+
+    base_query = AgendaEvent.query.filter(AgendaEvent.user_id == user.id)
+
+    summary = {
+        "today_count": base_query.filter(AgendaEvent.start >= today_start, AgendaEvent.start < tomorrow_start).count(),
+        "week_count": base_query.filter(AgendaEvent.start >= week_start, AgendaEvent.start < week_end).count(),
+        "returns_count": base_query.filter(AgendaEvent.start >= week_start, AgendaEvent.start < week_end, func.lower(AgendaEvent.type) == 'retorno').count(),
+        "blocked_count": base_query.filter(AgendaEvent.start >= week_start, AgendaEvent.start < week_end, func.lower(AgendaEvent.type) == 'bloqueio').count(),
+        "upcoming_count": base_query.filter(AgendaEvent.start >= now, AgendaEvent.start < next_window_end).count(),
+    }
+
+    upcoming_events = (
+        AgendaEvent.query.filter(
+            AgendaEvent.user_id == user.id,
+            AgendaEvent.start >= now
+        )
+        .order_by(AgendaEvent.start.asc())
+        .limit(8)
+        .all()
+    )
+
+    def _format_event(ev: AgendaEvent) -> dict[str, Any]:
+        start_dt = getattr(ev, "start", None)
+        start_iso = start_dt.isoformat() if start_dt else ""
+        start_label = start_dt.strftime("%d/%m %H:%M") if start_dt else "--"
+        weekday = start_dt.strftime("%a").title() if start_dt else ""
+        type_slug = (ev.type or 'consulta').lower()
+        billing_slug = (ev.billing or 'particular').lower()
+        type_labels = {
+            'consulta': 'Consulta',
+            'retorno': 'Retorno',
+            'procedimento': 'Procedimento',
+            'bloqueio': 'Bloqueio',
+        }
+        billing_labels = {
+            'particular': 'Particular',
+            'convênio': 'Convênio',
+            'convenio': 'Convênio',
+        }
+        return {
+            "id": ev.id,
+            "title": ev.title or "Evento",
+            "start_iso": start_iso,
+            "start_label": start_label,
+            "weekday": weekday,
+            "type_slug": type_slug,
+            "type_label": type_labels.get(type_slug, type_slug.title()),
+            "billing_label": billing_labels.get(billing_slug, billing_slug.title()),
+            "notes": (ev.notes or ""),
+            "phone": (ev.phone or ""),
+        }
+
+    upcoming_payload = [_format_event(ev) for ev in upcoming_events]
+
+    type_counts_raw = (
+        db.session.query(func.coalesce(func.lower(AgendaEvent.type), 'consulta'), func.count())
+        .filter(AgendaEvent.user_id == user.id)
+        .group_by(func.coalesce(func.lower(AgendaEvent.type), 'consulta'))
+        .all()
+    )
+    type_total = sum(count for _, count in type_counts_raw) or 1
+    type_summary = []
+    for slug, count in type_counts_raw:
+        label_map = {
+            'consulta': 'Consultas',
+            'retorno': 'Retornos',
+            'procedimento': 'Procedimentos',
+            'bloqueio': 'Bloqueios',
+        }
+        type_summary.append({
+            "slug": slug,
+            "label": label_map.get(slug, slug.title()),
+            "count": count,
+            "percent": round((count / type_total) * 100),
+        })
+    type_summary.sort(key=lambda item: item["count"], reverse=True)
+
+    waitlist_count = WaitlistItem.query.filter(WaitlistItem.user_id == user.id).count()
+
+    return {
+        "summary": summary,
+        "upcoming_events": upcoming_payload,
+        "type_summary": type_summary,
+        "waitlist_count": waitlist_count,
+    }
+
+
 @app.route('/agenda', methods=['GET'], endpoint='agenda')
 @login_required
 def agenda_view():
+    user = current_user()
+    snapshot = build_agenda_snapshot(user)
+
     try:
-        return render_template('agenda.html')
+        return render_template(
+            'agenda.html',
+            summary=snapshot["summary"],
+            upcoming_events=snapshot["upcoming_events"],
+            type_summary=snapshot["type_summary"],
+            waitlist_count=snapshot["waitlist_count"],
+        )
     except TemplateNotFound:
         return """
         <!doctype html><meta charset="utf-8">
@@ -2092,6 +2194,13 @@ def agenda_view():
         <p>Crie o template <code>templates/agenda.html</code>.</p>
         <p><a href="{0}">Voltar</a></p>
         """.format(url_for('index'))
+
+
+@app.route('/api/agenda_snapshot', methods=['GET'])
+@login_required
+def api_agenda_snapshot():
+    snapshot = build_agenda_snapshot(current_user())
+    return jsonify(snapshot)
 
 # ------------------------------------------------------------------------------
 # Agenda (API)  ✅ corrigida p/ ISO com 'Z' e DELETE
@@ -2120,6 +2229,14 @@ def _parse_iso_to_naive_utc(s: str) -> Optional[datetime]:
     return dt
 
 
+def _coerce_to_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "on", "yes", "sim"}
+    return bool(value)
+
+
 @app.route('/api/events', methods=['GET'])
 @login_required
 def api_events():
@@ -2140,22 +2257,45 @@ def api_events():
     if end_dt:
         q = q.filter(AgendaEvent.start <= end_dt)
 
+    types_param = (request.args.get('types') or '').strip()
+    if types_param:
+        type_values = [t.strip().lower() for t in types_param.split(',') if t.strip()]
+        if type_values:
+            q = q.filter(func.lower(AgendaEvent.type).in_(type_values))
+
+    search_term = (request.args.get('search') or '').strip()
+    if search_term:
+        like_pattern = f"%{search_term}%"
+        q = q.filter(or_(
+            AgendaEvent.title.ilike(like_pattern),
+            AgendaEvent.notes.ilike(like_pattern),
+            AgendaEvent.insurer.ilike(like_pattern),
+            AgendaEvent.billing.ilike(like_pattern)
+        ))
+
     events: list[dict[str, Any]] = []
 
     # Eventos da Agenda
     for e in q.all():
+        type_slug = (getattr(e, "type", "") or "consulta").lower()
+        class_names = []
+        if type_slug == "bloqueio":
+            class_names.append("holiday-event")
+        class_names.append(f"event-type-{type_slug}")
         events.append({
             "id": getattr(e, "id", None),
             "title": e.title or "Evento",
             "start": e.start.isoformat() if e.start else None,
             "end":   e.end.isoformat()   if e.end   else None,
             "allDay": False,
-            "className": "holiday-event" if ((e.type or "").lower() == "bloqueio") else "patient-event",
+            "className": " ".join(class_names),
             "extendedProps": {
                 "notes": getattr(e, "notes", None),
                 "type": getattr(e, "type", None),
                 "billing": getattr(e, "billing", None),
                 "insurer": getattr(e, "insurer", None),
+                "phone": getattr(e, "phone", None),
+                "send_reminders": bool(getattr(e, "send_reminders", False)),
             },
         })
 
@@ -2182,6 +2322,10 @@ def api_add_event():
     type_   = (data.get('type') or 'consulta').strip().lower()
     billing = (data.get('billing') or 'particular').strip().lower()
     insurer = (data.get('insurer') or '').strip()
+    send_reminders = _coerce_to_bool(data.get('send_reminders'))
+
+    if type_ == 'bloqueio':
+        send_reminders = False
 
     if not title or not start_s:
         return jsonify(success=False, error="Título e data/hora são obrigatórios."), 400
@@ -2197,56 +2341,20 @@ def api_add_event():
     ev = AgendaEvent(
         user_id=u.id,
         title=title,
+        phone=phone,
         start=start_dt,
         end=end_dt,
         notes=notes or None,
         type=type_ or None,
         billing=billing or None,
         insurer=insurer or None,
+        send_reminders=send_reminders,
     )
     db.session.add(ev)
     db.session.commit()
 
-    # === WhatsApp lembretes ===
-    from app import schedule_whatsapp_job  # garante o scheduler
-
-    # Dados do lembrete
-    patient_name = title
-    clinic_name = u.username or "Clínica"
-    date_str = start_dt.strftime("%d/%m/%Y")
-    time_start = start_dt.strftime("%H:%M")
-    time_end = end_dt.strftime("%H:%M") if end_dt else time_start
-
-    # Médico: no mesmo dia
-    if u.clinic_phone:
-        schedule_whatsapp_job(
-            func=send_reminder_doctor,
-            run_at=start_dt.replace(hour=8, minute=0),
-            kwargs={
-                "doctor_phone": u.clinic_phone,
-                "patient_name": patient_name,
-                "clinic_name": clinic_name,
-                "date_str": date_str,
-                "time_start": time_start,
-                "time_end": time_end
-            }
-        )
-
-    # Paciente: um dia antes
-    if phone:
-        remind_time = (start_dt - timedelta(days=1)).replace(hour=8, minute=0)
-        schedule_whatsapp_job(
-            func=send_reminder_patient,
-            run_at=remind_time,
-            kwargs={
-                "patient_phone": phone,
-                "patient_name": patient_name,
-                "clinic_name": clinic_name,
-                "date_str": date_str,
-                "time_start": time_start,
-                "time_end": time_end
-            }
-        )
+    if send_reminders:
+        _schedule_event_reminders(u, ev)
 
     return jsonify(success=True, event_id=ev.id), 201
 
@@ -2255,7 +2363,59 @@ scheduler.start()
 
 def schedule_whatsapp_job(func, run_at, kwargs):
     """Agenda o envio de mensagens no horário correto."""
+    if run_at is None:
+        return
+    now = datetime.utcnow()
+    if run_at <= now:
+        run_at = now + timedelta(minutes=1)
     scheduler.add_job(func, 'date', run_date=run_at, kwargs=kwargs)
+
+
+def _schedule_event_reminders(user: 'User', event: AgendaEvent) -> None:
+    if not getattr(event, "send_reminders", False):
+        return
+    start_dt = getattr(event, "start", None)
+    if not start_dt:
+        return
+
+    end_dt = getattr(event, "end", None) or (start_dt + timedelta(hours=1))
+    clinic_name = user.username or user.name or "Clínica"
+    patient_name = event.title or "Paciente"
+
+    date_str = start_dt.strftime("%d/%m/%Y")
+    time_start = start_dt.strftime("%H:%M")
+    time_end = end_dt.strftime("%H:%M") if end_dt else time_start
+
+    if user.clinic_phone:
+        doctor_run_at = start_dt.replace(hour=8, minute=0, second=0, microsecond=0)
+        schedule_whatsapp_job(
+            func=send_reminder_doctor,
+            run_at=doctor_run_at,
+            kwargs={
+                "clinic_phone": user.clinic_phone,
+                "patient_name": patient_name,
+                "clinic_name": clinic_name,
+                "date_str": date_str,
+                "time_start": time_start,
+                "time_end": time_end,
+            },
+        )
+
+    patient_phone = getattr(event, "phone", None)
+    if patient_phone:
+        patient_run_at = (start_dt - timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
+        schedule_whatsapp_job(
+            func=send_reminder_patient,
+            run_at=patient_run_at,
+            kwargs={
+                "patient_phone": patient_phone,
+                "patient_name": patient_name,
+                "clinic_name": clinic_name,
+                "date_str": date_str,
+                "time_start": time_start,
+                "time_end": time_end,
+            },
+        )
 
 @app.route('/api/events', methods=['POST'])
 @login_required
@@ -2281,27 +2441,14 @@ def api_event_mutation(event_id: int):
         return jsonify(success=True)
 
     data = request.get_json(silent=True) or {}
+    should_schedule = False
 
     if 'start' in data:
         start_dt = _parse_iso_to_naive_utc((data.get('start') or '').strip())
         if not start_dt:
             return jsonify(success=False, error="Formato de data/hora inválido para 'start'."), 400
         ev.start = start_dt
-
-        # Reagendar lembretes
-        date_str = start_dt.strftime("%d/%m/%Y %H:%M")
-        if u.clinic_phone:
-            schedule_whatsapp_job(
-                func=send_reminder_doctor,
-                run_at=start_dt.replace(hour=9, minute=0),
-                kwargs={"doctor_phone": u.clinic_phone, "date_time": date_str}
-            )
-        if ev.phone:
-            schedule_whatsapp_job(
-                func=send_reminder_patient,
-                run_at=start_dt - timedelta(days=1),
-                kwargs={"patient_phone": ev.phone, "date_time": date_str}
-            )
+        should_schedule = True
 
     if 'end' in data:
         end_val = (data.get('end') or '').strip()
@@ -2313,11 +2460,25 @@ def api_event_mutation(event_id: int):
         else:
             ev.end = None
 
+    if 'send_reminders' in data:
+        ev.send_reminders = _coerce_to_bool(data.get('send_reminders'))
+        should_schedule = should_schedule or ev.send_reminders
+
     for key in ('title', 'notes', 'type', 'billing', 'insurer', 'phone'):
         if key in data:
-            setattr(ev, key, ((data.get(key) or '').strip() or None))
+            value = (data.get(key) or '').strip()
+            setattr(ev, key, (value or None))
+            if key in ('title', 'phone') and ev.send_reminders:
+                should_schedule = True
+
+    if (ev.type or '').lower() == 'bloqueio':
+        ev.send_reminders = False
 
     db.session.commit()
+
+    if ev.send_reminders and should_schedule:
+        _schedule_event_reminders(u, ev)
+
     return jsonify(success=True)
 
 # ------------------------------------------------------------------------------
