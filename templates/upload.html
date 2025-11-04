@@ -270,6 +270,16 @@
       box-shadow: var(--shadow);
     }
 
+    .btn-outline {
+      background: #fff;
+      color: var(--brand-blue-solid);
+    }
+
+    .btn-outline:hover {
+      background: #f8fafc;
+      color: var(--brand-blue-solid);
+    }
+
     .send-options label {
       display: flex;
       align-items: center;
@@ -436,8 +446,9 @@
           </div>
         </div>
 
-        <div style="text-align:center; margin-top:24px;">
-          <button type="submit" class="btn">Analisar</button>
+        <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <button type="submit" class="btn" name="use_ai" value="0">Analisar</button>
+          <button type="submit" class="btn btn-outline" name="use_ai" value="1">Analisar com IA</button>
         </div>
       </form>
     </div>
@@ -481,10 +492,16 @@
         }
       });
 
-      function handleFormSubmit() {
+      function handleFormSubmit(event) {
         if (!fileInput.files.length) {
           alert("Selecione um PDF antes de enviar.");
           return false;
+        }
+        var submitter = event && event.submitter;
+        var useAi = submitter && submitter.name === 'use_ai' && submitter.value === '1';
+        var overlayText = overlay.querySelector('p');
+        if (overlayText) {
+          overlayText.textContent = useAi ? 'Analisando com IA ...' : 'Analisando PDF ...';
         }
         overlay.classList.add('active');
         return true;

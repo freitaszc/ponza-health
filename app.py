@@ -17,6 +17,10 @@ import requests
 from urllib.parse import urljoin
 from itsdangerous import URLSafeTimedSerializer, URLSafeSerializer, BadSignature, SignatureExpired
 from flask_mail import Mail, Message
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
+
 from prescription import (
     analyze_pdf,
     send_pdf_whatsapp_template,
@@ -25,8 +29,6 @@ from prescription import (
     send_reminder_patient,
     send_quote_whatsapp,
 )
-
-from dotenv import load_dotenv
 from flask import (
     Flask, Blueprint, render_template, request, redirect, url_for,
     session, flash, jsonify, abort, send_file, g, current_app, send_file, abort
@@ -48,7 +50,6 @@ from models import (
 # ------------------------------------------------------------------------------
 # Inicialização / Config
 # ------------------------------------------------------------------------------
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 app = Flask(__name__)
 
 if os.getenv("RENDER"):
@@ -1532,23 +1533,25 @@ def upload():
             notifications_unread=0
         )
 
+    use_ai = str(request.form.get('use_ai') or '').lower() in {'1', 'true', 'on', 'yes'}
+
     # ==========================================================
     # ENTRADA MANUAL
     # ==========================================================
     if request.form.get('manual_entry') == '1':
-        return _handle_manual_entry(request, u, analyze_pdf)
+        return _handle_manual_entry(request, u, analyze_pdf, use_ai=use_ai)
 
     # ==========================================================
     # UPLOAD DE PDF
     # ==========================================================
-    return _handle_pdf_upload(request, u, analyze_pdf)
+    return _handle_pdf_upload(request, u, analyze_pdf, use_ai=use_ai)
 
 
 # =====================================================================
 # Helpers internos para manter a rota enxuta
 # =====================================================================
 
-def _handle_manual_entry(request, u, analyze_pdf):
+def _handle_manual_entry(request, u, analyze_pdf, *, use_ai=False):
     """Processa inserção manual de resultados."""
     name          = (request.form.get('name') or '').strip()
     age           = (request.form.get('age') or '').strip()
@@ -1577,7 +1580,8 @@ def _handle_manual_entry(request, u, analyze_pdf):
             'age': age,
             'gender': gender,
             'phone': phone,
-        }
+        },
+        use_ai=use_ai,
     )
 
     p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
@@ -1607,7 +1611,7 @@ def _handle_manual_entry(request, u, analyze_pdf):
 
     return redirect(url_for('result', patient_id=p.id))
 
-def _handle_pdf_upload(request, u, analyze_pdf):
+def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
     """Processa upload de arquivo PDF, analisa e envia relatórios via WhatsApp."""
     import tempfile
     from prescription import send_pdf_whatsapp_template, send_pdf_whatsapp_patient
@@ -1672,7 +1676,8 @@ def _handle_pdf_upload(request, u, analyze_pdf):
             'age': manual_age,
             'gender': manual_gender,
             'phone': manual_phone,
-        }
+        },
+        use_ai=use_ai,
     )
     os.remove(tmp)
 

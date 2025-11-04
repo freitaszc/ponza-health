@@ -4,8 +4,9 @@ import json
 import requests
 import fitz
 import string
+import unicodedata
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from urllib.parse import urljoin
 from flask import current_app, url_for
 from itsdangerous import URLSafeSerializer
@@ -81,8 +82,14 @@ def _is_plausible_name(name: str) -> bool:
 # =============== VARIÁVEIS GLOBAIS ====================
 # ======================================================
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = (os.getenv("OPENAI_API_KEY") or "").strip()
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_PROJECT = (os.getenv("OPENAI_PROJECT") or "").strip()
+OPENAI_ORGANIZATION = (
+    os.getenv("OPENAI_ORGANIZATION")
+    or os.getenv("OPENAI_ORG")
+    or ""
+).strip()
 
 WHATSAPP_API_URL = "https://graph.facebook.com/v18.0"
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
@@ -92,6 +99,20 @@ ADMIN_WHATSAPP = os.getenv("ADMIN_WHATSAPP", "").strip()
 # ======================================================
 # =============== PDF PARSING ===========================
 # ======================================================
+
+
+def _openai_headers() -> Dict[str, str]:
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY não configurada.")
+    headers: Dict[str, str] = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    if OPENAI_PROJECT:
+        headers["OpenAI-Project"] = OPENAI_PROJECT
+    if OPENAI_ORGANIZATION:
+        headers["OpenAI-Organization"] = OPENAI_ORGANIZATION
+    return headers
 
 def _collapse_spaced_capitals(s: str) -> str:
     def repl(match: re.Match) -> str:
@@ -257,10 +278,10 @@ def read_pdf(file_path):
     """Lê PDF com PyMuPDF (fitz), preservando layout e corrigindo fragmentação de caracteres sem remover espaços entre palavras."""
     try:
         text = ""
-        with fitz.open(file_path) as doc:
+        with fitz.open(file_path) as doc:  # type: ignore[attr-defined]
             for page in doc:
                 # Pega blocos de texto em ordem de leitura
-                blocks = [b[4] for b in page.get_text("blocks")]
+                blocks = [b[4] for b in page.get_text("blocks")]  # type: ignore[attr-defined]
                 page_text = "\n".join(blocks)
 
                 # Remove múltiplos espaços e colapsa apenas letras isoladas com espaços
@@ -302,6 +323,237 @@ def parse_min_max(ideal_text):
         return None, None
     except:
         return None, None
+
+
+def _normalize_for_matching(text: str) -> str:
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFKD", text)
+    stripped = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    stripped = stripped.replace("•", "").replace("·", "")
+    cleaned = re.sub(r"[-_/]", " ", stripped)
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    cleaned = re.sub(r"(?<=\w)\s+(?=\d)", "", cleaned)
+    return cleaned.lower().strip()
+
+
+_NUMERIC_PATTERN = re.compile(
+    r"(?<![A-Za-z])[<>≈≤≥]?\s*(\d+(?:[.,]\d{1,4})?|\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,4})?)(?![A-Za-z])"
+)
+
+
+_GENERIC_SYNONYM_TOKENS = {
+    "vitamina",
+    "total",
+    "resultado",
+    "serico",
+    "serum",
+    "soro",
+    "plasma",
+}
+
+
+def _extract_numeric_tokens(text: str, start_offset: int = 0) -> List[tuple[str, int, int]]:
+    if not text:
+        return []
+    matches: List[tuple[str, int, int]] = []
+    for match in _NUMERIC_PATTERN.finditer(text):
+        token = match.group(0).strip()
+        matches.append((token, start_offset + match.start(), start_offset + match.end()))
+    return matches
+
+
+def _is_range_token(text: str, start: int, end: int) -> bool:
+    window = text[max(0, start - 5):min(len(text), end + 10)].lower()
+    if re.search(r"\d[\d.,]*\s*(?:a|ate|-|–|—)\s*\d", window):
+        return True
+    markers = ('entre ', 'de ', 'inferior a', 'superior a', 'até ', 'ate ', 'até o', 'ate o')
+    snippet_before = text[max(0, start - 15):start].lower()
+    snippet_after = text[end:end + 15].lower()
+    has_numbers_before = any(ch.isdigit() for ch in snippet_before)
+    has_numbers_after = any(ch.isdigit() for ch in snippet_after)
+    if has_numbers_before and any(marker in snippet_before for marker in markers):
+        return True
+    if has_numbers_after and any(marker in snippet_after for marker in markers):
+        return True
+    return False
+
+
+def _has_unit_suffix(text: str, end: int) -> bool:
+    unit_segment_raw = text[end:end + 20]
+    unit_segment = unit_segment_raw.lower()
+    percent_pos = unit_segment.find('%')
+    units = ['mg/dl', 'g/dl', 'ng/ml', 'pg', 'fl', 'mm³', 'mm3', '/mm', 'µui', 'ui/ml', 'u/ml', 'u/l',
+             'mmol', 'meq', 'mcg', 'ng/dl', 'g/l', 'mg/l', 'mm/h', 'µg']
+    for unit in units:
+        pos = unit_segment.find(unit)
+        if pos == -1:
+            continue
+        if percent_pos != -1 and percent_pos < pos:
+            continue
+        if pos <= 6:
+            return True
+    return False
+
+
+def _is_percentage_token(text: str, start: int, end: int) -> bool:
+    around = text[max(0, start - 2):min(len(text), end + 2)]
+    return '%' in around
+
+
+def _is_date_or_time_fragment(text: str, start: int, end: int) -> bool:
+    if start > 0 and text[start - 1] == '/':
+        prev_char = text[start - 2:start - 1]
+        if prev_char.isdigit():
+            return True
+    if end < len(text) and text[end:end + 1] == '/':
+        next_char = text[end + 1:end + 2]
+        if next_char.isdigit():
+            return True
+    if start > 0 and text[start - 1] == ':':
+        prev_char = text[start - 2:start - 1]
+        if prev_char.isdigit():
+            return True
+    if end < len(text) and text[end:end + 1] == ':':
+        next_char = text[end + 1:end + 2]
+        if next_char.isdigit():
+            return True
+    return False
+
+
+def _select_numeric_candidate(
+    text: str,
+    candidates: List[tuple[str, int, int]],
+    prefer_after: Optional[int] = None,
+) -> Optional[float]:
+    if not candidates:
+        return None
+    best_value: Optional[float] = None
+    best_score = float('-1e9')
+    for token, start, end in candidates:
+        value = _convert_numeric_token(token)
+        if value is None:
+            continue
+        score = 0.0
+        if prefer_after is not None:
+            if start >= prefer_after:
+                score += 1.5
+            else:
+                score -= 0.5
+        if not _is_range_token(text, start, end):
+            score += 2.0
+        else:
+            score -= 2.5
+        if _has_unit_suffix(text, end):
+            score += 2.0
+        if _is_percentage_token(text, start, end):
+            score -= 2.5
+        if _is_date_or_time_fragment(text, start, end):
+            continue
+        if ',' in token or '.' in token:
+            score += 0.02
+        score -= start * 0.0001
+        if score > best_score:
+            best_score = score
+            best_value = value
+    return best_value
+
+
+def _convert_numeric_token(token: str) -> Optional[float]:
+    if not token:
+        return None
+    cleaned = token.lstrip("<>=≈≤≥~").strip()
+    cleaned = cleaned.replace(" ", "")
+    if "," in cleaned:
+        normalized = cleaned.replace(".", "").replace(",", ".")
+    else:
+        normalized = cleaned.replace(".", "")
+    try:
+        return float(normalized)
+    except ValueError:
+        return None
+
+
+def _contains_token(haystack: str, token: str) -> bool:
+    if not token:
+        return False
+    pattern = rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])"
+    return re.search(pattern, haystack) is not None
+
+
+def _extract_value_from_context(context_lines: List[str], matched_synonym: str = "") -> tuple[Optional[float], str]:
+    if not context_lines:
+        return None, ""
+
+    normalized_context = [_normalize_for_matching(line) for line in context_lines]
+    reference_markers = ("valores", "referenc", "faixa", "interval", "limite")
+
+    for idx, (raw_line, norm_line) in enumerate(zip(context_lines, normalized_context)):
+        if "resultado" in norm_line:
+            segment = [raw_line]
+            if idx + 1 < len(context_lines):
+                segment.append(context_lines[idx + 1])
+            segment_text = " ".join(segment)
+            segment_lower = segment_text.lower()
+            keyword = "resultado"
+            prefer_after = None
+            if keyword in segment_lower:
+                prefer_after = segment_lower.index(keyword) + len(keyword)
+            candidates = _extract_numeric_tokens(segment_text)
+            value = _select_numeric_candidate(segment_text, candidates, prefer_after=prefer_after)
+            if value is not None:
+                return value, segment_text.strip()
+
+    match_start = 0
+    if matched_synonym:
+        for idx, norm_line in enumerate(normalized_context):
+            if matched_synonym in norm_line:
+                match_start = idx
+                break
+
+    data_start_idx = match_start
+    if matched_synonym:
+        for idx in range(match_start, len(context_lines)):
+            norm_line_full = normalized_context[idx]
+            if matched_synonym not in norm_line_full:
+                continue
+            line_text = context_lines[idx]
+            tokens_line = _extract_numeric_tokens(line_text)
+            has_value_token = any(
+                not _is_date_or_time_fragment(line_text, start_pos, end_pos)
+                for _, start_pos, end_pos in tokens_line
+            )
+            if has_value_token:
+                data_start_idx = idx
+                break
+    effective_lines = context_lines[data_start_idx:]
+    effective_norm = normalized_context[data_start_idx:]
+
+    filtered: List[str] = []
+    for raw_line, norm_line in zip(effective_lines, effective_norm):
+        if any(marker in norm_line for marker in reference_markers):
+            continue
+        filtered.append(raw_line)
+        if len(filtered) >= 3:
+            break
+
+    if not filtered:
+        filtered = context_lines[:3]
+
+    combined_text = " ".join(filtered)
+    candidates = _extract_numeric_tokens(combined_text)
+    value = _select_numeric_candidate(combined_text, candidates)
+    if value is not None:
+        return value, combined_text.strip()
+
+    primary_line = context_lines[0]
+    primary_candidates = _extract_numeric_tokens(primary_line)
+    value_primary = _select_numeric_candidate(primary_line, primary_candidates)
+    if value_primary is not None:
+        snippet = " ".join(context_lines[:2]).strip()
+        return value_primary, snippet or primary_line.strip()
+
+    return None, " ".join(context_lines[:3]).strip()
 
 
 def _extract_json_object(text: str) -> Optional[str]:
@@ -487,10 +739,7 @@ Informações extraídas inicialmente:
 
         response = requests.post(
             OPENAI_API_URL,
-            headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json"
-            },
+            headers=_openai_headers(),
             json={
                 "model": "gpt-4o-mini",
                 "messages": [{"role": "user", "content": prompt}],
@@ -543,7 +792,7 @@ Informações extraídas inicialmente:
                         )
                         resp2 = requests.post(
                             OPENAI_API_URL,
-                            headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+                            headers=_openai_headers(),
                             json={"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt_nome}], "temperature": 0},
                             timeout=30,
                         )
@@ -618,17 +867,23 @@ def ai_refine_results(raw_text: str, initial_results: dict) -> dict:
     try:
         response = requests.post(
             OPENAI_API_URL,
-            headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
+            headers=_openai_headers(),
             json={"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt}], "temperature": 0},
             timeout=25,
         )
+        if response.status_code >= 400:
+            snippet = response.text[:200]
+            print(f"[AI refine error] status {response.status_code}: {snippet}")
+            return initial_results
         data = response.json()
         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         json_text = _extract_json_object(content)
         if not json_text:
+            print("[AI refine] Resposta sem JSON utilizável; mantendo resultados originais.")
             return initial_results
         corrected = json.loads(json_text)
         if not isinstance(corrected, dict):
+            print("[AI refine] Estrutura JSON inesperada; mantendo resultados originais.")
             return initial_results
 
         # Função auxiliar para extrair número de uma string
@@ -648,17 +903,21 @@ def ai_refine_results(raw_text: str, initial_results: dict) -> dict:
             return None
 
         merged = dict(initial_results)
+        updated_keys = []
         for key, base in initial_results.items():
             corr = corrected.get(key)
             if not corr:
                 continue
             # Cria nova cópia do dicionário base
             new = dict(base)
+            base_val = base.get("value") if isinstance(base, dict) else None
             # Tenta extrair value de várias formas
             if isinstance(corr, dict) and "value" in corr:
                 new_val = _parse_number(corr.get("value"))
                 if new_val is not None:
                     new["value"] = new_val
+                    if new_val != base_val:
+                        updated_keys.append(key)
                 # atualiza linha se fornecida
                 if corr.get("line"):
                     new["line"] = corr.get("line")
@@ -670,8 +929,18 @@ def ai_refine_results(raw_text: str, initial_results: dict) -> dict:
                 new_val = _parse_number(corr)
                 if new_val is not None:
                     new["value"] = new_val
+                    if new_val != base_val:
+                        updated_keys.append(key)
 
             merged[key] = new
+
+        if updated_keys:
+            short_list = ", ".join(updated_keys[:10])
+            if len(updated_keys) > 10:
+                short_list += ", ..."
+            print(f"[AI refine] Valores ajustados para: {short_list}")
+        else:
+            print("[AI refine] Sem alterações aplicáveis identificadas.")
 
         return merged
     except Exception as e:
@@ -700,32 +969,38 @@ def ai_full_analysis(file_path: str, references_path: str):
         raise ValueError("Falha ao ler referências JSON.")
 
     prompt = f"""
-You are a licensed medical assistant AI.
-You will receive a laboratory report (Portuguese) and JSON with reference ranges.
-Identify each test and numeric value.
-Ignore any date-like values (e.g., 12/05/2024).
-Compare results with reference ranges and produce a summary.
+Você é uma IA médica especializada em análise de exames laboratoriais em português.
+Siga rigorosamente as etapas abaixo antes de responder:
 
-Output format (strict JSON):
+1. Leia o texto do laudo e identifique todas as seções numéricas (tabelas, listas e linhas) onde haja valores para exames.
+2. Para CADA exame presente nas chaves do JSON de referência, procure explicitamente no laudo o valor correspondente. Considere que os valores podem usar vírgula como separador decimal e podem estar acompanhados das unidades.
+3. Quando encontrar múltiplos valores para o mesmo exame, escolha o mais recente e relacionado ao paciente atual. Se não localizar um exame, registre mentalmente que ele está ausente.
+4. Compare cada valor encontrado com a faixa "ideal" informada no JSON (quando houver). Determine se o resultado está "baixo", "normal" ou "alto" em relação à faixa.
+5. Utilize essas classificações para embasar o diagnóstico e as recomendações terapêuticas. Não invente valores: baseie-se apenas no que está no laudo.
+
+Responda EXCLUSIVAMENTE no formato JSON a seguir (sem texto adicional):
 {{
-  "diagnosis": "Resumo médico em português",
-  "prescription": "Lista de suplementos/recomendações"
+    "diagnosis": "Resumo clínico sintético em português, mencionando os exames alterados com seus valores reais e a faixa de referência",
+    "prescription": "Lista objetiva de condutas, suplementos ou ajustes sugeridos, coerente com os achados"
 }}
 
-LAB REPORT:
+LAUDO (texto truncado a 6000 caracteres):
 {raw_text[:6000]}
 
-REFERENCE VALUES JSON:
+VALORES DE REFERÊNCIA (JSON truncado a 6000 caracteres):
 {json.dumps(references, ensure_ascii=False)[:6000]}
 """
 
     try:
         response = requests.post(
             OPENAI_API_URL,
-            headers={"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"},
-            json={"model": "gpt-4o-mini", "messages": [{"role": "user", "content": prompt}], "temperature": 0},
+            headers=_openai_headers(),
+            json={"model": "gpt-4o", "messages": [{"role": "user", "content": prompt}], "temperature": 0},
             timeout=60,
         )
+        if response.status_code >= 400:
+            snippet = response.text[:200]
+            raise RuntimeError(f"status {response.status_code}: {snippet}")
         data = response.json()
         content = data["choices"][0]["message"]["content"]
         match = re.search(r"\{.*\}", content, re.S)
@@ -742,44 +1017,70 @@ REFERENCE VALUES JSON:
 # ======================================================
 def scan_results(lines, references, gender):
     results = {}
-    normalized_lines = [line.lower() for line in lines]
+    normalized_lines = [_normalize_for_matching(line) for line in lines]
 
     for test_name, info in references.items():
-        synonyms = [s.lower() for s in info.get("synonyms", [])] + [test_name.lower()]
-        best_match = None
-        best_index = -1  # ← garante que seja sempre int
+        raw_synonyms = info.get("synonyms", []) or []
+        synonyms = raw_synonyms + [test_name]
+        synonyms_normalized = []
+        for raw in synonyms:
+            normalized_syn = _normalize_for_matching(raw)
+            if not normalized_syn:
+                continue
+            tokens = [
+                tok
+                for tok in normalized_syn.split()
+                if len(tok) >= 3 and tok not in _GENERIC_SYNONYM_TOKENS and not tok.isdigit()
+            ]
+            synonyms_normalized.append((normalized_syn, tokens))
+        best_index = -1
+        matched_synonym = ""
 
-        for i, line in enumerate(normalized_lines):
-            for synonym in synonyms:
-                if synonym in line or get_close_matches(synonym, [line], cutoff=0.85):
-                    best_match = line
-                    best_index = i
+        for idx, norm_line in enumerate(normalized_lines):
+            for synonym, tokens in synonyms_normalized:
+                if not synonym or len(synonym) < 3:
+                    continue
+                if _contains_token(norm_line, synonym):
+                    best_index = idx
+                    matched_synonym = synonym
                     break
-            if best_match:
+                if tokens:
+                    hits = sum(1 for tok in tokens if _contains_token(norm_line, tok))
+                    if hits >= len(tokens):
+                        best_index = idx
+                        matched_synonym = synonym
+                        break
+            if best_index != -1:
                 break
 
         if best_index == -1:
             results[test_name] = {"value": None, "line": None, "ideal": None, "medications": []}
             continue
 
-        combined_line = lines[best_index]
-        if best_index + 1 < len(lines):
-            combined_line += " " + lines[best_index + 1]
-
-        # Ignora linhas que parecem datas
-        if re.search(r"\b\d{1,2}/\d{1,2}/\d{2,4}\b", combined_line):
-            results[test_name] = {"value": None, "line": combined_line, "ideal": None, "medications": []}
-            continue
-
-        m = re.search(r"([<>]?\s*\d+(?:[.,]\d{1,4})?)", combined_line)
         value = None
-        if m:
-            try:
-                value = float(m.group(1).replace(",", ".").replace(">", "").replace("<", "").strip())
-            except ValueError:
-                value = None
+        context_snippet = ""
+        selected_context: List[str] = []
+        for window in (4, 8, 10):
+            context_lines = lines[best_index: min(len(lines), best_index + window)]
+            if not context_lines:
+                continue
+            val, snippet = _extract_value_from_context(context_lines, matched_synonym)
+            if not selected_context:
+                selected_context = context_lines
+                context_snippet = snippet
+            if val is not None:
+                value = val
+                context_snippet = snippet
+                selected_context = context_lines
+                break
 
-        ideal = info.get("ideal", {}).get(gender) if isinstance(info.get("ideal"), dict) else info.get("ideal")
+        if not selected_context:
+            selected_context = lines[best_index: min(len(lines), best_index + 4)]
+
+        combined_line = context_snippet or (selected_context[0] if selected_context else "")
+
+        ideal_field = info.get("ideal")
+        ideal = ideal_field.get(gender) if isinstance(ideal_field, dict) else ideal_field
         min_val, max_val = parse_min_max(str(ideal))
         meds = []
         if value is not None and min_val is not None:
@@ -790,7 +1091,7 @@ def scan_results(lines, references, gender):
 
         results[test_name] = {
             "value": value,
-            "line": combined_line.strip(),
+            "line": combined_line.strip() or None,
             "ideal": ideal,
             "medications": meds,
         }
@@ -858,7 +1159,13 @@ def _normalize_patient_gender(value: str) -> str:
     return token.title()
 
 
-def analyze_pdf(source, references_path="json/references.json", manual=False, manual_overrides=None):
+def analyze_pdf(
+    source,
+    references_path="json/references.json",
+    manual=False,
+    manual_overrides=None,
+    use_ai=False,
+):
     """
     Analisa o PDF e retorna diagnóstico, prescrição e dados do paciente.
     Inclui data de nascimento detectada pelo extrator.
@@ -886,6 +1193,9 @@ def analyze_pdf(source, references_path="json/references.json", manual=False, ma
                 age_int = int(age_val.strip())
             except ValueError:
                 age_int = 0
+        if use_ai:
+            note = "[AI] Modo IA indisponível para entrada manual."
+            diagnosis = f"{note}\n\n{diagnosis}" if diagnosis else note
         return diagnosis, prescriptions, name, gender, age_int, "", phone, "", ""
 
     lines = read_pdf(source)
@@ -927,21 +1237,55 @@ def analyze_pdf(source, references_path="json/references.json", manual=False, ma
             except ValueError:
                 pass
 
+    ai_messages: List[str] = []
+
     # Correção de resultados via IA
     results = scan_results(lines, references, gender)
-    results = ai_refine_results(raw_text, results)
+    if use_ai:
+        if not OPENAI_API_KEY:
+            msg = "[AI] OPENAI_API_KEY não configurada; ignorando recursos de IA."
+            print(msg)
+            ai_messages.append(msg)
+        else:
+            baseline = json.dumps(results, ensure_ascii=False, sort_keys=True)
+            refined = ai_refine_results(raw_text, results)
+            refined_snapshot = json.dumps(refined, ensure_ascii=False, sort_keys=True)
+            if refined_snapshot != baseline:
+                msg = "[AI] Correções aplicadas aos valores numéricos extraídos."
+                print(msg)
+                ai_messages.append(msg)
+            else:
+                msg = "[AI] Nenhuma correção numérica retornada pela IA."
+                print(msg)
+                ai_messages.append(msg)
+            results = refined
 
     # Diagnóstico e prescrição
     diagnosis, prescriptions = build_diagnosis_and_prescriptions(results)
 
-    # Se prescrição vier vazia, tenta IA completa
-    if not prescriptions.strip() and OPENAI_API_KEY:
+    # Usa IA completa quando solicitado
+    if use_ai and OPENAI_API_KEY:
         try:
-            ai_dgn, ai_rx = ai_full_analysis(source, references_path)
-            if ai_dgn: diagnosis += "\n\n" + ai_dgn
-            if ai_rx: prescriptions = (prescriptions + "\n" + ai_rx).strip()
+            ai_source = source if isinstance(source, (str, os.PathLike)) else None
+            if ai_source is None:
+                raise ValueError("AI full analysis requer caminho de arquivo.")
+            ai_dgn, ai_rx = ai_full_analysis(str(ai_source), references_path)
+            if ai_dgn:
+                diagnosis = ai_dgn
+            if ai_rx:
+                prescriptions = ai_rx
+            ai_messages.append("[AI] Diagnóstico e prescrição gerados pela IA.")
         except Exception as e:
-            print(f"[AI full analysis fallback error] {e}")
+            err_msg = f"[AI] Falha na análise completa: {e}"
+            print(err_msg)
+            ai_messages.append(err_msg)
+
+    if ai_messages and use_ai:
+        header = "\n".join(ai_messages).strip()
+        if diagnosis:
+            diagnosis = f"{header}\n\n{diagnosis}"
+        else:
+            diagnosis = header
 
     return diagnosis, prescriptions, name, gender, age, cpf, phone, doctor, birth_date
 

@@ -167,7 +167,13 @@
           }
         ],
         "high": ""
-      }
+      },
+      "synonyms": [
+        "25 hidroxivitamina d",
+        "25 oh vitamina d",
+        "vitamina d 25 hidroxi",
+        "25 hidroxi vitamina d"
+      ]
     },
     "1,25-dihidroxi D3": {
       "ideal": "1 a 1,5 × valor 25(OH)D3",
@@ -1047,7 +1053,7 @@
       ]
     },
     "Coenzima Q10": {
-      "ideal": "> 1 mg/L",
+      "ideal": "0,831-1,588",
       "medications": {
         "low": "",
         "high": [
@@ -1060,7 +1066,7 @@
       }
     },
     "Bilirrubina Total": {
-      "ideal": "máximo 1,2 mg/dL",
+      "ideal": "< ;1,2 mg/dL",
       "medications": {
         "low": "",
         "high": ""
@@ -1544,7 +1550,7 @@
       }
     },
     "Vitamina B12": {
-      "ideal": "500-900 ng/L",
+      "ideal": "6,428-21,396",
       "medications": {
         "low": [
           {
@@ -2193,5 +2199,335 @@
         "low": "",
         "high": ""
       }
+    },
+    "Cálcio": {
+      "ideal": "1,219-3,021",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "calcio"
+      ]
+    },
+    "Ferro": {
+      "ideal": "1,151-1,847",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "ferro"
+      ]
+    },
+    "Zinco": {
+      "ideal": "1,143-1,989",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "zinco"
+      ]
+    },
+    "Selênio": {
+      "ideal": "0,847-2,045",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "selenio"
+      ]
+    },
+    "Fósforo": {
+      "ideal": "1,195-2,134",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "fosforo"
+      ]
+    },
+    "Potássio": {
+      "ideal": "0,689-0,987",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "potassio"
+      ]
+    },
+    "Magnésio": {
+      "ideal": "0,568-0,992",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "magnesio"
+      ]
+    },
+    "Cobre": {
+      "ideal": "0,474-0,749",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "cobre"
+      ]
+    },
+    "Cobalto": {
+      "ideal": "2,326-5,531",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "cobalto"
+      ]
+    },
+    "Manganês": {
+      "ideal": "0,497-0,879",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "manganes"
+      ]
+    },
+    "Iodo": {
+      "ideal": "1,421-5,490",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "iodo"
+      ]
+    },
+    "Níquel": {
+      "ideal": "2,462-5,753",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "niquel"
+      ]
+    },
+    "Flúor": {
+      "ideal": "1,954-4,543",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "fluor"
+      ]
+    },
+    "Molibdênio": {
+      "ideal": "0,938-1,712",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "molibdenio"
+      ]
+    },
+    "Vanádio": {
+      "ideal": "1,019-3,721",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vanadio"
+      ]
+    },
+    "Estanho": {
+      "ideal": "1,023-7,627",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "estanho"
+      ]
+    },
+    "Silício": {
+      "ideal": "1,425-5,872",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "silicio"
+      ]
+    },
+    "Estrôncio": {
+      "ideal": "1,142-5,862",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "estroncio"
+      ]
+    },
+    "Boro": {
+      "ideal": "1,124-3,453",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "boro"
+      ]
+    },
+    "Nicotinamida": {
+      "ideal": "2,074-3,309",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "nicotinamida"
+      ]
+    },
+    "Biotina": {
+      "ideal": "1,833-2,979",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "biotina"
+      ]
+    },
+    "Ácido pantotênico": {
+      "ideal": "1,116-2,101",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "acido pantotenico"
+      ]
+    },
+    "Ácido fólico": {
+      "ideal": "1,449-2,246",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "acido folico"
+      ]
+    },
+    "Glutationa": {
+      "ideal": "0,726-1,281",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "glutationa"
+      ]
+    },
+    "Vitamina A": {
+      "ideal": "0,346-0,401",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina a"
+      ]
+    },
+    "Vitamina B1": {
+      "ideal": "2,124-4,192",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina b1"
+      ]
+    },
+    "Vitamina B2": {
+      "ideal": "1,549-2,213",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina b2"
+      ]
+    },
+    "Vitamina B3": {
+      "ideal": "14,477-21,348",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina b3"
+      ]
+    },
+    "Vitamina B6": {
+      "ideal": "0,824-1,942",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina b6"
+      ]
+    },
+    "Vitamina C": {
+      "ideal": "4,543-5,023",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina c"
+      ]
+    },
+    "Vitamina D3": {
+      "ideal": "5,327-7,109",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina d3"
+      ]
+    },
+    "Vitamina E": {
+      "ideal": "4,826-6,013",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina e"
+      ]
+    },
+    "Vitamina K": {
+      "ideal": "0,717-1,486",
+      "medications": {
+        "low": "",
+        "high": ""
+      },
+      "synonyms": [
+        "vitamina k"
+      ]
     }
   }
