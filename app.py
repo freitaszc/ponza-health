@@ -136,6 +136,14 @@ app.config.update(
 )
 mail = Mail(app)
 
+
+def wants_json_response() -> bool:
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    accept = request.accept_mimetypes
+    return accept['application/json'] >= accept['text/html']
+
+
 # Serializer para tokens
 ts = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
@@ -2826,9 +2834,21 @@ def delete_patient(patient_id):
     if p.user_id != u.id:
         abort(403)
 
-    Consult.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
-    db.session.delete(p)
-    db.session.commit()
+    try:
+        Consult.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
+        db.session.delete(p)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        message = f'Falha ao remover paciente: {exc}'
+        if wants_json_response():
+            return jsonify(success=False, message=message), 500
+        flash(message, 'warning')
+        return redirect(url_for('catalog'))
+
+    if wants_json_response():
+        return jsonify(success=True)
+
     flash('Paciente removido.', 'info')
     return redirect(url_for('catalog'))
 
@@ -2845,7 +2865,19 @@ def toggle_patient_status(patient_id, new_status):
         abort(403)
 
     p.status = new_status
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        message = f'Falha ao alterar status: {exc}'
+        if wants_json_response():
+            return jsonify(success=False, message=message), 500
+        flash(message, 'warning')
+        return redirect(url_for('catalog'))
+
+    if wants_json_response():
+        return jsonify(success=True, status=p.status)
+
     return redirect(url_for('catalog'))
 
 
@@ -3772,10 +3804,18 @@ def delete_product(product_id):
     try:
         db.session.delete(p)
         db.session.commit()
-        flash('Produto removido.', 'info')
-    except Exception as e:
+    except Exception as exc:
         db.session.rollback()
-        flash(f'Falha ao remover: {e}', 'warning')
+        message = f'Falha ao remover: {exc}'
+        if wants_json_response() or request.is_json:
+            return jsonify(success=False, message=message), 500
+        flash(message, 'warning')
+        return redirect(url_for('products'))
+
+    if wants_json_response() or request.is_json:
+        return jsonify(success=True)
+
+    flash('Produto removido.', 'info')
     return redirect(url_for('products'))
 
 @app.route('/products/<int:product_id>/toggle-status', methods=['POST'], endpoint='toggle_product_status')
@@ -3810,13 +3850,16 @@ def toggle_product_status(product_id):
     p.status = new_status
     try:
         db.session.commit()
-    except Exception as e:
+    except Exception as exc:
         db.session.rollback()
-        flash(f'Falha ao alterar status: {e}', 'warning')
+        message = f'Falha ao alterar status: {exc}'
+        if wants_json_response() or request.is_json:
+            return jsonify(success=False, message=message), 500
+        flash(message, 'warning')
         return redirect(next_url)
 
-    if request.is_json:
-        return {'success': True, 'status': p.status}
+    if wants_json_response() or request.is_json:
+        return jsonify(success=True, status=p.status)
 
     flash(f'Status atualizado para {p.status}.', 'success')
     return redirect(next_url)

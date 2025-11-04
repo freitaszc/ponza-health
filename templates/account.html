@@ -40,15 +40,69 @@
       margin-bottom: 36px;
     }
 
+    .profile-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      text-align: center;
+    }
+
     .avatar {
       display: block;
       width: 110px;
       height: 110px;
       border-radius: 100%;
-      margin: 0 auto 8px;
       object-fit: cover;
       border: 3px solid #e2e8f0;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      margin: 0 auto;
+    }
+
+    .remove-photo-form {
+      display: flex;
+      align-items: center;
+      margin: 0;
+    }
+
+    .photo-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .photo-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .photo-button:hover,
+    .photo-button:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+      filter: brightness(1.02);
+      outline: none;
+    }
+
+    .photo-button.danger {
+      background: linear-gradient(135deg, #991b1b, #b91c1c);
+    }
+
+    .photo-button.danger:hover,
+    .photo-button.danger:focus-visible {
+      box-shadow: 0 6px 16px rgba(185, 28, 28, 0.25);
     }
 
     /* BOTÕES PADRÃO */
@@ -132,21 +186,8 @@
       min-width: 240px;
     }
 
-    /* ALTERAR FOTO DE PERFIL */
-    .change-photo {
-      display: block;
-      text-align: center;
-      font-size: 14px;
-      color: #1e293b;
-      cursor: pointer;
-      font-weight: 600;
-      margin-bottom: 10px;
-      transition: color 0.2s ease;
-    }
-
-    .change-photo:hover {
-      color: #1e293b;
-      text-decoration: underline;
+    .photo-button-label {
+      text-decoration: none;
     }
 
     /* MODAL */
@@ -279,9 +320,18 @@
     <!-- Informações pessoais -->
     <div class="panel">
       <h3>Informações Pessoais</h3>
-      <form method="post" enctype="multipart/form-data" action="{{ url_for('update_personal_info') }}">
+      <div class="profile-header">
         <img class="avatar" src="{{ img_url(user.profile_image or 'images/user-icon.png') }}" alt="Foto de Perfil" />
-        <label for="profile_image" class="change-photo">Alterar foto de perfil</label>
+        <div class="photo-actions">
+          <label for="profile_image" class="photo-button photo-button-label" role="button" tabindex="0">Alterar foto</label>
+          <form method="post" action="{{ url_for('remove_profile_image') }}" class="remove-photo-form"
+            onsubmit="return confirm('Tem certeza que deseja remover sua foto de perfil?')">
+            <button type="submit" class="photo-button danger">Remover foto</button>
+          </form>
+        </div>
+      </div>
+
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('update_personal_info') }}">
         <input type="file" id="profile_image" name="profile_image" accept="image/*" style="display:none;">
 
         <div class="row" style="margin-top:20px;">
@@ -315,17 +365,9 @@
 
         <div class="actions">
           <button type="submit" class="btn">Salvar Alterações</button>
+          <button type="button" class="btn-outline" onclick="openModal()">Gerenciar Assinatura</button>
         </div>
       </form>
-
-      <form method="post" action="{{ url_for('remove_profile_image') }}"
-        onsubmit="return confirm('Tem certeza que deseja remover sua foto de perfil?')" class="actions">
-        <button type="submit" class="btn-outline">Remover Foto</button>
-      </form>
-
-      <div class="actions" style="margin-top:28px;">
-        <button type="button" class="btn" onclick="openModal()">Gerenciar Assinatura</button>
-      </div>
     </div>
 
     <!-- Senha -->
@@ -399,6 +441,17 @@
     document.addEventListener('DOMContentLoaded', () => {
       if (localStorage.getItem('sidebarCollapsed') === '1') {
         document.getElementById('sidebar')?.classList.add('is-collapsed');
+      }
+
+      const photoLabel = document.querySelector('.photo-button-label');
+      const fileInput = document.getElementById('profile_image');
+      if (photoLabel && fileInput) {
+        photoLabel.addEventListener('keydown', (event) => {
+          if (event.key === ' ' || event.key === 'Enter') {
+            event.preventDefault();
+            fileInput.click();
+          }
+        });
       }
     });
   </script>

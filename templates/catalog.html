@@ -477,6 +477,11 @@
       background: rgba(220, 38, 38, .08)
     }
 
+    tr.is-removing {
+      opacity: .3;
+      transition: opacity .18s ease;
+    }
+
     /* Botões quadradinhos */
     .icon-square {
       width: 36px;
@@ -685,10 +690,12 @@
             <td>{{ patient.phone_primary or '—' }}</td>
             <td>{{ patient.doctor.name if patient.doctor else '—' }}</td>
             <td>
-              <form method="post" class="status-form"
-                action="{{ url_for('toggle_patient_status', patient_id=patient.id, new_status=('Inativo' if patient.status=='Ativo' else 'Ativo')) }}">
+              <form method="post" class="status-form js-patient-status"
+                action="{{ url_for('toggle_patient_status', patient_id=patient.id, new_status=('Inativo' if patient.status=='Ativo' else 'Ativo')) }}"
+                data-patient-id="{{ patient.id }}">
                 <button type="submit"
                   class="status-badge {{ 'is-active' if patient.status=='Ativo' else 'is-inactive' }}"
+                  data-status="{{ patient.status or 'Inativo' }}"
                   title="Clique para alternar para {{ 'Inativo' if patient.status=='Ativo' else 'Ativo' }}">
                   {{ patient.status }}
                 </button>
@@ -701,12 +708,12 @@
                   <div class="options-menu">
                     <a href="{{ url_for('patient_result', patient_id=patient.id) }}">Ver Diagnóstico</a>
                     <a href="{{ url_for('edit_patient', patient_id=patient.id) }}">Editar Informações</a>
-                    <a href="javascript:void(0);" onclick="openConsultationModal({{ patient.id }})">Adicionar
+                    <a href="javascript:void(0);" onclick="openConsultationModal('{{ patient.id }}')">Adicionar
                       Consulta</a>
                   </div>
                 </div>
                 <form method="post" action="{{ url_for('delete_patient', patient_id=patient.id) }}"
-                  onsubmit="return confirm('Deseja realmente remover este paciente?')" style="margin:0;">
+                  class="js-delete-patient" data-confirm="Deseja realmente remover este paciente?" style="margin:0;">
                   <button type="submit" class="icon-square danger" title="Remover Paciente"
                     aria-label="Remover Paciente">
                     <i class="fa fa-trash"></i>
@@ -772,6 +779,106 @@
           const m = c.querySelector('.options-menu');
           if (m) m.style.display = 'none';
         }
+      });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const statusForms = document.querySelectorAll('.js-patient-status');
+      statusForms.forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const button = form.querySelector('.status-badge');
+          if (!button) {
+            form.submit();
+            return;
+          }
+
+          const originalText = (button.textContent || '').trim();
+          button.disabled = true;
+          button.textContent = '...';
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+              },
+              body: new FormData(form)
+            });
+
+            if (!response.ok) {
+              throw new Error(`Status ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data?.success) {
+              throw new Error(data?.message || 'Erro desconhecido');
+            }
+
+            const newStatus = String(data.status || '').trim() || (originalText === 'Ativo' ? 'Inativo' : 'Ativo');
+            button.dataset.status = newStatus;
+            button.textContent = newStatus;
+            button.classList.toggle('is-active', newStatus === 'Ativo');
+            button.classList.toggle('is-inactive', newStatus !== 'Ativo');
+            const nextHint = newStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+            button.title = `Clique para alternar para ${nextHint}`;
+          } catch (error) {
+            console.error('[patient-status]', error);
+            button.textContent = originalText;
+            window.alert('Não foi possível atualizar o status. Tente novamente.');
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+
+      const deleteForms = document.querySelectorAll('.js-delete-patient');
+      deleteForms.forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const confirmMessage = form.dataset.confirm || 'Deseja realmente remover este paciente?';
+          if (!window.confirm(confirmMessage)) {
+            return;
+          }
+
+          const button = form.querySelector('button');
+          if (button) {
+            button.disabled = true;
+          }
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+              },
+              body: new FormData(form)
+            });
+
+            if (!response.ok) {
+              throw new Error(`Status ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data?.success) {
+              throw new Error(data?.message || 'Erro desconhecido');
+            }
+
+            const row = form.closest('tr');
+            if (row) {
+              row.classList.add('is-removing');
+              window.setTimeout(() => row.remove(), 150);
+            }
+          } catch (error) {
+            console.error('[patient-delete]', error);
+            if (button) {
+              button.disabled = false;
+            }
+            window.alert('Não foi possível remover o paciente. Tente novamente.');
+          }
+        });
       });
     });
 

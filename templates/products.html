@@ -401,6 +401,11 @@
       background: rgba(220, 38, 38, .08)
     }
 
+    tr.is-removing {
+      opacity: .3;
+      transition: opacity .18s ease;
+    }
+
     /* Quadradinhos de ação */
     .icon-square {
       width: 36px;
@@ -654,9 +659,10 @@
             <td>R$ {{ "%.2f"|format(prod.sale_price) }}</td>
             <td>
               <form method="post" action="{{ url_for('toggle_product_status', product_id=prod.id) }}"
-                style="display:inline;">
+                class="js-product-status" data-product-id="{{ prod.id }}" style="display:inline;">
                 <input type="hidden" name="next" value="{{ request.full_path }}">
                 <button type="submit" class="status-badge {{ 'is-active' if prod.status=='Ativo' else 'is-inactive' }}"
+                  data-status="{{ (prod.status or 'Inativo') }}"
                   title="Clique para alternar para {{ 'Inativo' if prod.status=='Ativo' else 'Ativo' }}">
                   {{ (prod.status or 'Inativo') }}
                 </button>
@@ -666,19 +672,20 @@
               <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
                 <!-- Entrada -->
                 <button class="icon-square" title="Entrada de Estoque" aria-label="Entrada de Estoque"
-                  onclick="openStockMovementModal({{ prod.id|int }}, 'in')">
+                  onclick="openStockMovementModal('{{ prod.id|int }}', 'in')">
                   <i class="fa fa-arrow-down"></i>
                 </button>
 
                 <!-- Saída -->
                 <button class="icon-square" title="Saída de Estoque" aria-label="Saída de Estoque"
-                  onclick="openStockMovementModal({{ prod.id|int }}, 'out')">
+                  onclick="openStockMovementModal('{{ prod.id|int }}', 'out')">
                   <i class="fa fa-arrow-up"></i>
                 </button>
 
                 <!-- Excluir -->
-                <form method="POST" action="{{ url_for('delete_product', product_id=prod.id) }}" style="display:inline;"
-                  onsubmit="return confirmDelete(event)">
+                <form method="POST" action="{{ url_for('delete_product', product_id=prod.id) }}"
+                  style="display:inline;" class="js-delete-product"
+                  data-confirm="Deseja realmente remover este produto?">
                   <button type="submit" class="icon-square danger" title="Remover Produto" aria-label="Remover Produto"
                     style="border:none;background:none;">
                     <i class="fa fa-trash"></i>
@@ -833,13 +840,105 @@
     }
   </script>
   <script>
-    function confirmDelete(e) {
-      if (!confirm('Deseja realmente remover este produto?')) {
-        e.preventDefault();
-        return false;
-      }
-      return true;
-    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const statusForms = document.querySelectorAll('.js-product-status');
+      statusForms.forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const button = form.querySelector('.status-badge');
+          if (!button) {
+            form.submit();
+            return;
+          }
+
+          const originalText = (button.textContent || '').trim();
+          button.disabled = true;
+          button.textContent = '...';
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+              },
+              body: new FormData(form)
+            });
+
+            if (!response.ok) {
+              throw new Error(`Status ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data?.success) {
+              throw new Error(data?.message || 'Erro desconhecido');
+            }
+
+            const newStatus = String(data.status || '').trim() || (originalText === 'Ativo' ? 'Inativo' : 'Ativo');
+            button.dataset.status = newStatus;
+            button.textContent = newStatus;
+            button.classList.toggle('is-active', newStatus === 'Ativo');
+            button.classList.toggle('is-inactive', newStatus !== 'Ativo');
+            const nextHint = newStatus === 'Ativo' ? 'Inativo' : 'Ativo';
+            button.title = `Clique para alternar para ${nextHint}`;
+          } catch (error) {
+            console.error('[product-status]', error);
+            button.textContent = originalText;
+            window.alert('Não foi possível atualizar o status. Tente novamente.');
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+
+      const deleteForms = document.querySelectorAll('.js-delete-product');
+      deleteForms.forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const confirmMessage = form.dataset.confirm || 'Deseja realmente remover este produto?';
+          if (!window.confirm(confirmMessage)) {
+            return;
+          }
+
+          const button = form.querySelector('button');
+          if (button) {
+            button.disabled = true;
+          }
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+              },
+              body: new FormData(form)
+            });
+
+            if (!response.ok) {
+              throw new Error(`Status ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (!data?.success) {
+              throw new Error(data?.message || 'Erro desconhecido');
+            }
+
+            const row = form.closest('tr');
+            if (row) {
+              row.classList.add('is-removing');
+              window.setTimeout(() => row.remove(), 150);
+            }
+          } catch (error) {
+            console.error('[product-delete]', error);
+            if (button) {
+              button.disabled = false;
+            }
+            window.alert('Não foi possível remover o produto. Tente novamente.');
+          }
+        });
+      });
+    });
   </script>
 
 </body>
