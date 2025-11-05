@@ -951,66 +951,75 @@ def ai_refine_results(raw_text: str, initial_results: dict) -> dict:
 # =============== AI ANÁLISE COMPLETA ==================
 # ======================================================
 
-def ai_full_analysis(file_path: str, references_path: str):
-    """Análise completa via IA, comparando resultados com faixas ideais."""
+def ai_extract_results(raw_text: str, references: dict) -> Optional[Dict[str, dict]]:
+    """Extrai valores dos exames via IA, retornando estrutura similar ao parser."""
     if not OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY não configurada.")
 
-    # Lê texto do PDF
-    lines = read_pdf(file_path)
-    if not lines:
-        raise ValueError("Falha ao ler o PDF.")
-    raw_text = "\n".join(lines)
-    raw_text = re.sub(r'\b\d{1,2}/\d{1,2}/\d{2,4}\b', '', raw_text)  # remove datas
-
-    # Lê referências
-    references = read_references(references_path)
-    if not references:
-        raise ValueError("Falha ao ler referências JSON.")
+    tests_payload = []
+    for test_name, info in references.items():
+        tests_payload.append({
+            "name": test_name,
+            "synonyms": info.get("synonyms", []),
+            "units": info.get("unit") or info.get("units") or info.get("ideal"),
+        })
 
     prompt = f"""
-Você é uma IA médica especializada em análise de exames laboratoriais em português.
-Siga rigorosamente as etapas abaixo antes de responder:
+Você é um analista que extrai resultados de exames laboratoriais em português.
+Use APENAS o texto fornecido para localizar os valores dos exames listados.
 
-1. Leia o texto do laudo e identifique todas as seções numéricas (tabelas, listas e linhas) onde haja valores para exames.
-2. Para CADA exame presente nas chaves do JSON de referência, procure explicitamente no laudo o valor correspondente. Considere que os valores podem usar vírgula como separador decimal e podem estar acompanhados das unidades.
-3. Quando encontrar múltiplos valores para o mesmo exame, escolha o mais recente e relacionado ao paciente atual. Se não localizar um exame, registre mentalmente que ele está ausente.
-4. Compare cada valor encontrado com a faixa "ideal" informada no JSON (quando houver). Determine se o resultado está "baixo", "normal" ou "alto" em relação à faixa.
-5. Utilize essas classificações para embasar o diagnóstico e as recomendações terapêuticas. Não invente valores: baseie-se apenas no que está no laudo.
+Regras:
+- Considere que números podem usar vírgula como separador decimal.
+- Se houver múltiplos valores, escolha o que estiver associado ao paciente atual e ao exame correto.
+- Se não encontrar o exame, retorne null para o valor.
+- Retorne sempre números com ponto decimal (ex: 4.7) e sem texto extra.
+- Preserve um pequeno trecho do laudo original onde o valor foi encontrado (até 120 caracteres) no campo "raw".
 
-Responda EXCLUSIVAMENTE no formato JSON a seguir (sem texto adicional):
-{{
-    "diagnosis": "Resumo clínico sintético em português, mencionando os exames alterados com seus valores reais e a faixa de referência",
-    "prescription": "Lista objetiva de condutas, suplementos ou ajustes sugeridos, coerente com os achados"
-}}
+Lista de exames de interesse (com sinônimos/indicações) em JSON:
+{json.dumps(tests_payload, ensure_ascii=False, indent=2)[:4000]}
 
-LAUDO (texto truncado a 6000 caracteres):
+Texto do laudo (truncado a 6000 caracteres):
 {raw_text[:6000]}
 
-VALORES DE REFERÊNCIA (JSON truncado a 6000 caracteres):
-{json.dumps(references, ensure_ascii=False)[:6000]}
+Responda EXCLUSIVAMENTE com um JSON válido no formato:
+{{
+  "results": {{
+    "<nome do exame>": {{
+      "value": <número ou null>,
+      "raw": "trecho opcional com o valor localizado"
+    }},
+    ...
+  }}
+}}
 """
 
     try:
         response = requests.post(
             OPENAI_API_URL,
             headers=_openai_headers(),
-            json={"model": "gpt-4o", "messages": [{"role": "user", "content": prompt}], "temperature": 0},
+            json={
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0,
+            },
             timeout=60,
         )
         if response.status_code >= 400:
             snippet = response.text[:200]
             raise RuntimeError(f"status {response.status_code}: {snippet}")
         data = response.json()
-        content = data["choices"][0]["message"]["content"]
-        match = re.search(r"\{.*\}", content, re.S)
-        if match:
-            parsed = json.loads(match.group(0))
-            return parsed.get("diagnosis", ""), parsed.get("prescription", "")
-        raise ValueError("Falha ao interpretar resposta da IA.")
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        json_text = _extract_json_object(content)
+        if not json_text:
+            raise ValueError("Resposta sem JSON utilizável.")
+        parsed = json.loads(json_text)
+        results = parsed.get("results")
+        if not isinstance(results, dict):
+            raise ValueError("Estrutura de resultados inesperada.")
+        return {k: v for k, v in results.items() if isinstance(v, dict)}
     except Exception as e:
-        print(f"[AI full analysis error] {e}")
-        raise
+        print(f"[AI extract error] {e}")
+        return None
 
 # ======================================================
 # =============== ANÁLISE DE RESULTADOS ================
@@ -1247,6 +1256,60 @@ def analyze_pdf(
             print(msg)
             ai_messages.append(msg)
         else:
+            updates_from_ai = 0
+            try:
+                ai_payload = ai_extract_results(raw_text, references)
+                if ai_payload:
+                    for test_name, payload in ai_payload.items():
+                        if test_name not in results:
+                            continue
+                        raw_value = payload.get("value") if isinstance(payload, dict) else None
+                        parsed_value: Optional[float] = None
+                        if isinstance(raw_value, (int, float)):
+                            parsed_value = float(raw_value)
+                        elif isinstance(raw_value, str):
+                            parsed_value = _convert_numeric_token(raw_value)
+                            if parsed_value is None:
+                                try:
+                                    parsed_value = float(raw_value.replace(",", "."))
+                                except Exception:
+                                    parsed_value = None
+
+                        if parsed_value is None:
+                            continue
+
+                        snippet = ""
+                        if isinstance(payload, dict):
+                            snippet = str(payload.get("raw") or payload.get("source") or "").strip()
+                        if snippet:
+                            results[test_name]["line"] = snippet[:160]
+
+                        results[test_name]["value"] = parsed_value
+                        ideal_field = references.get(test_name, {}).get("ideal")
+                        ideal = ideal_field.get(gender) if isinstance(ideal_field, dict) else ideal_field
+                        min_val, max_val = parse_min_max(str(ideal)) if ideal else (None, None)
+                        meds: List[dict] = []
+                        if min_val is not None:
+                            below = parsed_value < min_val
+                            above = max_val is not None and parsed_value > max_val
+                            if below:
+                                meds = references.get(test_name, {}).get("medications", {}).get("low", [])
+                            elif above:
+                                meds = references.get(test_name, {}).get("medications", {}).get("high", [])
+                        results[test_name]["medications"] = meds
+                        updates_from_ai += 1
+
+                if updates_from_ai:
+                    msg = f"[AI] Valores extraídos para {updates_from_ai} exames via IA."
+                else:
+                    msg = "[AI] IA não encontrou valores adicionais confiáveis."
+                print(msg)
+                ai_messages.append(msg)
+            except Exception as exc:
+                msg = f"[AI] Erro ao extrair valores com IA: {exc}"
+                print(msg)
+                ai_messages.append(msg)
+
             baseline = json.dumps(results, ensure_ascii=False, sort_keys=True)
             refined = ai_refine_results(raw_text, results)
             refined_snapshot = json.dumps(refined, ensure_ascii=False, sort_keys=True)
@@ -1262,23 +1325,6 @@ def analyze_pdf(
 
     # Diagnóstico e prescrição
     diagnosis, prescriptions = build_diagnosis_and_prescriptions(results)
-
-    # Usa IA completa quando solicitado
-    if use_ai and OPENAI_API_KEY:
-        try:
-            ai_source = source if isinstance(source, (str, os.PathLike)) else None
-            if ai_source is None:
-                raise ValueError("AI full analysis requer caminho de arquivo.")
-            ai_dgn, ai_rx = ai_full_analysis(str(ai_source), references_path)
-            if ai_dgn:
-                diagnosis = ai_dgn
-            if ai_rx:
-                prescriptions = ai_rx
-            ai_messages.append("[AI] Diagnóstico e prescrição gerados pela IA.")
-        except Exception as e:
-            err_msg = f"[AI] Falha na análise completa: {e}"
-            print(err_msg)
-            ai_messages.append(err_msg)
 
     if ai_messages and use_ai:
         header = "\n".join(ai_messages).strip()
