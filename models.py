@@ -266,7 +266,7 @@ class PackageUsage(db.Model, BaseModel):
 
     id      = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, unique=True, index=True)
-    total   = db.Column(db.Integer, nullable=False, default=50)
+    total   = db.Column(db.Integer, nullable=False, default=25)
     used    = db.Column(db.Integer, nullable=False, default=0)
 
     user    = relationship("User", back_populates="package_usage")

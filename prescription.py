@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import math
 import requests
 import fitz
 import string
@@ -352,6 +353,14 @@ _GENERIC_SYNONYM_TOKENS = {
     "plasma",
 }
 
+_BIORESONANCE_KEYWORDS = (
+    "biorreson",
+    "bioresson",
+    "bio resson",
+    "bio-reson",
+    "bioreson",
+)
+
 
 def _extract_numeric_tokens(text: str, start_offset: int = 0) -> List[tuple[str, int, int]]:
     if not text:
@@ -425,11 +434,16 @@ def _select_numeric_candidate(
     text: str,
     candidates: List[tuple[str, int, int]],
     prefer_after: Optional[int] = None,
+    target_range: Optional[tuple[Optional[float], Optional[float]]] = None,
+    bad_keywords: tuple[str, ...] = (),
 ) -> Optional[float]:
     if not candidates:
         return None
     best_value: Optional[float] = None
     best_score = float('-1e9')
+    range_min = range_max = None
+    if target_range:
+        range_min, range_max = target_range
     for token, start, end in candidates:
         value = _convert_numeric_token(token)
         if value is None:
@@ -453,10 +467,57 @@ def _select_numeric_candidate(
         if ',' in token or '.' in token:
             score += 0.02
         score -= start * 0.0001
+        if bad_keywords and text:
+            window_raw = text[max(0, start - 20):start]
+            window_norm = _normalize_for_matching(window_raw)
+            if any(keyword in window_norm for keyword in bad_keywords):
+                if "normal" not in window_norm:
+                    score -= 6.0
+        if range_min is not None or range_max is not None:
+            penalty = _score_range_fit(value, range_min, range_max)
+            score += penalty
         if score > best_score:
             best_score = score
             best_value = value
     return best_value
+
+
+def _score_range_fit(value: float, range_min: Optional[float], range_max: Optional[float]) -> float:
+    if range_min is None and range_max is None:
+        return 0.0
+
+    mn = range_min
+    mx = range_max
+    if mn is not None and mx is not None and mn > mx:
+        mn, mx = mx, mn
+
+    inside_lower = (mn is None) or (value >= mn)
+    inside_upper = (mx is None) or (value <= mx)
+    if inside_lower and inside_upper:
+        return 3.0
+
+    nearest = None
+    if mn is not None:
+        nearest = mn
+    if mx is not None:
+        if nearest is None or abs(value - mx) < abs(value - nearest):
+            nearest = mx
+    if nearest is None:
+        return 0.0
+
+    diff = abs(value - nearest)
+    reference_span = 1.0
+    if mn is not None and mx is not None:
+        span = mx - mn
+        if math.isfinite(span) and span > 0:
+            reference_span = span
+        else:
+            reference_span = max(abs(mn) if mn is not None else 0.0, abs(mx) if mx is not None else 0.0, 1.0)
+    else:
+        reference_span = max(abs(nearest), 1.0)
+
+    ratio = diff / reference_span
+    return -min(ratio * 1.0, 9.0)
 
 
 def _convert_numeric_token(token: str) -> Optional[float]:
@@ -481,12 +542,20 @@ def _contains_token(haystack: str, token: str) -> bool:
     return re.search(pattern, haystack) is not None
 
 
-def _extract_value_from_context(context_lines: List[str], matched_synonym: str = "") -> tuple[Optional[float], str]:
+def _extract_value_from_context(
+    context_lines: List[str],
+    matched_synonym: str = "",
+    expected_min: Optional[float] = None,
+    expected_max: Optional[float] = None,
+) -> tuple[Optional[float], str]:
     if not context_lines:
         return None, ""
 
     normalized_context = [_normalize_for_matching(line) for line in context_lines]
     reference_markers = ("valores", "referenc", "faixa", "interval", "limite")
+    range_tuple = (expected_min, expected_max)
+    if expected_min is None and expected_max is None:
+        range_tuple = None
 
     for idx, (raw_line, norm_line) in enumerate(zip(context_lines, normalized_context)):
         if "resultado" in norm_line:
@@ -500,7 +569,13 @@ def _extract_value_from_context(context_lines: List[str], matched_synonym: str =
             if keyword in segment_lower:
                 prefer_after = segment_lower.index(keyword) + len(keyword)
             candidates = _extract_numeric_tokens(segment_text)
-            value = _select_numeric_candidate(segment_text, candidates, prefer_after=prefer_after)
+            value = _select_numeric_candidate(
+                segment_text,
+                candidates,
+                prefer_after=prefer_after,
+                target_range=range_tuple,
+                bad_keywords=_BIORESONANCE_KEYWORDS,
+            )
             if value is not None:
                 return value, segment_text.strip()
 
@@ -542,13 +617,23 @@ def _extract_value_from_context(context_lines: List[str], matched_synonym: str =
 
     combined_text = " ".join(filtered)
     candidates = _extract_numeric_tokens(combined_text)
-    value = _select_numeric_candidate(combined_text, candidates)
+    value = _select_numeric_candidate(
+        combined_text,
+        candidates,
+        target_range=range_tuple,
+        bad_keywords=_BIORESONANCE_KEYWORDS,
+    )
     if value is not None:
         return value, combined_text.strip()
 
     primary_line = context_lines[0]
     primary_candidates = _extract_numeric_tokens(primary_line)
-    value_primary = _select_numeric_candidate(primary_line, primary_candidates)
+    value_primary = _select_numeric_candidate(
+        primary_line,
+        primary_candidates,
+        target_range=range_tuple,
+        bad_keywords=_BIORESONANCE_KEYWORDS,
+    )
     if value_primary is not None:
         snippet = " ".join(context_lines[:2]).strip()
         return value_primary, snippet or primary_line.strip()
@@ -707,6 +792,7 @@ Seu objetivo é identificar e validar corretamente as informações do paciente 
 Regras (responda em português):
 - Corrija nomes abreviados como "S Dm" para o nome completo se aparecer em outra parte do texto.
 - Combine o nome do médico com o CRM, mesmo que estejam separados (ex: "Célio Rodrigues Vieira" e "CRM 12345").
+- Se algum campo vier vazio nas informações iniciais, preencha com dados confiáveis encontrados no laudo; só deixe vazio se realmente não houver referência.
 - Corrija erros comuns de OCR (ex: letras faltando, espaçamentos errados).
 - Se alguma informação não estiver explícita, deixe o campo vazio.
 - RETORNE APENAS E EXCLUSIVAMENTE UM OBJETO JSON VÁLIDO no formato abaixo, sem texto adicional.
@@ -1066,6 +1152,13 @@ def scan_results(lines, references, gender):
             results[test_name] = {"value": None, "line": None, "ideal": None, "medications": []}
             continue
 
+        ideal_field = info.get("ideal")
+        ideal = ideal_field.get(gender) if isinstance(ideal_field, dict) else ideal_field
+        if ideal:
+            min_val, max_val = parse_min_max(str(ideal))
+        else:
+            min_val, max_val = (None, None)
+
         value = None
         context_snippet = ""
         selected_context: List[str] = []
@@ -1073,7 +1166,12 @@ def scan_results(lines, references, gender):
             context_lines = lines[best_index: min(len(lines), best_index + window)]
             if not context_lines:
                 continue
-            val, snippet = _extract_value_from_context(context_lines, matched_synonym)
+            val, snippet = _extract_value_from_context(
+                context_lines,
+                matched_synonym,
+                expected_min=min_val,
+                expected_max=max_val,
+            )
             if not selected_context:
                 selected_context = context_lines
                 context_snippet = snippet
@@ -1088,9 +1186,6 @@ def scan_results(lines, references, gender):
 
         combined_line = context_snippet or (selected_context[0] if selected_context else "")
 
-        ideal_field = info.get("ideal")
-        ideal = ideal_field.get(gender) if isinstance(ideal_field, dict) else ideal_field
-        min_val, max_val = parse_min_max(str(ideal))
         meds = []
         if value is not None and min_val is not None:
             if value < min_val:
@@ -1111,11 +1206,27 @@ def scan_results(lines, references, gender):
 # =============== DIAGNÓSTICO ==========================
 # ======================================================
 def build_diagnosis_and_prescriptions(results):
-    """
-    Monta texto de diagnóstico e lista de prescrições com base nos resultados.
-    Garante que medicamentos não sejam perdidos e evita sobrescritas.
-    """
-    diagnosis_text = []
+    """Constrói narrativa diagnóstica e prescrição a partir dos resultados analisados."""
+
+    def _format_value(v):
+        if isinstance(v, float):
+            txt = f"{v:.2f}".rstrip("0").rstrip(".")
+            return txt if txt else "0"
+        return str(v)
+
+    def _human_join(items):
+        items = [item for item in items if item]
+        if not items:
+            return ""
+        if len(items) == 1:
+            return items[0]
+        if len(items) == 2:
+            return f"{items[0]} e {items[1]}"
+        return ", ".join(items[:-1]) + f" e {items[-1]}"
+
+    high_markers = []
+    low_markers = []
+    normal_markers = []
     prescriptions = []
 
     for test, info in results.items():
@@ -1128,16 +1239,62 @@ def build_diagnosis_and_prescriptions(results):
         if min_val is None or max_val is None:
             continue
 
+        entry = {
+            "test": test,
+            "value": _format_value(value),
+            "ideal": ideal,
+        }
+
         if value < min_val:
-            diagnosis_text.append(f"{test}: valor {value} ABAIXO do ideal ({ideal}).")
+            low_markers.append(entry)
             prescriptions.extend([{"test": test, **med} for med in meds])
         elif value > max_val:
-            diagnosis_text.append(f"{test}: valor {value} ACIMA do ideal ({ideal}).")
+            high_markers.append(entry)
             prescriptions.extend([{"test": test, **med} for med in meds])
         else:
-            diagnosis_text.append(f"{test}: valor {value} dentro do ideal ({ideal}).")
+            normal_markers.append(entry)
 
-    # Remove duplicadas e formata
+    summary_parts = []
+    if high_markers:
+        summary_parts.append(
+            f"{len(high_markers)} marcador(es) apresentaram valores acima do ideal ({_human_join([m['test'] for m in high_markers])})"
+        )
+    if low_markers:
+        summary_parts.append(
+            f"{len(low_markers)} marcador(es) ficaram abaixo do ideal ({_human_join([m['test'] for m in low_markers])})"
+        )
+
+    if summary_parts:
+        diagnosis_summary = "Com base na leitura dos exames, " + " e ".join(summary_parts) + "."
+    else:
+        diagnosis_summary = (
+            "Com base na leitura dos exames, todos os marcadores avaliados permanecem dentro das faixas de referência."
+        )
+
+    if normal_markers and (high_markers or low_markers):
+        diagnosis_summary += (
+            f" Os demais marcadores interpretados ({_human_join([m['test'] for m in normal_markers])}) permanecem alinhados às faixas de referência informadas."
+        )
+
+    detailed_lines = []
+    for marker in high_markers:
+        detailed_lines.append(
+            f"- {marker['test']}: valor {marker['value']} ACIMA do ideal ({marker['ideal']})."
+        )
+    for marker in low_markers:
+        detailed_lines.append(
+            f"- {marker['test']}: valor {marker['value']} ABAIXO do ideal ({marker['ideal']})."
+        )
+    for marker in normal_markers:
+        detailed_lines.append(
+            f"- {marker['test']}: valor {marker['value']} dentro do ideal ({marker['ideal']})."
+        )
+
+    diagnosis_text = diagnosis_summary
+    if detailed_lines:
+        diagnosis_text += "\n\nValores avaliados:\n" + "\n".join(detailed_lines)
+
+    # Remove duplicadas, respeitando limite máximo de seis medicamentos na prescrição
     seen = set()
     prescription_lines = []
     for med in prescriptions:
@@ -1147,8 +1304,10 @@ def build_diagnosis_and_prescriptions(results):
             prep = med.get("preparo", "—")
             appl = med.get("aplicacao", "—")
             prescription_lines.append(f"- {name}\nPreparo: {prep}\nAplicação: {appl}\n")
+            if len(prescription_lines) >= 6:
+                break
 
-    return "\n".join(diagnosis_text).strip(), "\n".join(prescription_lines).strip()
+    return diagnosis_text.strip(), "\n".join(prescription_lines).strip()
 
 # ======================================================
 # =============== ANÁLISE GERAL DE PDF =================
@@ -1219,6 +1378,8 @@ def analyze_pdf(
         print(f"[analyze_pdf] Erro ao extrair dados pessoais: {e}")
         name, gender, age, cpf, phone, doctor, birth_date = "", "", 0, "", "", "", ""
 
+    ai_messages: List[str] = []
+
     # Overrides informados manualmente pelo médico
     name_raw_override = manual_overrides.get("name") if manual_overrides else None
     override_name = name_raw_override.strip() if isinstance(name_raw_override, str) else ""
@@ -1231,12 +1392,51 @@ def analyze_pdf(
 
     override_age = manual_overrides.get("age") if manual_overrides else None
 
+    needs_ai_patient = use_ai and OPENAI_API_KEY and (
+        not name or not gender or not doctor or not phone or not birth_date or not cpf or not age
+    )
+
+    if needs_ai_patient:
+        try:
+            validated = ai_validate_patient_info(
+                lines,
+                (name, gender, age, cpf, phone, doctor, birth_date),
+            )
+            if validated:
+                name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = validated
+                if name_ai and not override_name:
+                    name = name_ai
+                if gender_ai and not override_gender:
+                    gender = gender_ai
+                if cpf_ai:
+                    cpf = cpf_ai
+                if doctor_ai:
+                    doctor = doctor_ai
+                if birth_ai:
+                    birth_date = birth_ai
+                if not override_phone and phone_ai:
+                    phone = normalize_phone(str(phone_ai))
+                if not override_age and age_ai is not None:
+                    if isinstance(age_ai, (int, float)):
+                        age = int(age_ai)
+                    elif isinstance(age_ai, str) and age_ai.strip():
+                        try:
+                            age = int(float(age_ai.replace(",", ".")))
+                        except ValueError:
+                            pass
+        except Exception as exc:
+            msg = f"[AI] Erro ao complementar dados do paciente: {exc}"
+            print(msg)
+            ai_messages.append(msg)
+
     if override_name:
         name = override_name
     if override_gender:
         gender = override_gender
     if override_phone:
         phone = override_phone
+    elif phone:
+        phone = normalize_phone(phone)
     if override_age is not None:
         if isinstance(override_age, (int, float)):
             age = int(override_age)
@@ -1245,8 +1445,6 @@ def analyze_pdf(
                 age = int(override_age.strip())
             except ValueError:
                 pass
-
-    ai_messages: List[str] = []
 
     # Correção de resultados via IA
     results = scan_results(lines, references, gender)
@@ -1281,13 +1479,19 @@ def analyze_pdf(
                         snippet = ""
                         if isinstance(payload, dict):
                             snippet = str(payload.get("raw") or payload.get("source") or "").strip()
+                        ideal_field = references.get(test_name, {}).get("ideal")
+                        ideal = ideal_field.get(gender) if isinstance(ideal_field, dict) else ideal_field
+                        min_val, max_val = parse_min_max(str(ideal)) if ideal else (None, None)
+                        snippet_norm = _normalize_for_matching(snippet) if snippet else ""
+                        if snippet_norm and any(keyword in snippet_norm for keyword in _BIORESONANCE_KEYWORDS):
+                            continue
+                        if (min_val is not None or max_val is not None) and _score_range_fit(parsed_value, min_val, max_val) <= -6.0:
+                            continue
+
                         if snippet:
                             results[test_name]["line"] = snippet[:160]
 
                         results[test_name]["value"] = parsed_value
-                        ideal_field = references.get(test_name, {}).get("ideal")
-                        ideal = ideal_field.get(gender) if isinstance(ideal_field, dict) else ideal_field
-                        min_val, max_val = parse_min_max(str(ideal)) if ideal else (None, None)
                         meds: List[dict] = []
                         if min_val is not None:
                             below = parsed_value < min_val
@@ -1300,11 +1504,9 @@ def analyze_pdf(
                         updates_from_ai += 1
 
                 if updates_from_ai:
-                    msg = f"[AI] Valores extraídos para {updates_from_ai} exames via IA."
+                    print(f"[AI] Valores extraídos para {updates_from_ai} exames via IA.")
                 else:
-                    msg = "[AI] IA não encontrou valores adicionais confiáveis."
-                print(msg)
-                ai_messages.append(msg)
+                    print("[AI] IA não encontrou valores adicionais confiáveis.")
             except Exception as exc:
                 msg = f"[AI] Erro ao extrair valores com IA: {exc}"
                 print(msg)
@@ -1314,13 +1516,9 @@ def analyze_pdf(
             refined = ai_refine_results(raw_text, results)
             refined_snapshot = json.dumps(refined, ensure_ascii=False, sort_keys=True)
             if refined_snapshot != baseline:
-                msg = "[AI] Correções aplicadas aos valores numéricos extraídos."
-                print(msg)
-                ai_messages.append(msg)
+                print("[AI] Correções aplicadas aos valores numéricos extraídos.")
             else:
-                msg = "[AI] Nenhuma correção numérica retornada pela IA."
-                print(msg)
-                ai_messages.append(msg)
+                print("[AI] Nenhuma correção numérica retornada pela IA.")
             results = refined
 
     # Diagnóstico e prescrição

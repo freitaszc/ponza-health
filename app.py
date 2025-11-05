@@ -1,6 +1,8 @@
 import os
 import io
 import re
+import base64
+import mimetypes
 import secrets
 import stripe
 from flask_migrate import Migrate
@@ -18,6 +20,9 @@ from urllib.parse import urljoin
 from itsdangerous import URLSafeTimedSerializer, URLSafeSerializer, BadSignature, SignatureExpired
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 
@@ -68,8 +73,8 @@ app.config['SECRET_KEY'] = SECRET_KEY
 # Uploads
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
-DEFAULT_USER_IMAGE = "images/user-icon.png"
-DEFAULT_PATIENT_IMAGE = "images/admin_profile.png"
+DEFAULT_USER_IMAGE = "/static/images/user-icon.png"
+DEFAULT_PATIENT_IMAGE = "/static/images/user-icon.png"
 
 app.config["PUBLIC_BASE_URL"] = (
     os.getenv("PUBLIC_BASE_URL")
@@ -92,35 +97,6 @@ app.config.update(
 
 mail = Mail(app)
 
-def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=None, inline_images=None):
-    """
-    Envia e-mail com suporte a imagens inline via CID.
-    inline_images deve ser uma lista de dicts: [{"filename": "logo.png", "path": "static/images/7.png", "cid": "logo"}]
-    """
-    msg = Message(
-        subject=subject,
-        recipients=recipients,
-        sender=sender or app.config["MAIL_DEFAULT_SENDER"],
-        reply_to=reply_to
-    )
-    if html:
-        msg.html = html
-    if body:
-        msg.body = body
-
-    # 🔑 Adiciona imagens inline (se houver)
-    if inline_images:
-        for img in inline_images:
-            with app.open_resource(img["path"]) as fp:
-                msg.attach(
-                    img["filename"],      # nome do arquivo
-                    "image/png",          # tipo MIME (ajuste se usar .jpg)
-                    fp.read(),
-                    "inline",
-                    headers={"Content-ID": f"<{img['cid']}>"}
-                )
-
-    mail.send(msg)
 
 def allowed_file(filename: str) -> bool:
     return bool(filename) and '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -136,6 +112,242 @@ app.config.update(
     MAIL_DEFAULT_SENDER=os.getenv("EMAIL_FROM")  # deve ser igual a SMTP_USERNAME
 )
 mail = Mail(app)
+
+DEFAULT_FREE_ANALYSIS_ALLOWANCE = 25
+ANNUAL_PLAN_BONUS_ANALYSES = 30
+
+GMAIL_CLIENT_ID = os.getenv("GMAIL_CLIENT_ID")
+GMAIL_CLIENT_SECRET = os.getenv("GMAIL_CLIENT_SECRET") or os.getenv("CLIENTE_SECRET")
+GMAIL_REFRESH_TOKEN = os.getenv("GMAIL_REFRESH_TOKEN")
+GMAIL_TOKEN_URI = os.getenv("TOKEN_URI") or "https://oauth2.googleapis.com/token"
+GMAIL_API_USER = os.getenv("EMAIL_FROM") or os.getenv("SMTP_USERNAME")
+GMAIL_API_TIMEOUT = int(os.getenv("GMAIL_API_TIMEOUT", "30"))
+GMAIL_API_ENABLED = all([GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN])
+
+
+def _gmail_get_access_token() -> str:
+    if not GMAIL_API_ENABLED:
+        raise RuntimeError("Gmail API não configurada.")
+
+    data = {
+        "client_id": GMAIL_CLIENT_ID,
+        "client_secret": GMAIL_CLIENT_SECRET,
+        "refresh_token": GMAIL_REFRESH_TOKEN,
+        "grant_type": "refresh_token",
+    }
+
+    response = requests.post(GMAIL_TOKEN_URI, data=data, timeout=GMAIL_API_TIMEOUT)
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Falha ao obter token do Gmail: status {response.status_code} — {response.text[:200]}"
+        )
+
+    token_data = response.json()
+    token = token_data.get("access_token")
+    if not token:
+        raise RuntimeError("Resposta do Gmail sem access_token.")
+    return str(token)
+
+
+def _gmail_build_message(
+    *,
+    subject: str,
+    recipients: list[str],
+    sender: str,
+    html: Optional[str],
+    body: Optional[str],
+    reply_to: Optional[str],
+    inline_images: Optional[list[dict[str, str]]],
+) -> bytes:
+    msg_root = MIMEMultipart("related")
+    msg_root["Subject"] = subject
+    msg_root["From"] = sender
+    msg_root["To"] = ", ".join(recipients)
+    if reply_to:
+        msg_root["Reply-To"] = reply_to
+
+    alternative = MIMEMultipart("alternative")
+    if body and html:
+        alternative.attach(MIMEText(body, "plain", "utf-8"))
+        alternative.attach(MIMEText(html, "html", "utf-8"))
+    elif html:
+        alternative.attach(MIMEText(html, "html", "utf-8"))
+    else:
+        alternative.attach(MIMEText(body or "", "plain", "utf-8"))
+    msg_root.attach(alternative)
+
+    for image in inline_images or []:
+        path = image.get("path")
+        if not path:
+            continue
+        try:
+            with app.open_resource(path) as fp:
+                img_data = fp.read()
+        except FileNotFoundError:
+            continue
+
+        mime_type = mimetypes.guess_type(path)[0] or "image/png"
+        maintype, subtype = mime_type.split("/", 1)
+        if maintype != "image":
+            maintype, subtype = "image", "png"
+
+        img_part = MIMEImage(img_data, _subtype=subtype)
+        cid = image.get("cid")
+        if cid:
+            img_part.add_header("Content-ID", f"<{cid}>")
+        filename = image.get("filename") or os.path.basename(path)
+        img_part.add_header("Content-Disposition", "inline", filename=filename)
+        msg_root.attach(img_part)
+
+    return msg_root.as_bytes()
+
+
+def _send_email_via_gmail_api(
+    *,
+    subject: str,
+    recipients: list[str],
+    sender: str,
+    html: Optional[str],
+    body: Optional[str],
+    reply_to: Optional[str],
+    inline_images: Optional[list[dict[str, str]]],
+) -> None:
+    if not recipients:
+        return
+
+    access_token = _gmail_get_access_token()
+    raw_bytes = _gmail_build_message(
+        subject=subject,
+        recipients=recipients,
+        sender=sender,
+        html=html,
+        body=body,
+        reply_to=reply_to,
+        inline_images=inline_images,
+    )
+    encoded_message = base64.urlsafe_b64encode(raw_bytes).decode("utf-8")
+
+    response = requests.post(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        json={"raw": encoded_message},
+        timeout=GMAIL_API_TIMEOUT,
+    )
+
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Erro ao enviar e-mail via Gmail API: status {response.status_code} — {response.text[:200]}"
+        )
+
+
+def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=None, inline_images=None):
+    """
+    Envia e-mail com suporte a imagens inline via CID.
+    inline_images deve ser uma lista de dicts: [{"filename": "logo.png", "path": "static/images/7.png", "cid": "logo"}]
+    """
+    recipients_list = list(recipients or [])
+
+    resolved_sender = sender or GMAIL_API_USER or app.config.get("MAIL_DEFAULT_SENDER")
+    if isinstance(resolved_sender, tuple):
+        resolved_sender = resolved_sender[1]
+    if resolved_sender is None:
+        resolved_sender = app.config.get("MAIL_DEFAULT_SENDER")
+        if isinstance(resolved_sender, tuple):
+            resolved_sender = resolved_sender[1]
+    resolved_sender = str(resolved_sender)
+
+    if GMAIL_API_ENABLED:
+        try:
+            _send_email_via_gmail_api(
+                subject=subject,
+                recipients=recipients_list,
+                sender=resolved_sender,
+                html=html,
+                body=body,
+                reply_to=reply_to,
+                inline_images=inline_images,
+            )
+            return
+        except Exception as exc:
+            current_app.logger.exception("Erro ao enviar e-mail via Gmail API, tentando SMTP: %s", exc)
+
+    msg = Message(
+        subject=subject,
+        recipients=recipients_list,
+    sender=resolved_sender,
+        reply_to=reply_to
+    )
+    if html:
+        msg.html = html
+    if body:
+        msg.body = body
+
+    if inline_images:
+        for img in inline_images:
+            try:
+                with app.open_resource(img["path"]) as fp:
+                    msg.attach(
+                        img["filename"],
+                        "image/png",
+                        fp.read(),
+                        "inline",
+                        headers={"Content-ID": f"<{img['cid']}>"}
+                    )
+            except FileNotFoundError:
+                current_app.logger.warning("Imagem inline não encontrada: %s", img.get("path"))
+
+    mail.send(msg)
+
+
+def _coerce_int(value: Any, *, default: int = 0) -> int:
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _ensure_package_usage(user: User, *, base_total: Optional[int] = None) -> tuple[PackageUsage, bool]:
+    """Garantir que o usuário possua registro de pacote com o mínimo configurado."""
+    baseline = base_total if base_total is not None else DEFAULT_FREE_ANALYSIS_ALLOWANCE
+    pkg = PackageUsage.query.filter_by(user_id=user.id).first()
+    changed = False
+
+    if not pkg:
+        pkg = PackageUsage(user_id=user.id, total=baseline, used=0)
+        db.session.add(pkg)
+        changed = True
+    else:
+        if pkg.used is None:
+            pkg.used = 0
+            changed = True
+        if pkg.total is None:
+            pkg.total = baseline
+            changed = True
+
+    current_total = _coerce_int(getattr(pkg, "total", baseline), default=baseline)
+    if current_total < baseline:
+        pkg.total = baseline
+        changed = True
+
+    return pkg, changed
+
+
+def _apply_plan_allowance(user: User, plan: str, previous_plan: Optional[str] = None) -> bool:
+    """Atualiza o pacote do usuário de acordo com o plano atual."""
+    normalized = (plan or "").strip().lower()
+    prev = (previous_plan or (user.plan or "")).strip().lower()
+    pkg, changed = _ensure_package_usage(user, base_total=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
+
+    if normalized == "yearly" and prev != "yearly":
+        pkg.total = _coerce_int(pkg.total) + ANNUAL_PLAN_BONUS_ANALYSES
+        changed = True
+
+    return changed
 
 
 def wants_json_response() -> bool:
@@ -675,6 +887,7 @@ def verify_email(token):
 
     now = datetime.utcnow()
     plan = (data.get('plan') or '').strip().lower()
+    normalized_plan = plan if plan in {'monthly', 'yearly'} else 'trial'
 
     # Evita duplicação: se o e-mail já foi confirmado antes
     existing_user = User.query.filter(func.lower(User.email) == data['email'].lower()).first()
@@ -688,28 +901,31 @@ def verify_email(token):
         email=data['email'].lower(),
         password_hash=data['password_hash'],
         created_at=now,
-        plan_status='pending_payment' if plan else 'trial',
-        trial_expiration=None if plan else now + timedelta(days=14),
+        plan=normalized_plan,
+        plan_status='pending_payment' if normalized_plan in {'monthly', 'yearly'} else 'trial',
+        trial_expiration=None if normalized_plan in {'monthly', 'yearly'} else now + timedelta(days=14),
         plan_expiration=None
     )
     db.session.add(new_user)
+    db.session.flush()
+    _ensure_package_usage(new_user, base_total=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
     db.session.commit()
 
     # Agendar e-mails do trial apenas se não houver plano
-    if not plan:
+    if normalized_plan == 'trial':
         try:
             schedule_trial_emails(new_user.id)
         except Exception:
             current_app.logger.exception("Falha ao agendar e-mails de trial")
 
     # Se o usuário escolheu um plano (mensal/anual), envia direto pro Stripe
-    if plan in ['monthly', 'yearly']:
+    if normalized_plan in ['monthly', 'yearly']:
         stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
         base_url = request.host_url.rstrip('/')
-        price_amount = 958.80 if plan == 'yearly' else 89.90
-        interval = 'year' if plan == 'yearly' else 'month'
-        plan_name = f"Plano {'Anual' if plan == 'yearly' else 'Mensal'} Ponza Health"
+        price_amount = 838.80 if normalized_plan == 'yearly' else 79.90
+        interval = 'year' if normalized_plan == 'yearly' else 'month'
+        plan_name = f"Plano {'Anual' if normalized_plan == 'yearly' else 'Mensal'} Ponza Health"
 
         try:
             session = stripe.checkout.Session.create(
@@ -724,7 +940,7 @@ def verify_email(token):
                     },
                     'quantity': 1
                 }],
-                metadata={'user_id': str(new_user.id), 'plan': plan},
+                metadata={'user_id': str(new_user.id), 'plan': normalized_plan},
                 success_url=f"{base_url}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=f"{base_url}/planos"
             )
@@ -891,9 +1107,11 @@ def index():
         .count()
     )
 
-    pkg = PackageUsage.query.filter_by(user_id=u.id).first()
-    used = int(pkg.used) if pkg and pkg.used is not None else 0
-    total = int(pkg.total) if pkg and pkg.total is not None else 0
+    pkg, pkg_changed = _ensure_package_usage(u, base_total=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
+    if pkg_changed:
+        db.session.commit()
+    used = _coerce_int(getattr(pkg, "used", 0))
+    total = _coerce_int(getattr(pkg, "total", DEFAULT_FREE_ANALYSIS_ALLOWANCE))
     remaining = max(total - used, 0)
 
     # ---------------------------------------
@@ -1262,7 +1480,7 @@ STRIPE_PRICE_PACKAGE_500 = os.getenv("STRIPE_PRICE_PACKAGE_500", "")
 @app.route("/subscribe_pay_mensal")
 @login_required
 def subscribe_pay_mensal():
-    """Gera link de pagamento do Stripe para o plano mensal (R$ 89,90)."""
+    """Gera link de pagamento do Stripe para o plano mensal (R$ 79,90)."""
     user = current_user()
     session = stripe.checkout.Session.create(
         mode="subscription",
@@ -1279,7 +1497,7 @@ def subscribe_pay_mensal():
 @app.route("/subscribe_pay_anual")
 @login_required
 def subscribe_pay_anual():
-    """Gera link de pagamento do Stripe para o plano anual (R$ 958,80)."""
+    """Gera link de pagamento do Stripe para o plano anual (R$ 838,80)."""
     user = current_user()
     session = stripe.checkout.Session.create(
         mode="subscription",
@@ -1337,17 +1555,26 @@ def stripe_webhook():
         user_id = session.get('metadata', {}).get('user_id')
         plan = session.get('metadata', {}).get('plan', 'monthly')
 
-        from datetime import timedelta
         user = User.query.get(int(user_id)) if user_id else None
         if user:
+            normalized_plan = (plan or '').strip().lower()
+            if normalized_plan not in {'monthly', 'yearly'}:
+                normalized_plan = 'monthly'
+
+            previous_plan = (user.plan or '').strip().lower()
+            _apply_plan_allowance(user, normalized_plan, previous_plan=previous_plan)
+
             user.plan_status = 'paid'
+            user.plan = normalized_plan
             user.trial_expiration = None
-            if plan == 'yearly':
+
+            if normalized_plan == 'yearly':
                 user.plan_expiration = datetime.utcnow() + timedelta(days=365)
             else:
                 user.plan_expiration = datetime.utcnow() + timedelta(days=30)
+
             db.session.commit()
-            print(f"[Stripe] Plano {plan} ativado para o usuário {user.email}")
+            print(f"[Stripe] Plano {normalized_plan} ativado para o usuário {user.email}")
     return jsonify(success=True)
 
 

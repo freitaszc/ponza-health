@@ -69,6 +69,28 @@
       font-size: 12px;
     }
 
+    .plan-card .savings-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      margin: 6px auto 8px;
+      box-shadow: 0 8px 18px rgba(22, 163, 74, 0.22);
+    }
+
+    .plan-card .savings-note {
+      font-size: 13px;
+      color: #166534;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
     .section-title {
       margin-top: 0;
       text-align: center;
@@ -134,7 +156,7 @@
         <div class="plan-card">
           <h4>Plano Mensal</h4>
           <p>Flexibilidade total para clínicas que desejam testar e crescer com liberdade.</p>
-          <div class="price">R$ 89,90</div>
+          <div class="price">R$ 79,90</div>
           <small>Renovação automática mensal</small>
           <div class="purchase-actions" style="margin-top:16px;">
             <a href="{{ url_for('subscribe_pay_mensal') }}" class="btn" target="_blank">Assinar Plano Mensal</a>
@@ -144,9 +166,11 @@
         <!-- Plano Anual -->
         <div class="plan-card">
           <h4>Plano Anual</h4>
-          <p>Economize mais de R$ 120/ano e mantenha acesso por 12 meses.</p>
-          <div class="price">R$ 958,80</div>
-          <small>Equivalente a R$ 79,90/mês</small>
+          <p>Economize R$ 120/ano e mantenha acesso por 12 meses.</p>
+          <div class="savings-pill">Economize 12,5%</div>
+          <p class="savings-note">Assine uma vez por ano e poupe R$ 120 em relação ao plano mensal.</p>
+          <div class="price">R$ 838,80</div>
+          <small>Equivalente a R$ 69,90/mês</small>
           <div class="purchase-actions" style="margin-top:16px;">
             <a href="{{ url_for('subscribe_pay_anual') }}" class="btn" target="_blank">Assinar Plano Anual</a>
           </div>

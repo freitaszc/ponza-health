@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <title>Planos e Preços — Ponza Health</title>
   <meta name="description"
-    content="Planos e preços do Ponza Health - Software completo de gestão clínica por R$ 79,90/mês com Ponza Lab incluído" />
+    content="Planos e preços do Ponza Health - Software completo de gestão clínica por R$ 69,90/mês com Ponza Lab incluído" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}" type="image/x-icon" />
   <!-- Funnel Sans -->
@@ -388,6 +388,41 @@
       font-size: 20px;
       font-weight: 700;
       color: var(--text-primary);
+    }
+
+    .savings-highlight {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px;
+      margin-bottom: 18px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(22, 163, 74, 0.08) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      box-shadow: 0 12px 24px rgba(22, 163, 74, 0.18);
+    }
+
+    .savings-percent {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+      color: #fff;
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 25px rgba(22, 163, 74, 0.25);
+      width: fit-content;
+    }
+
+    .savings-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: #166534;
+      line-height: 1.6;
     }
 
     .lead {
@@ -852,6 +887,11 @@
         grid-template-columns: 1fr;
       }
 
+      .savings-highlight {
+        align-items: center;
+        text-align: center;
+      }
+
       .nav-actions a {
         padding: 0 12px;
         font-size: 12px;
@@ -946,7 +986,7 @@
 
         <div class="price" aria-label="Preço">
           <span class="currency">R$</span>
-          <span class="amount">89,90</span>
+          <span class="amount">79,90</span>
           <span class="per">/ mês</span>
         </div>
 
@@ -954,52 +994,54 @@
           <ul class="list">
             <li>Assinatura recorrente mensal</li>
             <li>Período de teste gratuito de <strong>14 dias</strong></li>
-            <li><strong>50 análises grátis</strong> no Ponza Lab</li>
+            <li><strong>25 análises gratuitas</strong> no Ponza Lab</li>
             <li><strong>Envio automático via WhatsApp</strong> dos resultados</li>
             <li><strong>Módulos completos:</strong> agenda, estoque, cotações e leitura de PDFs</li>
             <li><strong>Backup e segurança LGPD</strong></li>
             <li>Cancelamento a qualquer momento</li>
           </ul>
           <div class="cta-row">
-            <!-- PLANO MENSAL -->
-            <a class="btn-primary" href="{{ url_for('auth.register', plan='monthly') }}"
+            <a class="btn-primary" href="{{ url_for('auth.register') }}"
             target="_blank" rel="noopener noreferrer">
-              Assinar plano mensal
+              Iniciar teste gratuito de 14 dias
             </a>
-            <a class="btn-outline" href="{{ url_for('auth.register') }}">Criar conta gratuita</a>
           </div>
         </div>
       </section>
 
       <!-- PLANO ANUAL -->
       <section class="card" aria-label="Plano anual">
-        <h2>Plano Anual</h2>
-        <p class="lead">Economize mais de <strong>R$ 120 por ano</strong> com o plano ideal para clínicas que buscam
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+          <h2 style="margin:0;">Plano Anual</h2>
+          <span class="savings-percent" style="margin:0;">12,5% OFF</span>
+        </div>
+
+        <p class="lead">Economize <strong>R$ 120 por ano</strong> com o plano ideal para clínicas que buscam
           estabilidade.</p>
 
+        <div class="savings-highlight" aria-label="Economia do plano anual">
+          <span class="savings-text">Invista uma única vez e garanta 12 meses de acesso contínuo com economia real.</span>
+        </div>
         <div class="price" aria-label="Preço">
           <span class="currency">R$</span>
-          <span class="amount">79,90</span>
+          <span class="amount">69,90</span>
           <span class="per">/ mês</span>
         </div>
 
         <div class="stack">
-          <span class="badge" style="background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:#fff;">
-            Mais vantajoso
-          </span>
           <ul class="list">
-            <li><strong>Pagamento único anual</strong> (R$ 958,80)</li>
-            <li><strong>Economia de 12%</strong> em relação ao plano mensal</li>
-            <li>50 análises grátis e suporte prioritário</li>
+            <li><strong>Pagamento único anual</strong> (R$ 838,80)</li>
+            <li><strong>Economia de R$ 120/ano</strong> em relação ao plano mensal</li>
+            <li><strong>25 análises gratuitas</strong> incluídas para iniciar</li>
+            <li><strong>Bônus anual de 30 análises</strong> (total de 55 inclusas)</li>
             <li>Todos os módulos e atualizações incluídos</li>
-            <li>Onboarding guiado e suporte premium</li>
+            <li>Onboarding guiado e suporte premium com prioridade</li>
           </ul>
           <div class="cta-row">
-            <a class="btn-primary" href="{{ url_for('auth.register', plan='yearly') }}"
+            <a class="btn-primary" href="{{ url_for('auth.register') }}"
             target="_blank" rel="noopener noreferrer">
-              Assinar plano anual
+              Iniciar teste gratuito de 14 dias
             </a>
-            <a class="btn-outline" href="{{ url_for('auth.register') }}">Criar conta gratuita</a>
           </div>
         </div>
       </section>
@@ -1013,15 +1055,15 @@
       <h2 class="title" style="text-align:center; margin-bottom: 40px;">Perguntas frequentes</h2>
       <details>
         <summary>Qual a diferença entre o plano mensal e o anual?</summary>
-        <p>O plano mensal custa R$ 89,90 e pode ser cancelado a qualquer momento. O plano anual é pago uma única vez por
-          R$ 958,80, equivalente a R$ 79,90/mês — oferecendo economia e benefícios extras.</p>
+        <p>O plano mensal custa R$ 79,90 e pode ser cancelado a qualquer momento. O plano anual é pago uma única vez por
+          R$ 838,80, equivalente a R$ 69,90/mês — oferecendo economia e benefícios extras.</p>
       </details>
       <details>
         <summary>Posso mudar do plano mensal para o anual depois?</summary>
         <p>Sim. Basta entrar em contato com o suporte que ajustaremos sua assinatura sem perda de dados.</p>
       </details>
       <details>
-        <summary>O que acontece quando acabarem as 50 análises grátis?</summary>
+  <summary>O que acontece quando acabarem as 25 análises grátis?</summary>
         <p>Você pode continuar normalmente e adquirir pacotes adicionais de análises conforme sua necessidade.</p>
       </details>
       <details>
