@@ -45,6 +45,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import select, func, or_
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.pool import NullPool
 from werkzeug.middleware.proxy_fix import ProxyFix
 from apscheduler.schedulers.background import BackgroundScheduler #type:ignore
 from jinja2 import TemplateNotFound
@@ -394,12 +395,17 @@ else:
 db_pool_size = max(_coerce_int(os.getenv("DB_POOL_SIZE"), default=3), 1)
 db_max_overflow = max(_coerce_int(os.getenv("DB_MAX_OVERFLOW"), default=0), 0)
 pool_timeout = max(_coerce_int(os.getenv("DB_POOL_TIMEOUT"), default=30), 5)
-supabase_max_clients = max(_coerce_int(os.getenv("SUPABASE_MAX_CLIENTS"), default=5), 1)
 worker_processes = max(_env_positive_int(["WEB_CONCURRENCY", "GUNICORN_WORKERS", "WORKERS"], default=1), 1)
+supabase_max_clients = max(_coerce_int(os.getenv("SUPABASE_MAX_CLIENTS"), default=worker_processes), 1)
+force_null_pool = (
+    os.getenv("DB_FORCE_NULLPOOL", "").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
 
 per_worker_budget = max(1, supabase_max_clients // worker_processes)
 effective_pool_size = min(db_pool_size, per_worker_budget)
 effective_max_overflow = min(db_max_overflow, max(0, per_worker_budget - effective_pool_size))
+use_null_pool = force_null_pool or supabase_max_clients <= worker_processes
 
 if worker_processes > supabase_max_clients:
     print(
@@ -408,28 +414,40 @@ if worker_processes > supabase_max_clients:
         "Considere reduzir WEB_CONCURRENCY ou elevar SUPABASE_MAX_CLIENTS."
     )
 
-if effective_pool_size < db_pool_size:
-    print(
-        f"[DB] Ajustando pool_size solicitado ({db_pool_size}) para {effective_pool_size} "
-        f"para respeitar o limite total de {supabase_max_clients} conexões."
-    )
+engine_options: dict[str, Any] = {
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+}
 
-if effective_max_overflow < db_max_overflow:
+if use_null_pool:
+    reason = "forçado por DB_FORCE_NULLPOOL" if force_null_pool else "limite total <= workers"
     print(
-        f"[DB] Ajustando max_overflow solicitado ({db_max_overflow}) para {effective_max_overflow} "
-        f"para respeitar o limite total de {supabase_max_clients} conexões."
+        f"[DB] Habilitando NullPool ({reason}); conexões serão abertas/fechadas sob demanda."
     )
+    engine_options["poolclass"] = NullPool
+else:
+    if effective_pool_size < db_pool_size:
+        print(
+            f"[DB] Ajustando pool_size solicitado ({db_pool_size}) para {effective_pool_size} "
+            f"para respeitar o limite total de {supabase_max_clients} conexões."
+        )
+
+    if effective_max_overflow < db_max_overflow:
+        print(
+            f"[DB] Ajustando max_overflow solicitado ({db_max_overflow}) para {effective_max_overflow} "
+            f"para respeitar o limite total de {supabase_max_clients} conexões."
+        )
+
+    engine_options.update({
+        "pool_timeout": pool_timeout,
+        "pool_size": effective_pool_size,
+        "max_overflow": effective_max_overflow,
+    })
 
 app.config.update(
     SQLALCHEMY_DATABASE_URI=DATABASE_URL,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    SQLALCHEMY_ENGINE_OPTIONS={
-        "pool_pre_ping": True,
-        "pool_recycle": 300,
-        "pool_timeout": pool_timeout,
-        "pool_size": effective_pool_size,
-        "max_overflow": effective_max_overflow,
-    },
+    SQLALCHEMY_ENGINE_OPTIONS=engine_options,
 )
 
 db.init_app(app)
