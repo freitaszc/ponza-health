@@ -301,6 +301,15 @@ def _coerce_int(value: Any, *, default: int = 0) -> int:
         return default
 
 
+def _env_positive_int(keys: list[str], *, default: int) -> int:
+    """Retorna o primeiro valor inteiro positivo encontrado nas variáveis informadas."""
+    for key in keys:
+        value = _coerce_int(os.getenv(key), default=0)
+        if value > 0:
+            return value
+    return default
+
+
 def _ensure_package_usage(user: User, *, base_total: Optional[int] = None) -> tuple[PackageUsage, bool]:
     """Garantir que o usuário possua registro de pacote com o mínimo configurado."""
     baseline = base_total if base_total is not None else DEFAULT_FREE_ANALYSIS_ALLOWANCE
@@ -382,8 +391,34 @@ else:
 # Configura o SQLAlchemy para conectar ao Supabase. Mantemos o pool pequeno
 # para não ultrapassar o limite do PgBouncer do Supabase, evitando o erro
 # "MaxClientsInSessionMode".
-db_pool_size = int(os.getenv("DB_POOL_SIZE", "3"))
-db_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "0"))
+db_pool_size = max(_coerce_int(os.getenv("DB_POOL_SIZE"), default=3), 1)
+db_max_overflow = max(_coerce_int(os.getenv("DB_MAX_OVERFLOW"), default=0), 0)
+pool_timeout = max(_coerce_int(os.getenv("DB_POOL_TIMEOUT"), default=30), 5)
+supabase_max_clients = max(_coerce_int(os.getenv("SUPABASE_MAX_CLIENTS"), default=5), 1)
+worker_processes = max(_env_positive_int(["WEB_CONCURRENCY", "GUNICORN_WORKERS", "WORKERS"], default=1), 1)
+
+per_worker_budget = max(1, supabase_max_clients // worker_processes)
+effective_pool_size = min(db_pool_size, per_worker_budget)
+effective_max_overflow = min(db_max_overflow, max(0, per_worker_budget - effective_pool_size))
+
+if worker_processes > supabase_max_clients:
+    print(
+        f"[DB] ATENCAO: existem {worker_processes} workers configurados, "
+        f"mas o Supabase permite apenas {supabase_max_clients} conexões simultâneas. "
+        "Considere reduzir WEB_CONCURRENCY ou elevar SUPABASE_MAX_CLIENTS."
+    )
+
+if effective_pool_size < db_pool_size:
+    print(
+        f"[DB] Ajustando pool_size solicitado ({db_pool_size}) para {effective_pool_size} "
+        f"para respeitar o limite total de {supabase_max_clients} conexões."
+    )
+
+if effective_max_overflow < db_max_overflow:
+    print(
+        f"[DB] Ajustando max_overflow solicitado ({db_max_overflow}) para {effective_max_overflow} "
+        f"para respeitar o limite total de {supabase_max_clients} conexões."
+    )
 
 app.config.update(
     SQLALCHEMY_DATABASE_URI=DATABASE_URL,
@@ -391,8 +426,9 @@ app.config.update(
     SQLALCHEMY_ENGINE_OPTIONS={
         "pool_pre_ping": True,
         "pool_recycle": 300,
-        "pool_size": max(db_pool_size, 1),
-        "max_overflow": max(db_max_overflow, 0),
+        "pool_timeout": pool_timeout,
+        "pool_size": effective_pool_size,
+        "max_overflow": effective_max_overflow,
     },
 )
 
