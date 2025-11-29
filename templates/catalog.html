@@ -623,25 +623,47 @@
     }
 
 	
-    /* Rounded catalog table override */
-    table.catalog-table {
-      border-collapse: separate !important;
-      border-spacing: 0;
+    .table-shell {
       border-radius: 18px;
-      overflow: hidden;
+      border: 1px solid var(--border);
       box-shadow: 0 20px 45px rgba(7, 20, 43, 0.08);
+      background: #fff;
+      overflow: visible;
     }
 
-    table.catalog-table thead tr {
+    .table-shell table {
+      border-collapse: separate !important;
+      border-spacing: 0;
+      width: 100%;
+      border: none;
+    }
+
+    .table-shell table thead tr {
       background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
     }
 
-    table.catalog-table thead th {
+    .table-shell table thead th {
       background: transparent !important;
       color: #fff !important;
       text-transform: uppercase;
       letter-spacing: .08em;
       border-bottom: none !important;
+    }
+
+    .table-shell table thead th:first-child {
+      border-top-left-radius: 18px;
+    }
+
+    .table-shell table thead th:last-child {
+      border-top-right-radius: 18px;
+    }
+
+    .table-shell table tbody tr:last-child td:first-child {
+      border-bottom-left-radius: 18px;
+    }
+
+    .table-shell table tbody tr:last-child td:last-child {
+      border-bottom-right-radius: 18px;
     }
 
 	</style>
@@ -704,7 +726,8 @@
 
     <!-- Tabela -->
     <div class="panel">
-      <table class="catalog-table">
+      <div class="table-shell">
+        <table class="catalog-table">
         <thead>
           <tr>
             <th>Paciente</th>
@@ -760,7 +783,8 @@
           </tr>
           {% endfor %}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   </div>
 
