@@ -18,7 +18,7 @@
       --border: #e5e7eb;
       --ink: #0b1220;
       --ink-dim: #475569;
-      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-grad: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       --brand-blue-solid: #0f182b;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --shadow-strong: 0 14px 36px rgba(2, 6, 23, .12);
@@ -581,7 +581,17 @@
         width: 72px
       }
     }
-  </style>
+  
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	</style>
 </head>
 
 <body>
@@ -614,7 +624,7 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
         class="fa fa-angle-double-left"></i></button> <img src="{{ url_for('static', filename='images/3.svg') }}"
       class="sidebar-logo" alt="Ponza Health" />
-    <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
+    <a href="{{ url_for('index') }}" class="menu-item active"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>
     <a href="{{ url_for('quote_index') }}" class="menu-item"><i class="fa fa-file-text-o"></i><span

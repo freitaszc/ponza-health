@@ -31,7 +31,7 @@
             --border: #e5e7eb;
             --ink: #0b1220;
             --ink-dim: #475569;
-            --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+            --brand-grad: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             --brand-solid: #131d35;
             --shadow: 0 8px 20px rgba(2, 6, 23, .06);
             --btn-h: 44px;
@@ -114,7 +114,7 @@
         .sidebar {
             width: 250px;
             min-height: 100vh;
-            background: var(--brand-grad);
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             padding: 28px 18px;
             border-right: 1px solid #1f2937;
             box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
@@ -161,7 +161,7 @@
 
         .sidebar a.menu-item.active {
             color: #fff;
-            background: var(--brand-grad);
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
         }
 
@@ -261,7 +261,7 @@
             transform: translateX(-50%);
             width: 80px;
             height: 4px;
-            background: var(--brand-grad);
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             border-radius: 2px;
             box-shadow: 0 0 8px rgba(0, 0, 0, .12);
         }
@@ -365,7 +365,7 @@
             transition: .22s;
             text-decoration: none;
             color: #fff;
-            background: var(--brand-grad);
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             box-shadow: var(--shadow);
         }
 
@@ -502,7 +502,17 @@
                 align-items: center;
             }
         }
-    </style>
+    
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	</style>
 
     <script>
         function toggleSidebar() {

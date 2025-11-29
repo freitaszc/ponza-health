@@ -33,9 +33,9 @@
             --secondary-glow-strong: rgba(10, 22, 40, .25);
 
             /* Enhanced gradients */
-            --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+            --brand-grad: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             --brand-base: #0a1628;
-            --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+            --brand-grad-hover: linear-gradient(125deg, #051b3b 0%, #133968 55%, #2b76cf 100%);
             --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
 
@@ -84,7 +84,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--brand-grad);
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: var(--shadow-glow);
@@ -444,7 +444,7 @@
         /* FOOTER */
         .contacts {
             padding: 80px 16px 40px;
-            background: var(--brand-grad);
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
             color: var(--primary);
             position: relative;
         }
@@ -707,7 +707,17 @@
                 background-position: 200% 0;
             }
         }
-    </style>
+    
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	</style>
 </head>
 
 <body>

@@ -7,11 +7,34 @@ import fitz
 import string
 import unicodedata
 from datetime import datetime
-from typing import Optional, List, Dict
+from functools import lru_cache
+from typing import Optional, List, Dict, TYPE_CHECKING, BinaryIO, Union
 from urllib.parse import urljoin
 from flask import current_app, url_for
 from itsdangerous import URLSafeSerializer
 from difflib import get_close_matches
+
+try:  # ensure .env is available even for CLI scripts importing this module
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - best effort for environments without python-dotenv
+    load_dotenv = None  # type: ignore
+else:
+    try:
+        _ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+        if os.path.exists(_ENV_PATH):
+            load_dotenv(dotenv_path=_ENV_PATH, override=True)
+        else:
+            load_dotenv(override=True)
+    except Exception:  # pragma: no cover - ignore dotenv lookup issues in constrained runtimes
+        pass
+
+try:
+    from pdf_pipeline.structured_extractor import run_pipeline
+except Exception:  # pragma: no cover - fallback when optional deps missing
+    run_pipeline = None  # type: ignore
+
+if TYPE_CHECKING:
+    from pdf_pipeline.structured_extractor import ExtractionResult
 
 # Palavras/segmentos que comumente aparecem em cabeçalhos/rodapés e não são nomes
 _NAME_STOPWORDS = {
@@ -275,22 +298,33 @@ def _find_doctor_from_lines(lines: List[str], patient_name: str) -> tuple[str, s
     return best_name, cred_label, best_cred_digits
 
 
-def read_pdf(file_path):
-    """Lê PDF com PyMuPDF (fitz), preservando layout e corrigindo fragmentação de caracteres sem remover espaços entre palavras."""
+PdfSource = Union[str, bytes, BinaryIO]
+
+
+def _open_pdf_document(source: PdfSource):
+    if isinstance(source, (bytes, bytearray)):
+        return fitz.open(stream=source, filetype="pdf")
+    if hasattr(source, "read"):
+        data = source.read()
+        try:
+            source.seek(0)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        return fitz.open(stream=data, filetype="pdf")
+    return fitz.open(source)
+
+
+def read_pdf(source: PdfSource):
+    """Lê PDF a partir de caminho, bytes ou arquivo, preservando layout legível."""
     try:
         text = ""
-        with fitz.open(file_path) as doc:  # type: ignore[attr-defined]
+        with _open_pdf_document(source) as doc:  # type: ignore[attr-defined]
             for page in doc:
-                # Pega blocos de texto em ordem de leitura
                 blocks = [b[4] for b in page.get_text("blocks")]  # type: ignore[attr-defined]
                 page_text = "\n".join(blocks)
-
-                # Remove múltiplos espaços e colapsa apenas letras isoladas com espaços
                 page_text = re.sub(r"\s{2,}", " ", page_text)
                 page_text = _collapse_spaced_capitals(page_text)
                 text += page_text + "\n"
-
-        # Divide em linhas e remove vazias
         return [line.strip() for line in text.splitlines() if line.strip()]
     except Exception as e:
         print(f"Error reading PDF with PyMuPDF: {e}")
@@ -300,10 +334,18 @@ def read_pdf(file_path):
 # =============== REFERÊNCIAS JSON ======================
 # ======================================================
 
+@lru_cache(maxsize=4)
+def _cached_references(path: str):
+    with open(path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
 def read_references(references_path):
+    if not references_path:
+        return None
     try:
-        with open(references_path, "r", encoding="utf-8") as file:
-            return json.load(file)
+        normalized = os.path.abspath(references_path)
+        return _cached_references(normalized)
     except Exception as e:
         print(f"Error reading references: {e}")
         return None
@@ -913,32 +955,6 @@ Informações extraídas inicialmente:
 # =============== TESTE AUTOMÁTICO =====================
 # ======================================================
 
-if __name__ == "__main__":
-    file_path = "/Users/gabriel/Downloads/Christiany.pdf"
-
-    if not os.path.exists(file_path):
-        print(f"[ERRO] O arquivo {file_path} não foi encontrado.")
-    else:
-        print(f"\n📄 Analisando: {file_path}")
-        lines = read_pdf(file_path)
-        if not lines:
-            print("  ❌ Falha ao ler o PDF.")
-        else:
-            try:
-                extracted = extract_patient_info(lines)
-                validated = ai_validate_patient_info(lines, extracted)
-                name, gender, age, cpf, phone, doctor, birth_date = validated
-                print("  ✅ Extração final validada pela IA:")
-                print(f"     Nome: {name}")
-                print(f"     Data de Nascimento: {birth_date}")
-                print(f"     Idade: {age}")
-                print(f"     CPF: {cpf}")
-                print(f"     Sexo: {gender}")
-                print(f"     Telefone: {phone}")
-                print(f"     Médico: {doctor}")
-            except Exception as e:
-                print(f"  ⚠️ Erro ao extrair informações: {e}")
-
 def ai_refine_results(raw_text: str, initial_results: dict) -> dict:
     """Usa a IA para corrigir valores incorretos extraídos do PDF."""
     if not OPENAI_API_KEY:
@@ -1339,7 +1355,11 @@ def analyze_pdf(
     Inclui data de nascimento detectada pelo extrator.
     """
     manual_overrides = manual_overrides or {}
-    references = read_references(references_path)
+    resolved_references_path = references_path
+    if references_path and not os.path.isabs(references_path):
+        base_dir = os.path.dirname(__file__)
+        resolved_references_path = os.path.join(base_dir, references_path)
+    references = read_references(resolved_references_path or references_path)
 
     if manual:
         lines = [l.strip() for l in source.splitlines() if l.strip()]
@@ -1366,7 +1386,23 @@ def analyze_pdf(
             diagnosis = f"{note}\n\n{diagnosis}" if diagnosis else note
         return diagnosis, prescriptions, name, gender, age_int, "", phone, "", ""
 
-    lines = read_pdf(source)
+    pipeline_result: Optional["ExtractionResult"] = None
+    pipeline_notes: List[str] = []
+    if not manual and run_pipeline and resolved_references_path:
+        try:
+            pipeline_result = run_pipeline(source, resolved_references_path or references_path, require_ocr=True)  # type: ignore[arg-type]
+        except Exception as exc:
+            pipeline_notes.append(f"[Pipeline] Falha na extração estruturada: {exc}")
+    elif not manual:
+        pipeline_notes.append("[Pipeline] Módulo estruturado indisponível; usando extração básica.")
+
+    if pipeline_result:
+        raw_text = pipeline_result.raw_text
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        if not references:
+            references = read_references(resolved_references_path or references_path)
+    else:
+        lines = read_pdf(source)
     if not lines or not references:
         return "Erro ao extrair com IA", "", "", "", 0, "", "", "", ""
 
@@ -1378,7 +1414,25 @@ def analyze_pdf(
         print(f"[analyze_pdf] Erro ao extrair dados pessoais: {e}")
         name, gender, age, cpf, phone, doctor, birth_date = "", "", 0, "", "", "", ""
 
+    if pipeline_result:
+        patient_payload = pipeline_result.patient_data or {}
+        name = name or patient_payload.get("name") or ""
+        raw_gender = patient_payload.get("gender")
+        if not gender and isinstance(raw_gender, str):
+            gender = _normalize_patient_gender(raw_gender)
+        if not doctor and isinstance(patient_payload.get("doctor"), str):
+            doctor = patient_payload.get("doctor")
+        if not birth_date and isinstance(patient_payload.get("birth_date"), str):
+            birth_date = patient_payload.get("birth_date")
+        if not cpf and isinstance(patient_payload.get("cpf"), str):
+            cpf = patient_payload.get("cpf")
+        phone_candidate = patient_payload.get("phone")
+        if not phone and isinstance(phone_candidate, str):
+            phone = normalize_phone(phone_candidate)
+
     ai_messages: List[str] = []
+    if pipeline_notes:
+        ai_messages.extend(pipeline_notes)
 
     # Overrides informados manualmente pelo médico
     name_raw_override = manual_overrides.get("name") if manual_overrides else None
@@ -1448,6 +1502,49 @@ def analyze_pdf(
 
     # Correção de resultados via IA
     results = scan_results(lines, references, gender)
+
+    if pipeline_result and pipeline_result.lab_results:
+        updates_from_pipeline = 0
+        for item in pipeline_result.lab_results:
+            if not isinstance(item, dict):
+                continue
+            test_name = item.get("name") or item.get("test")
+            if not isinstance(test_name, str):
+                continue
+            candidates = list(results.keys())
+            best_match = None
+            if test_name in results:
+                best_match = test_name
+            else:
+                normalized = _normalize_for_matching(test_name)
+                mapping = {key: _normalize_for_matching(key) for key in candidates}
+                reverse_lookup = {value: key for key, value in mapping.items() if value}
+                if normalized in reverse_lookup:
+                    best_match = reverse_lookup[normalized]
+                else:
+                    matches = get_close_matches(normalized, mapping.values(), n=1, cutoff=0.78)
+                    if matches:
+                        best_match = next((original for original, norm in mapping.items() if norm == matches[0]), None)
+            if not best_match:
+                continue
+            raw_value = item.get("value")
+            if isinstance(raw_value, (int, float)):
+                results[best_match]["value"] = float(raw_value)
+                status = (item.get("status") or "").lower()
+                meds = []
+                if status in {"low", "high"}:
+                    ref_entry = references.get(best_match, {}) if isinstance(references, dict) else {}
+                    meds = ref_entry.get("medications", {}).get(status, []) if isinstance(ref_entry, dict) else []
+                if meds:
+                    results[best_match]["medications"] = meds
+                updates_from_pipeline += 1
+        if updates_from_pipeline:
+            ai_messages.append(f"[Pipeline] Valores refinados para {updates_from_pipeline} exame(s).")
+
+    if pipeline_result and pipeline_result.suggestions:
+        for suggestion in pipeline_result.suggestions:
+            if suggestion:
+                ai_messages.append(f"[Pipeline] {suggestion}")
     if use_ai:
         if not OPENAI_API_KEY:
             msg = "[AI] OPENAI_API_KEY não configurada; ignorando recursos de IA."

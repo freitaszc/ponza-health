@@ -10,6 +10,17 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ponza-base.css') }}">
 
+  <!-- Previne flicker da sidebar aplicando estado salvo antes do paint -->
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('sidebarCollapsed') === '1') {
+          document.documentElement.classList.add('sidebar-collapsed');
+        }
+      } catch (_) { }
+    })();
+  </script>
+
   <style>
     a,
     a:hover,
@@ -20,6 +31,12 @@
     .sidebar a.menu-item,
     .sidebar .label {
       font-size: 16px;
+    }
+
+    .content {
+      padding: 32px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
 
     .plan-cards {
@@ -75,18 +92,18 @@
       justify-content: center;
       padding: 6px 16px;
       border-radius: 999px;
-      background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+      background: linear-gradient(135deg, #102544 0%, #1f3f7f 100%);
       color: #fff;
       font-weight: 700;
       font-size: 13px;
       letter-spacing: 0.02em;
       margin: 6px auto 8px;
-      box-shadow: 0 8px 18px rgba(22, 163, 74, 0.22);
+      box-shadow: 0 10px 24px rgba(16, 35, 63, 0.25);
     }
 
     .plan-card .savings-note {
       font-size: 13px;
-      color: #166534;
+      color: var(--brand-blue-solid);
       font-weight: 600;
       margin-bottom: 6px;
     }
@@ -103,7 +120,17 @@
       border: none;
       border-top: 1px solid var(--border);
     }
-  </style>
+  
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	</style>
 </head>
 
 <body>
@@ -132,6 +159,10 @@
     <a href="{{ url_for('payments') }}" class="menu-item active"><i class="fa fa-credit-card"></i><span
         class="label">Pagamentos</span></a>
     <div class="sidebar-spacer"></div>
+    {% if session.username and session.username|lower == 'admin' %}
+    <a href="{{ url_for('admin_users') }}" class="menu-item"><i class="fa fa-shield"></i><span
+        class="label">Admin</span></a>
+    {% endif %}
     <a href="{{ url_for('logout') }}" class="menu-item logout"><i class="fa fa-sign-out"></i><span
         class="label">Sair</span></a>
   </div>
@@ -222,12 +253,20 @@
 
   <script>
     function toggleSidebar() {
-      const s = document.getElementById('sidebar');
-      s.classList.toggle('is-collapsed');
-      localStorage.setItem('sidebarCollapsed', s.classList.contains('is-collapsed') ? '1' : '0');
+      const sidebar = document.getElementById('sidebar');
+      const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+      document.body.classList.toggle('sidebar-collapsed', collapsed);
+      if (collapsed) {
+        sidebar.classList.add('is-collapsed');
+      } else {
+        sidebar.classList.remove('is-collapsed');
+      }
+      try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) { }
     }
     document.addEventListener('DOMContentLoaded', () => {
       if (localStorage.getItem('sidebarCollapsed') === '1') {
+        document.documentElement.classList.add('sidebar-collapsed');
+        document.body.classList.add('sidebar-collapsed');
         document.getElementById('sidebar')?.classList.add('is-collapsed');
       }
     });

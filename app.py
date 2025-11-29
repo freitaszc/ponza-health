@@ -2,6 +2,7 @@ import os
 import io
 import re
 import base64
+import unicodedata
 import mimetypes
 import secrets
 import stripe
@@ -24,7 +25,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'), override=True)
 
 from prescription import (
     analyze_pdf,
@@ -34,13 +35,16 @@ from prescription import (
     send_reminder_patient,
     send_quote_whatsapp,
 )
+from exam_analyzer.pdf_extractor import extract_exam_payload
+from exam_analyzer.ai import generate_ai_analysis
 from flask import (
     Flask, Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify, abort, send_file, g, current_app, send_file, abort
+    session, flash, jsonify, abort, send_file, g, current_app
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from sqlalchemy import select, func, or_
+from sqlalchemy.exc import OperationalError
 from werkzeug.middleware.proxy_fix import ProxyFix
 from apscheduler.schedulers.background import BackgroundScheduler #type:ignore
 from jinja2 import TemplateNotFound
@@ -70,8 +74,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# Uploads
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 DEFAULT_USER_IMAGE = "/static/images/user-icon.png"
 DEFAULT_PATIENT_IMAGE = "/static/images/user-icon.png"
@@ -82,17 +84,17 @@ app.config["PUBLIC_BASE_URL"] = (
     or os.getenv("PUBLIC_APP_URL")
 )
 
-# Email
+smtp_username = os.getenv("SMTP_USERNAME")
+default_sender_email = (os.getenv("EMAIL_FROM") or smtp_username or "")
+default_sender_name = os.getenv("MAIL_SENDER_NAME", "Ponza Health")
+
 app.config.update(
     MAIL_SERVER=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
     MAIL_PORT=int(os.getenv("SMTP_PORT", 587)),
     MAIL_USE_TLS=(os.getenv("MAIL_USE_TLS", "true").strip().lower() == "true"),
-    MAIL_USERNAME=os.getenv("SMTP_USERNAME"),
+    MAIL_USERNAME=smtp_username,
     MAIL_PASSWORD=os.getenv("SMTP_PASSWORD"),
-    MAIL_DEFAULT_SENDER=(
-        "Ponza Health",
-        os.getenv("EMAIL_FROM") or os.getenv("SMTP_USERNAME")
-    ),
+    MAIL_DEFAULT_SENDER=(default_sender_name, default_sender_email),
 )
 
 mail = Mail(app)
@@ -100,18 +102,6 @@ mail = Mail(app)
 
 def allowed_file(filename: str) -> bool:
     return bool(filename) and '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-# Configurações de e-mail (SMTP)
-app.config.update(
-    MAIL_SERVER=os.getenv("SMTP_SERVER", "smtp.gmail.com"),
-    MAIL_PORT=int(os.getenv("SMTP_PORT", 587)),
-    MAIL_USE_TLS=(os.getenv("MAIL_USE_TLS", "true").strip().lower() == "true"),
-    MAIL_USERNAME=os.getenv("SMTP_USERNAME"),
-    MAIL_PASSWORD=os.getenv("SMTP_PASSWORD"),
-    MAIL_DEFAULT_SENDER=os.getenv("EMAIL_FROM")  # deve ser igual a SMTP_USERNAME
-)
-mail = Mail(app)
 
 DEFAULT_FREE_ANALYSIS_ALLOWANCE = 25
 ANNUAL_PLAN_BONUS_ANALYSES = 30
@@ -389,15 +379,20 @@ else:
     db_path = os.path.join(BASE_DIR, 'web.db')
     DATABASE_URL = f"sqlite:///{db_path}"
 
-# Configura o SQLAlchemy para conectar ao Supabase
+# Configura o SQLAlchemy para conectar ao Supabase. Mantemos o pool pequeno
+# para não ultrapassar o limite do PgBouncer do Supabase, evitando o erro
+# "MaxClientsInSessionMode".
+db_pool_size = int(os.getenv("DB_POOL_SIZE", "3"))
+db_max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "0"))
+
 app.config.update(
     SQLALCHEMY_DATABASE_URI=DATABASE_URL,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SQLALCHEMY_ENGINE_OPTIONS={
         "pool_pre_ping": True,
         "pool_recycle": 300,
-        "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
-        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "5")),
+        "pool_size": max(db_pool_size, 1),
+        "max_overflow": max(db_max_overflow, 0),
     },
 )
 
@@ -705,7 +700,27 @@ def _delete_securefile_if_owned(file_id: int, user_id: int):
 
 def get_logged_user() -> Optional[User]:
     uid = session.get('user_id')
-    return User.query.get(uid) if uid else None
+    if not uid:
+        return None
+    try:
+        return User.query.get(uid)
+    except OperationalError as oe:
+        # DB is unavailable (connection refused / network issue). Return None so
+        # login_required and other callers can handle an unauthenticated user
+        # instead of raising a 500. Log the error for diagnostics.
+        try:
+            current_app.logger.error("Database OperationalError when fetching user %s: %s", uid, oe)
+        except Exception:
+            # current_app may not be available in some edge cases; swallow logging errors.
+            pass
+        return None
+    except Exception as e:
+        # Fallback: log unexpected exceptions and return None to avoid crashing requests
+        try:
+            current_app.logger.exception("Unexpected error when fetching logged user %s: %s", uid, e)
+        except Exception:
+            pass
+        return None
 
 def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
     """
@@ -1757,6 +1772,9 @@ def upload():
             success=request.args.get('success', type=int),
             success_id=request.args.get('success_id', type=int),
             error=request.args.get('error'),
+            analysis=None,
+            analysis_token=None,
+            analysis_error=None,
             notifications_unread=0
         )
 
@@ -1840,8 +1858,6 @@ def _handle_manual_entry(request, u, analyze_pdf, *, use_ai=False):
 
 def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
     """Processa upload de arquivo PDF, analisa e envia relatórios via WhatsApp."""
-    import tempfile
-    from prescription import send_pdf_whatsapp_template, send_pdf_whatsapp_patient
 
     file = request.files.get('pdf_file')
     if not file or not file.filename.lower().endswith('.pdf'):
@@ -1871,12 +1887,6 @@ def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
     db.session.add(pf)
     db.session.commit()
 
-    refs_path = _project_references_json()
-    import tempfile
-    fd, tmp = tempfile.mkstemp(suffix=".pdf")
-    with os.fdopen(fd, "wb") as fh:
-        fh.write(content)
-
     # Dados informados manualmente pelo médico no formulário
     manual_name = (request.form.get('patient_manual_name') or '').strip()
     manual_age  = (request.form.get('patient_manual_age') or '').strip()
@@ -1889,13 +1899,53 @@ def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
             age_int = int(manual_age)
             today = date.today()
             candidate_year = max(1900, today.year - age_int)
-            # Mantém o mês/dia atuais para estimar nascimento e preservar cálculo da idade exibida
             manual_birthdate_str = date(candidate_year, today.month, today.day).strftime('%d/%m/%Y')
         except ValueError:
             manual_birthdate_str = None
 
+    manual_overrides: dict[str, str] = {}
+    if manual_name:
+        manual_overrides["nome"] = manual_name
+    if manual_gender:
+        manual_overrides["sexo"] = manual_gender
+    if manual_birthdate_str:
+        manual_overrides["data_nascimento"] = manual_birthdate_str
+    if manual_phone:
+        manual_overrides["telefone"] = manual_phone
+
+    send_doctor  = request.form.get('send_doctor') == '1'
+    send_patient = request.form.get('send_patient') == '1'
+
+    doctor_name_input   = (request.form.get('doctor_name') or '').strip()
+    doctor_phone  = (request.form.get('doctor_phone') or '').strip()
+    patient_name  = (request.form.get('patient_name') or '').strip()
+    patient_phone = (request.form.get('patient_phone') or '').strip()
+
+    clinic_contact = (u.clinic_phone or u.name or u.username or '').strip() or '-'
+    doctor_display = doctor_name_input or (getattr(u, "name", None) or u.username)
+
+    if use_ai:
+        return _handle_pdf_upload_ai(
+            user=u,
+            file_bytes=content,
+            file_name=file.filename,
+            manual_overrides=manual_overrides,
+            manual_phone=manual_phone,
+            doctor_text=doctor_name_input,
+            doctor_display=doctor_display,
+            send_doctor=send_doctor,
+            send_patient=send_patient,
+            doctor_phone=doctor_phone,
+            patient_name_field=patient_name,
+            patient_phone_field=patient_phone,
+            clinic_contact=clinic_contact,
+            pdf_entry=pf,
+        )
+
+    refs_path = _project_references_json()
+
     dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = analyze_pdf(
-        tmp,
+        content,
         references_path=refs_path,
         manual=False,
         manual_overrides={
@@ -1906,7 +1956,6 @@ def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
         },
         use_ai=use_ai,
     )
-    os.remove(tmp)
 
     p = _get_or_create_patient(
         u,
@@ -1924,20 +1973,10 @@ def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
     pf.patient_id = p.id
     db.session.commit()
 
-    send_doctor  = request.form.get('send_doctor') == '1'
-    send_patient = request.form.get('send_patient') == '1'
-
-    doctor_name   = (request.form.get('doctor_name') or '').strip()
-    doctor_phone  = (request.form.get('doctor_phone') or '').strip()
-    patient_name  = (request.form.get('patient_name') or '').strip()
-    patient_phone = (request.form.get('patient_phone') or '').strip()
-
-    clinic_contact = (u.clinic_phone or u.name or u.username or '').strip() or '-'
-
     if send_doctor and doctor_phone:
         send_pdf_whatsapp_template(
             "relatorio_ponza",
-            doctor_name,
+            doctor_name_input,
             p.name,
             doctor_phone,
             p.id,
@@ -1954,6 +1993,334 @@ def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
 
     return redirect(url_for('result', patient_id=p.id))
 
+
+def _handle_pdf_upload_ai(
+    *,
+    user,
+    file_bytes: bytes,
+    file_name: str,
+    manual_overrides: dict[str, str],
+    manual_phone: str,
+    doctor_text: str,
+    doctor_display: str,
+    send_doctor: bool,
+    send_patient: bool,
+    doctor_phone: str,
+    patient_name_field: str,
+    patient_phone_field: str,
+    clinic_contact: str,
+    pdf_entry: PdfFile,
+):
+    """Executa a análise via IA e renderiza o painel do Ponza Lab."""
+    try:
+        analysis = _perform_ai_lab_analysis(file_bytes, manual_overrides)
+    except RuntimeError as exc:
+        return render_template(
+            'upload.html',
+            analysis=None,
+            analysis_error=str(exc),
+            analysis_token=None,
+            notifications_unread=0,
+            success=None,
+            success_id=None,
+            error=None
+        )
+
+    patient_block = analysis.get("paciente") or {}
+    patient = _get_or_create_patient(
+        user,
+        name=patient_block.get("nome"),
+        cpf=(patient_block.get("cpf") or "").strip(),
+        gender=patient_block.get("sexo"),
+        phone=manual_phone or patient_block.get("telefone"),
+        birthdate=patient_block.get("data_nascimento"),
+    )
+
+    if doctor_text:
+        _assign_doctor_to_patient(user, patient, doctor_text)
+
+    diagnosis_text = analysis.get("resumo_clinico") or ""
+    prescription_text = "\n".join(analysis.get("prescricao") or [])
+    _attach_consult_and_notes(patient, diagnosis_text, prescription_text)
+
+    pdf_entry.patient_id = patient.id
+    db.session.add(pdf_entry)
+    db.session.commit()
+
+    if send_doctor and doctor_phone:
+        send_pdf_whatsapp_template(
+            "relatorio_ponza",
+            doctor_text or doctor_display,
+            patient.name,
+            doctor_phone,
+            patient.id,
+            clinic_contact=clinic_contact,
+        )
+
+    if send_patient and patient_phone_field:
+        send_pdf_whatsapp_patient(
+            patient_name_field or patient.name,
+            patient_phone_field,
+            patient.id,
+            clinic_phone=user.clinic_phone
+        )
+
+    context = _build_analysis_context(analysis, file_name=file_name, doctor_name=doctor_display)
+    serializer = URLSafeSerializer(app.config['SECRET_KEY'], salt="lab-analysis-pdf")
+    token_payload = {
+        "patient": context.get("patient") or {},
+        "doctor_name": context.get("doctor_name"),
+        "exams": context.get("exams") or [],
+        "abnormal_exams": context.get("abnormal_exams") or [],
+        "prescription": context.get("prescription") or [],
+        "summary": context.get("summary") or "",
+        "orientations": context.get("orientations") or [],
+        "alerts": context.get("alerts") or [],
+        "file_name": context.get("file_name"),
+    }
+    analysis_token = serializer.dumps(token_payload)
+
+    return redirect(url_for('lab_analysis_view', token=analysis_token))
+
+
+def _perform_ai_lab_analysis(file_bytes: bytes, overrides: dict[str, str]) -> dict[str, Any]:
+    payload = extract_exam_payload(file_bytes, require_ocr=False)
+    ai_response = generate_ai_analysis(payload)
+    if not ai_response.get("ok"):
+        raise RuntimeError(ai_response.get("error") or "Falha ao analisar o PDF.")
+    analysis = ai_response.get("analysis") or {}
+    patient_block = analysis.get("paciente") or {}
+    for key, value in overrides.items():
+        if value:
+            patient_block[key] = value
+    analysis["paciente"] = patient_block
+    analysis.setdefault("exames", [])
+    analysis.setdefault("orientacoes", [])
+    analysis.setdefault("alertas", [])
+    analysis["raw_exams"] = list(analysis.get("exames") or [])
+    reference_table = payload.get("reference_table") or {}
+    abnormal_exams, prescription = _apply_reference_rules(analysis, reference_table)
+    analysis["abnormal_exams"] = abnormal_exams
+    analysis["prescricao"] = prescription
+    return analysis
+
+
+def _format_patient_details(patient: dict) -> list[tuple[str, str]]:
+    ordered_keys = [
+        ("nome", "Nome"),
+        ("cpf", "CPF"),
+        ("data_nascimento", "Data de nascimento"),
+        ("sexo", "Sexo"),
+    ]
+    seen = {key for key, _ in ordered_keys}
+    details: list[tuple[str, str]] = []
+    for key, label in ordered_keys:
+        value = patient.get(key)
+        if value:
+            details.append((label, value))
+    for key, value in patient.items():
+        if key in seen or not value:
+            continue
+        details.append((key.replace("_", " ").title(), value))
+    return details
+
+
+def _is_abnormal_result(entry: dict) -> bool:
+    status = str(entry.get("status") or entry.get("estado") or "").strip().lower()
+    if not status:
+        return False
+    return status not in {"normal", "dentro", "adequado"}
+
+
+def _build_analysis_context(analysis: dict[str, Any], *, file_name: str, doctor_name: str) -> dict[str, Any]:
+    patient = analysis.get("paciente") or {}
+    patient_gender = patient.get("sexo")
+    exams_raw = analysis.get("raw_exams") or analysis.get("exames") or []
+    exams = []
+    for entry in exams_raw:
+        reference_field = entry.get("referencia") or entry.get("reference")
+        exams.append({
+            **entry,
+            "reference_display": _format_reference_label(reference_field, patient_gender),
+        })
+    abnormal = analysis.get("abnormal_exams") or []
+    if abnormal:
+        for entry in abnormal:
+            entry["reference_display"] = _format_reference_label(entry.get("referencia"), patient_gender)
+    context = {
+        "patient": patient,
+        "patient_details": _format_patient_details(patient),
+        "exams": exams,
+        "abnormal_exams": abnormal if abnormal else [entry for entry in exams if _is_abnormal_result(entry)],
+        "summary": analysis.get("resumo_clinico") or "",
+        "prescription": analysis.get("prescricao") or [],
+        "orientations": analysis.get("orientacoes") or [],
+        "alerts": analysis.get("alertas") or [],
+        "doctor_name": doctor_name,
+        "file_name": file_name,
+    }
+    return context
+
+
+def _normalize_label(label: Optional[str]) -> str:
+    if not label:
+        return ""
+    text = unicodedata.normalize("NFKD", label)
+    stripped = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return " ".join(stripped.lower().split())
+
+
+def _build_reference_index(reference_table: dict) -> dict[str, dict]:
+    index: dict[str, dict] = {}
+    for name, payload in reference_table.items():
+        norm = _normalize_label(name)
+        index[norm] = payload
+        for alias in payload.get("synonyms") or []:
+            alias_norm = _normalize_label(alias)
+            index[alias_norm] = payload
+    return index
+
+
+def _match_reference_entry(name: str, index: dict[str, dict]) -> Optional[dict]:
+    norm = _normalize_label(name)
+    return index.get(norm)
+
+
+def _coerce_float(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    text = text.replace(" ", "")
+    if "," in text and "." in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif text.count(".") == 1:
+        integer, fraction = text.split(".")
+        if len(fraction) == 3:
+            text = integer + fraction
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _parse_reference_bounds(reference_value: Any, gender: Optional[str]) -> tuple[Optional[float], Optional[float]]:
+    if isinstance(reference_value, dict):
+        keys = []
+        if gender:
+            initial = gender[:1].upper()
+            keys.extend([gender, initial])
+        keys.extend(reference_value.keys())
+        for key in keys:
+            if key in reference_value:
+                bounds = _parse_reference_bounds(reference_value[key], None)
+                if bounds != (None, None):
+                    return bounds
+        return (None, None)
+
+    if not isinstance(reference_value, str):
+        return (None, None)
+
+    text = reference_value.lower()
+    tokens = re.findall(r"[-+]?\d+(?:[.,]\d+)?", text)
+    numbers = [_coerce_float(token) for token in tokens]
+    numbers = [num for num in numbers if num is not None]
+
+    if not numbers:
+        return (None, None)
+
+    if any(keyword in text for keyword in ["menor", "inferior", "até", "ate"]):
+        return (None, numbers[0])
+    if any(keyword in text for keyword in ["maior", "superior"]):
+        return (numbers[0], None)
+    if "entre" in text or " a " in text or "-" in text:
+        if len(numbers) >= 2:
+            return (numbers[0], numbers[1])
+    if len(numbers) >= 2:
+        return (numbers[0], numbers[1])
+    return (None, None)
+
+
+def _classify_status(value: float, min_val: Optional[float], max_val: Optional[float]) -> Optional[str]:
+    if min_val is not None and value < min_val:
+        return "baixo"
+    if max_val is not None and value > max_val:
+        return "alto"
+    return None
+
+
+def _apply_reference_rules(analysis: dict[str, Any], reference_table: dict) -> tuple[list[dict[str, Any]], list[str]]:
+    exams = analysis.get("exames") or []
+    patient = analysis.get("paciente") or {}
+    gender = _normalize_gender_label(patient.get("sexo"))
+    reference_index = _build_reference_index(reference_table)
+    filtered_exams: list[dict[str, Any]] = []
+    prescription: list[str] = []
+    seen_meds: set[str] = set()
+
+    for exam in exams:
+        name = exam.get("nome") or exam.get("name") or exam.get("test")
+        if not name:
+            continue
+        entry = _match_reference_entry(name, reference_index)
+        if not entry:
+            continue
+        value = _coerce_float(exam.get("valor") or exam.get("value"))
+        if value is None:
+            continue
+        min_val, max_val = _parse_reference_bounds(entry.get("ideal"), gender)
+        status = _classify_status(value, min_val, max_val)
+        if status not in {"baixo", "alto"}:
+            continue
+        filtered_exams.append({
+            "nome": name,
+            "valor": value,
+            "referencia": entry.get("ideal"),
+            "status": status,
+        })
+
+        meds_payload = entry.get("medications") if isinstance(entry.get("medications"), dict) else {}
+        med_candidates = meds_payload.get("low" if status == "baixo" else "high") or []
+        if isinstance(med_candidates, dict):
+            med_iterable = [med_candidates]
+        elif isinstance(med_candidates, list):
+            med_iterable = med_candidates
+        else:
+            med_iterable = []
+        for med in med_iterable:
+            if not isinstance(med, dict):
+                continue
+            parts = [med.get("nome")]
+            applic = med.get("aplicacao") or med.get("aplicação")
+            if applic:
+                parts.append(applic)
+            prep = med.get("preparo")
+            if prep:
+                parts.append(prep)
+            text = " — ".join(part for part in parts if part)
+            if text and text not in seen_meds:
+                prescription.append(text)
+                seen_meds.add(text)
+
+    return filtered_exams, prescription
+
+
+def _format_reference_label(reference_value: Any, gender: Optional[str]) -> str:
+    if isinstance(reference_value, str):
+        return reference_value
+    if isinstance(reference_value, dict):
+        if gender:
+            first = gender[:1].upper()
+            for key in (gender, first):
+                if key in reference_value:
+                    return reference_value[key]
+        return "; ".join(f"{k}: {v}" for k, v in reference_value.items())
+    return ""
 def _parse_birthdate(value: Optional[str]) -> Optional[date]:
     if not value:
         return None
@@ -2274,6 +2641,111 @@ def download_pdf(patient_id):
         as_attachment=True,
         download_name=download_name,
         mimetype="application/pdf"
+    )
+
+
+@app.route('/lab_analysis/pdf', methods=['POST'])
+@login_required
+def lab_analysis_pdf():
+    """Gera PDF apenas com alterações relevantes e a prescrição recomendada."""
+    token = request.form.get("token")
+    if not token:
+        abort(400)
+    serializer = URLSafeSerializer(app.config['SECRET_KEY'], salt="lab-analysis-pdf")
+    try:
+        payload = serializer.loads(token)
+    except BadSignature:
+        abort(403)
+
+    patient = payload.get("patient") or {}
+    exams = payload.get("abnormal_exams") or payload.get("exams") or []
+    prescription = payload.get("prescription") or []
+    doctor_name = payload.get("doctor_name") or (getattr(current_user(), "name", None) or current_user().username)
+
+    abnormal = [entry for entry in exams if _is_abnormal_result(entry)]
+    if not abnormal:
+        abnormal = exams
+
+    from weasyprint import HTML
+
+    lines = []
+    if patient.get("nome"):
+        lines.append(f"Nome: {patient.get('nome')}")
+    if patient.get("data_nascimento"):
+        lines.append(f"Data de nascimento: {patient.get('data_nascimento')}")
+    if patient.get("cpf"):
+        lines.append(f"CPF: {patient.get('cpf')}")
+    lines.append(f"Médico responsável: {doctor_name}")
+    patient_info = "\n".join(lines)
+
+    public_base = current_app.config.get("PUBLIC_BASE_URL")
+    if public_base:
+        base = public_base.rstrip("/")
+        logo_url = f"{base}/static/images/1.png"
+    else:
+        logo_url = url_for("static", filename="images/1.png", _external=True)
+
+    pdf_html = render_template(
+        "lab_analysis_pdf.html",
+        patient_info=patient_info,
+        exams=abnormal,
+        prescription=prescription,
+        generated_at=datetime.utcnow(),
+        logo_url=logo_url,
+    )
+
+    pdf_io = io.BytesIO()
+    HTML(string=pdf_html, base_url=current_app.root_path).write_pdf(pdf_io)
+    pdf_io.seek(0)
+
+    filename = f"Analise_{(patient.get('nome') or 'Paciente').replace(' ', '_')}.pdf"
+    return send_file(
+        pdf_io,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+    )
+
+
+@app.route('/lab_analysis/view')
+@login_required
+def lab_analysis_view():
+    token = request.args.get("token")
+    if not token:
+        return redirect(url_for('upload'))
+    serializer = URLSafeSerializer(app.config['SECRET_KEY'], salt="lab-analysis-pdf")
+    try:
+        payload = serializer.loads(token)
+    except BadSignature:
+        abort(403)
+
+    doctor_name = payload.get("doctor_name") or (getattr(current_user(), "name", None) or current_user().username)
+    analysis = {
+        "paciente": payload.get("patient") or {},
+        "exames": payload.get("exams") or [],
+        "abnormal_exams": payload.get("abnormal_exams") or [],
+        "resumo_clinico": payload.get("summary") or "",
+        "prescricao": payload.get("prescription") or [],
+        "orientacoes": payload.get("orientations") or [],
+        "alertas": payload.get("alerts") or [],
+    }
+    context = _build_analysis_context(
+        analysis,
+        file_name=payload.get("file_name") or "",
+        doctor_name=doctor_name,
+    )
+    return render_template(
+        "result.html",
+        patient=None,
+        diagnostic_text=context.get("summary") or "",
+        prescription_text="\n".join(context.get("prescription") or []),
+        ai_analysis=True,
+        ai_patient_details=context.get("patient_details") or [],
+        ai_lab_results=context.get("exams") or [],
+        ai_prescription_list=context.get("prescription") or [],
+        ai_orientations=context.get("orientations") or [],
+        ai_alerts=context.get("alerts") or [],
+        ai_pdf_token=token,
     )
 
 @app.route('/public_download')

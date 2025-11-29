@@ -14,8 +14,8 @@
       --bg-card: #dfdede;
       --text-primary: #1e293b;
       --text-muted: #64748b;
-      --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
-      --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+      --brand-grad: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
+      --brand-grad-hover: linear-gradient(125deg, #051b3b 0%, #133968 55%, #2b76cf 100%);
       --font-family: 'Funnel Sans', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, sans-serif;
       --fs-title: 32px;
       --fs-small: 14px;
@@ -94,7 +94,7 @@
       height: var(--btn-height);
       border: none;
       border-radius: 999px;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       color: #fff;
       font-weight: 800;
       font-size: 16px;
@@ -121,7 +121,17 @@
       color: var(--text-primary);
       text-decoration: underline;
     }
-  </style>
+  
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	</style>
 </head>
 
 <body>

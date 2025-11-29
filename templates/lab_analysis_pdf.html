@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Resultado - Ponza Lab</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm 15mm;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Times New Roman", serif;
+      font-size: 13.5px;
+      color: #111;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #000;
+    }
+
+    .patient-info {
+      white-space: pre-wrap;
+      max-width: 65%;
+      line-height: 1.35;
+    }
+
+    .logo {
+      width: 150px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin: 24px 0 12px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border: 1px solid #aaa;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f4f6;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .signature-block {
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    .signature-line {
+      border-top: 1px solid #000;
+      width: 320px;
+      margin: 0 auto 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="patient-info">{{ patient_info }}</div>
+    <div>
+      <img src="{{ logo_url }}" class="logo" alt="Ponza Health">
+    </div>
+  </div>
+
+  <section>
+    <h2>Resultados relevantes</h2>
+    {% if exams %}
+    <table>
+      <thead>
+        <tr>
+          <th>Exame</th>
+          <th>Valor</th>
+          <th>Referência</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in exams %}
+        <tr>
+          <td>{{ item.nome or item.name or item.test }}</td>
+          <td>{{ item.valor or item.value or '-' }}</td>
+          <td>{{ item.reference_display or item.referencia or item.reference or '-' }}</td>
+          <td>{{ item.status or item.estado or 'n/d' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>Sem alterações registradas.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Prescrição</h2>
+    {% if prescription %}
+    <ul>
+      {% for item in prescription %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>Sem recomendações registradas.</p>
+    {% endif %}
+  </section>
+
+  <div class="signature-block">
+    <div class="signature-line"></div>
+    <div>Assinatura do médico</div>
+  </div>
+</body>
+
+</html>

@@ -29,7 +29,7 @@
       --ink-dim: #475569;
       --border: #e5e7eb;
       --surface: #ffffff;
-      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-grad: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       --brand-blue-solid: #0f182b;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --radius: 12px;
@@ -111,7 +111,7 @@
     .sidebar {
       width: 250px;
       min-height: 100vh;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       padding: 28px 18px;
       border-right: 1px solid #1f2937;
       box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
@@ -266,7 +266,7 @@
       cursor: pointer;
       text-decoration: none;
       color: #fff;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       box-shadow: var(--shadow);
     }
 
@@ -278,6 +278,155 @@
     .btn-outline:hover {
       background: #f8fafc;
       color: var(--brand-blue-solid);
+    }
+
+    .alert-panel {
+      background: #fee2e2;
+      color: #7f1d1d;
+      padding: 16px 18px;
+      border-radius: 12px;
+      margin: 18px auto;
+      max-width: 700px;
+      border: 1px solid #fecaca;
+      font-weight: 600;
+    }
+
+    .analysis-panel {
+      margin-top: 32px;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      background: #fff;
+      border: 1px solid var(--border);
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .analysis-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+    }
+
+    .analysis-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: #e0e7ff;
+      color: #312e81;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .analysis-header h2 {
+      margin: 8px 0 4px;
+      font-size: 24px;
+      color: var(--ink);
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .analysis-grid h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      text-transform: uppercase;
+      color: #1e293b;
+      letter-spacing: 0.04em;
+    }
+
+    .patient-info {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--ink-dim);
+    }
+
+    .patient-info strong {
+      color: var(--ink);
+    }
+
+    .results-table {
+      margin-top: 28px;
+    }
+
+    .results-table table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .results-table th,
+    .results-table td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .results-table th {
+      background: #f8fafc;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: #475569;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 80px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .status-pill.normal {
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .status-pill.alto {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-pill.baixo {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .status-pill.indefinido {
+      background: #fef9c3;
+      color: #92400e;
+    }
+
+    .analysis-lists ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--ink-dim);
+    }
+
+    .analysis-lists li {
+      margin-bottom: 6px;
     }
 
     .send-options label {
@@ -322,7 +471,17 @@
         transform: rotate(360deg);
       }
     }
-  </style>
+  
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	</style>
 </head>
 
 <body>
@@ -374,50 +533,20 @@
   <div class="content">
     <img src="{{ url_for('static', filename='images/PonzaLab.svg') }}" class="logo-img" alt="Ponza Lab">
     <p class="subtitle">
-      Envie um PDF de exames para análise automática. O sistema exibirá os resultados após a leitura.
+      Envie um PDF de exames para análise automática ou insira os dados manualmente.
     </p>
 
-    <div class="panel">
+    <div class="mode-toggle" style="display:flex; justify-content:center; gap:12px; margin-bottom:20px;">
+      <button type="button" class="btn" id="btnPdfMode">Usar PDF</button>
+      <button type="button" class="btn btn-outline" id="btnManualMode">Inserir manualmente</button>
+    </div>
+
+    <div class="panel" id="pdf-panel">
       <div style="font-weight:800; text-transform:uppercase; font-size:13px; color:#1e293b; margin-bottom:10px;">Exame para análise</div>
       <form id="upload-form" method="post" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
         <input type="file" name="pdf_file" id="pdf_file" accept="application/pdf" style="display:none;">
         <div id="drop-zone" class="drop-zone" tabindex="0">
           <div id="drop-title" style="font-weight:800;">Clique ou arraste um PDF aqui</div>
-        </div>
-
-        <div style="margin-top: 24px; text-align:left;">
-          <div style="font-weight:800; text-transform:uppercase; font-size:13px; color:#1e293b; margin-bottom:10px;">
-            Dados do paciente</div>
-          <div style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
-            <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
-              <span>Nome completo (opcional)</span>
-              <input type="text" name="patient_manual_name" placeholder="Ex.: Maria Aparecida Silva"
-                class="menu-input"
-                style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
-              <span>Idade (opcional)</span>
-              <input type="number" name="patient_manual_age" min="0" max="130" placeholder="Ex.: 34"
-                class="menu-input"
-                style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
-              <span>Sexo (opcional)</span>
-              <select name="patient_manual_sex" class="menu-input"
-                style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px; background:#fff;">
-                <option value="" selected>Selecione (ou deixe em branco)</option>
-                <option value="Feminino">Feminino</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </label>
-            <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
-              <span>Telefone (opcional)</span>
-              <input type="tel" name="patient_manual_phone" placeholder="Ex.: (11) 91234-5678"
-                class="menu-input"
-                style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
-            </label>
-          </div>
         </div>
 
         <div class="send-options" style="margin-top: 22px; display:none;">
@@ -450,13 +579,71 @@
           </div>
         </div>
 
-        <div
-          style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-          <button type="submit" class="btn" name="use_ai" value="0">Analisar</button>
-          <button type="submit" class="btn btn-outline" name="use_ai" value="1">Analisar com IA</button>
+        <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <button type="submit" class="btn" name="use_ai" value="0" onclick="this.form.target='_self';">Analisar</button>
+          <button type="submit" class="btn btn-outline" name="use_ai" value="1" onclick="this.form.target='_blank';">Analisar com IA</button>
         </div>
       </form>
     </div>
+
+    <div class="panel" id="manual-panel" style="display:none; max-width:700px; margin:28px auto;">
+      <form id="manual-form" method="post" onsubmit="return handleManualSubmit(event)">
+        <input type="hidden" name="manual_entry" value="1">
+        <div style="font-weight:800; text-transform:uppercase; font-size:13px; color:#1e293b; margin-bottom:10px;">
+          Dados do paciente</div>
+        <div style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
+            <span>Nome completo</span>
+            <input type="text" name="patient_manual_name" required placeholder="Ex.: Maria Aparecida Silva"
+              class="menu-input"
+              style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+          </label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
+            <span>Idade</span>
+            <input type="number" name="patient_manual_age" min="0" max="130" required placeholder="Ex.: 34"
+              class="menu-input"
+              style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+          </label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
+            <span>Sexo</span>
+            <select name="patient_manual_sex" required class="menu-input"
+              style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px; background:#fff;">
+              <option value="" selected>Selecione</option>
+              <option value="Feminino">Feminino</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </label>
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
+            <span>Telefone</span>
+            <input type="tel" name="patient_manual_phone" required placeholder="Ex.: (11) 91234-5678"
+              class="menu-input"
+              style="padding:12px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;">
+          </label>
+        </div>
+
+        <div style="margin-top:20px;">
+          <label style="display:flex; flex-direction:column; gap:6px; font-weight:600; color:#0f172a;">
+            <span>Resultados (cole os valores do laudo)</span>
+            <textarea name="lab_results" required rows="10" placeholder="Ex.: Hemácias: 3,85 milhões/mm³..."
+              class="menu-input"
+              style="padding:14px; border-radius:12px; border:1px solid var(--border); font-size:14px; resize:vertical;"></textarea>
+          </label>
+        </div>
+
+        <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <button type="submit" class="btn" name="use_ai" value="0" onclick="this.form.target='_self';">Analisar</button>
+          <button type="submit" class="btn btn-outline" name="use_ai" value="1" onclick="this.form.target='_blank';">Analisar com IA</button>
+        </div>
+      </form>
+    </div>
+
+    {% if error %}
+    <div class="alert-panel">{{ error }}</div>
+    {% endif %}
+    {% if analysis_error %}
+    <div class="alert-panel">{{ analysis_error }}</div>
+    {% endif %}
 
     <script>
       function toggleSidebar() {
@@ -477,6 +664,22 @@
       const fileInput = document.getElementById('pdf_file');
       const dropZone = document.getElementById('drop-zone');
       const dropTitle = document.getElementById('drop-title');
+      const pdfPanel = document.getElementById('pdf-panel');
+      const manualPanel = document.getElementById('manual-panel');
+      const btnPdfMode = document.getElementById('btnPdfMode');
+      const btnManualMode = document.getElementById('btnManualMode');
+
+      function setMode(mode) {
+        const pdfActive = mode === 'pdf';
+        pdfPanel.style.display = pdfActive ? 'block' : 'none';
+        manualPanel.style.display = pdfActive ? 'none' : 'block';
+        btnPdfMode.classList.toggle('btn-outline', !pdfActive);
+        btnManualMode.classList.toggle('btn-outline', pdfActive);
+      }
+
+      btnPdfMode.addEventListener('click', () => setMode('pdf'));
+      btnManualMode.addEventListener('click', () => setMode('manual'));
+      setMode('pdf');
 
       ['dragover', 'drop'].forEach(evt => window.addEventListener(evt, e => e.preventDefault()));
       dropZone.addEventListener('click', () => fileInput.click());
@@ -507,6 +710,15 @@
         var overlayText = overlay.querySelector('p');
         if (overlayText) {
           overlayText.textContent = useAi ? 'Analisando com IA ...' : 'Analisando PDF ...';
+        }
+        overlay.classList.add('active');
+        return true;
+      }
+
+      function handleManualSubmit(event) {
+        var overlayText = overlay.querySelector('p');
+        if (overlayText) {
+          overlayText.textContent = 'Analisando dados...';
         }
         overlay.classList.add('active');
         return true;

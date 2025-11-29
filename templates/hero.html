@@ -34,9 +34,13 @@
       --secondary-glow-strong: rgba(10, 22, 40, .25);
 
       /* Enhanced gradients */
-      --brand-grad: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #334155 100%);
+      --brand-grad: linear-gradient(130deg, #04142c 0%, #0d294f 40%, #1f4f8f 100%);
       --brand-base: #0a1628;
-      --brand-grad-hover: linear-gradient(135deg, #081220 0%, #1e293b 50%, #334155 100%);
+      --brand-grad-hover: linear-gradient(130deg, #071c3a 0%, #153c6e 42%, #2d6fc6 100%);
+      --nav-grad: linear-gradient(120deg, #030c1f 0%, #0c2042 45%, #1c4a85 100%);
+      --nav-chip-grad: linear-gradient(120deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 100%);
+      --button-grad: linear-gradient(120deg, #082552 0%, #13437a 50%, #2d73c6 100%);
+      --button-grad-hover: linear-gradient(120deg, #0a2f63 0%, #1c5496 60%, #3a8adf 100%);
       --medical-accent: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
       --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%);
 
@@ -101,7 +105,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--brand-grad);
+      background: var(--nav-grad);
       backdrop-filter: blur(10px);
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: var(--shadow-glow);
@@ -145,18 +149,18 @@
       font-weight: 500;
       font-size: var(--fs-small);
       color: #fff;
-      border: 1px solid #fff;
-      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      background: var(--nav-chip-grad);
       text-decoration: none;
       transition: .22s;
       margin-left: 10px;
     }
 
     .nav-actions a:hover {
-      background: var(--primary);
-      color: var(--secondary);
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
     }
 
     /* ENHANCED BUTTONS */
@@ -168,9 +172,11 @@
       min-width: var(--btn-minw);
       padding: 0 24px;
       border-radius: 999px;
-      border: 2px solid transparent;
+      border: none;
       cursor: pointer;
-      background: var(--brand-grad);
+      background: var(--button-grad);
+      background-size: 200% 200%;
+      background-position: 0% 50%;
       color: var(--primary);
       font-weight: 800;
       font-size: var(--fs-btn);
@@ -199,7 +205,8 @@
     .btn-primary:hover {
       transform: translateY(-3px) scale(1.03);
       box-shadow: 0 15px 40px var(--secondary-glow-strong);
-      background: var(--brand-grad-hover);
+      background: var(--button-grad-hover);
+      background-position: 100% 50%;
     }
 
     .btn-outline {
@@ -676,7 +683,7 @@
     /* ENHANCED CONTACTS/FOOTER */
     .contacts {
       padding: 80px 16px 40px;
-      background: var(--brand-grad);
+      background: var(--nav-grad);
       color: var(--primary);
       position: relative;
     }

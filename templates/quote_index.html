@@ -16,7 +16,7 @@
       --border: #e5e7eb;
       --surface: #ffffff;
       --surface-alt: #f8fafc;
-      --brand-grad: linear-gradient(180deg, #131d35 0%, #0f182b 100%);
+      --brand-grad: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       --brand-solid: #131d35;
       --shadow: 0 8px 20px rgba(2, 6, 23, .06);
       --radius: 12px;
@@ -99,7 +99,7 @@
     .sidebar {
       width: 250px;
       min-height: 100vh;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       padding: 28px 18px;
       border-right: 1px solid #1f2937;
       box-shadow: 2px 0 14px rgba(0, 0, 0, .18);
@@ -150,7 +150,7 @@
 
     .menu-item.active {
       color: #fff;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       box-shadow: 0 10px 26px rgba(0, 0, 0, .25)
     }
 
@@ -230,7 +230,7 @@
       transform: translateX(-50%);
       width: 80px;
       height: 4px;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       border-radius: 2px;
       box-shadow: 0 0 8px rgba(0, 0, 0, .12)
     }
@@ -261,7 +261,7 @@
       cursor: pointer;
       transition: .22s;
       color: #fff;
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       box-shadow: var(--shadow);
       text-decoration: none
     }
@@ -307,7 +307,7 @@
     }
 
     table.catalog-table thead th {
-      background: var(--brand-grad);
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
       color: #fff;
       font-weight: 800;
       letter-spacing: .02em;
@@ -386,7 +386,39 @@
         min-width: 100%
       }
     }
-  </style>
+  
+    /* Active state unified */
+    .sidebar a.menu-item.active,
+    .menu-item.active {
+      color: #fff !important;
+      background: rgba(255, 255, 255, 0.18) !important;
+      box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+	
+    /* Rounded catalog table override */
+    table.catalog-table {
+      border-collapse: separate !important;
+      border-spacing: 0;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 45px rgba(7, 20, 43, 0.08);
+    }
+
+    table.catalog-table thead tr {
+      background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
+    }
+
+    table.catalog-table thead th {
+      background: transparent !important;
+      color: #fff !important;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      border-bottom: none !important;
+    }
+
+	</style>
 
   <script>
     function toggleSidebar() {
