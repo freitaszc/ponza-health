@@ -6,9 +6,11 @@ import unicodedata
 import mimetypes
 import secrets
 import stripe
+import multiprocessing
 from flask_migrate import Migrate
 from io import BytesIO
 from functools import wraps
+from contextlib import contextmanager
 from typing import Any, Optional, Callable, cast
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta, timezone, date
@@ -397,6 +399,8 @@ db_max_overflow = max(_coerce_int(os.getenv("DB_MAX_OVERFLOW"), default=0), 0)
 pool_timeout = max(_coerce_int(os.getenv("DB_POOL_TIMEOUT"), default=30), 5)
 worker_processes = max(_env_positive_int(["WEB_CONCURRENCY", "GUNICORN_WORKERS", "WORKERS"], default=1), 1)
 supabase_max_clients = max(_coerce_int(os.getenv("SUPABASE_MAX_CLIENTS"), default=worker_processes), 1)
+reserved_clients = max(_coerce_int(os.getenv("SUPABASE_RESERVED_CONNECTIONS"), default=0), 0)
+available_db_clients = max(1, supabase_max_clients - reserved_clients)
 force_null_pool = (
     os.getenv("DB_FORCE_NULLPOOL", "").strip().lower()
     in {"1", "true", "yes", "on"}
@@ -406,6 +410,12 @@ per_worker_budget = max(1, supabase_max_clients // worker_processes)
 effective_pool_size = min(db_pool_size, per_worker_budget)
 effective_max_overflow = min(db_max_overflow, max(0, per_worker_budget - effective_pool_size))
 use_null_pool = force_null_pool or supabase_max_clients <= worker_processes
+
+if reserved_clients:
+    print(
+        f"[DB] Reservando {reserved_clients} conexão(ões) para outros serviços; "
+        f"{available_db_clients} ficarão disponíveis para este app."
+    )
 
 if worker_processes > supabase_max_clients:
     print(
@@ -453,17 +463,65 @@ app.config.update(
 db.init_app(app)
 migrate = Migrate(app, db)
 
+try:
+    _db_connection_semaphore = multiprocessing.BoundedSemaphore(available_db_clients)
+    print(f"[DB] Limite global de {available_db_clients} conexões simultâneas configurado.")
+except Exception as exc:
+    _db_connection_semaphore = None
+    print("[DB] ⚠️ Semáforo global de conexões indisponível:", exc)
+
+
+def _acquire_db_slot() -> bool:
+    if _db_connection_semaphore is None:
+        return False
+    _db_connection_semaphore.acquire()
+    return True
+
+
+def _release_db_slot() -> None:
+    if _db_connection_semaphore is None:
+        return
+    _db_connection_semaphore.release()
+
+
+@contextmanager
+def db_slot_guard():
+    acquired = _acquire_db_slot()
+    try:
+        yield
+    finally:
+        if acquired:
+            _release_db_slot()
+
 # ------------------------------------------------------------------------------
 # Conexão e verificação
 # ------------------------------------------------------------------------------
-with app.app_context():
-    try:
-        from sqlalchemy import inspect
-        insp = inspect(db.engine)
-        print("[DB] ✅ Conectado ao Supabase PostgreSQL com sucesso!")
-        print(f"[DB] Tabelas detectadas: {insp.get_table_names()}")
-    except Exception as e:
-        print("[DB] ❌ Erro ao conectar ao Supabase:", e)
+with db_slot_guard():
+    with app.app_context():
+        try:
+            from sqlalchemy import inspect
+            insp = inspect(db.engine)
+            print("[DB] ✅ Conectado ao Supabase PostgreSQL com sucesso!")
+            print(f"[DB] Tabelas detectadas: {insp.get_table_names()}")
+        except Exception as e:
+            print("[DB] ❌ Erro ao conectar ao Supabase:", e)
+
+
+@app.before_request
+def _before_request_acquire_db_slot():
+    g._db_slot_acquired = _acquire_db_slot()
+
+
+@app.teardown_request
+def _teardown_request_release_db_slot(exc):
+    acquired = g.pop("_db_slot_acquired", False)
+    if acquired:
+        _release_db_slot()
+
+
+@app.teardown_appcontext
+def _shutdown_session(exc: Optional[BaseException] = None):
+    db.session.remove()
 
 # ------------------------------------------------------------------------------
 # Migração mínima (não necessária, pois o Supabase já tem as tabelas)
