@@ -722,6 +722,23 @@ def get_logged_user() -> Optional[User]:
             pass
         return None
 
+def _request_wants_json() -> bool:
+    """Detecta se a requisição espera uma resposta JSON (fetch/API)."""
+    if request.is_json:
+        return True
+    content_type = (request.headers.get('Content-Type') or '').lower()
+    if 'application/json' in content_type:
+        return True
+    if request.path.startswith('/api/'):
+        return True
+    accept = (request.headers.get('Accept') or '').lower()
+    if 'application/json' in accept and 'text/html' not in accept:
+        return True
+    if (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest':
+        return True
+    return False
+
+
 def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator de login que também valida trial / assinatura.
@@ -741,7 +758,11 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
         # Get relevant fields
         now = datetime.utcnow()
         now_date = now.date()  # 👈 convert once for safe comparison
-        trial_expiration = getattr(u, "trial_expiration", None)
+        trial_expiration_raw = getattr(u, "trial_expiration", None)
+        if isinstance(trial_expiration_raw, datetime):
+            trial_expiration = trial_expiration_raw.date()
+        else:
+            trial_expiration = trial_expiration_raw
         plan_status = getattr(u, "plan_status", None)
         plan_expires = getattr(u, "plan_expiration", None)
 
@@ -755,10 +776,32 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
         if trial_expiration and trial_expiration >= now_date:
             return f(*args, **kwargs)
 
-        flash(
-            "Seu período de teste de 14 dias expirou. Faça a assinatura para continuar usando o sistema.",
-            "trial_expired"
-        )
+        # Trial expirou → exibir modal e bloquear ações de escrita
+        if trial_expiration:
+            g.trial_expired_modal = True
+            message = "Seu período de teste de 14 dias expirou. Faça a assinatura para continuar usando o sistema."
+            g.trial_modal_message = message
+            try:
+                g.trial_modal_expiration_label = trial_expiration.strftime('%d/%m/%Y')
+            except Exception:
+                g.trial_modal_expiration_label = None
+
+            if request.method in ("GET", "HEAD", "OPTIONS"):
+                return f(*args, **kwargs)
+
+            if _request_wants_json():
+                return jsonify({
+                    "error": "trial_expired",
+                    "message": message,
+                    "plans": {
+                        "monthly": url_for('subscribe_pay_mensal'),
+                        "yearly": url_for('subscribe_pay_anual'),
+                    },
+                }), 402
+
+            return render_template('trial_locked.html'), 402
+
+        # fallback legacy: sem trial → direciona para planos
         return redirect(url_for('prices'))
 
     return wrapper
@@ -794,6 +837,43 @@ def inject_user_context():
             "profile_image": (u.profile_image or DEFAULT_USER_IMAGE),
         }
     }
+
+
+@app.after_request
+def append_trial_modal(response):
+    """Acopla o modal de teste expirado em respostas HTML quando necessário."""
+    if not getattr(g, "trial_expired_modal", False):
+        return response
+
+    try:
+        if response.status_code != 200 or response.direct_passthrough:
+            return response
+        mimetype = (response.mimetype or '').lower()
+        if not mimetype.startswith('text/html'):
+            return response
+
+        snippet = render_template(
+            'components/trial_expired_modal.html',
+            message=g.get('trial_modal_message'),
+            trial_end_label=g.get('trial_modal_expiration_label'),
+        )
+        html = response.get_data(as_text=True)
+        lower_html = html.lower()
+        closing_tag = '</body>'
+        idx = lower_html.rfind(closing_tag)
+        if idx != -1:
+            html = html[:idx] + snippet + html[idx:]
+        else:
+            html = html + snippet
+        response.set_data(html)
+    except TemplateNotFound:
+        return response
+    except Exception as exc:
+        try:
+            current_app.logger.exception("Falha ao injetar modal de trial expirado: %s", exc)
+        except Exception:
+            pass
+    return response
 
 auth_bp = Blueprint('auth', __name__, template_folder='templates/auth')
 
