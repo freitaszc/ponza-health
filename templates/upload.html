@@ -580,8 +580,8 @@
         </div>
 
         <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-          <button type="submit" class="btn" name="use_ai" value="0" onclick="this.form.target='_self';">Analisar</button>
-          <button type="submit" class="btn btn-outline" name="use_ai" value="1" onclick="this.form.target='_blank';">Analisar com IA</button>
+          <button type="submit" class="btn" name="use_ai" value="0" data-loader="Analisando PDF..." data-new-tab="true">Analisar</button>
+          <button type="submit" class="btn btn-outline" name="use_ai" value="1" data-loader="Analisando com IA..." data-new-tab="true">Analisar com IA</button>
         </div>
       </form>
     </div>
@@ -632,8 +632,8 @@
         </div>
 
         <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-          <button type="submit" class="btn" name="use_ai" value="0" onclick="this.form.target='_self';">Analisar</button>
-          <button type="submit" class="btn btn-outline" name="use_ai" value="1" onclick="this.form.target='_blank';">Analisar com IA</button>
+          <button type="submit" class="btn" name="use_ai" value="0" data-loader="Analisando dados..." data-new-tab="true">Analisar</button>
+          <button type="submit" class="btn btn-outline" name="use_ai" value="1" data-loader="Analisando com IA..." data-new-tab="true">Analisar com IA</button>
         </div>
       </form>
     </div>
@@ -661,6 +661,7 @@
       });
 
       const overlay = document.getElementById('loadingOverlay');
+      const overlayMessage = overlay.querySelector('p');
       const fileInput = document.getElementById('pdf_file');
       const dropZone = document.getElementById('drop-zone');
       const dropTitle = document.getElementById('drop-title');
@@ -700,27 +701,55 @@
         }
       });
 
+      function showOverlay(message) {
+        if (overlayMessage) {
+          overlayMessage.textContent = message;
+        }
+        overlay.classList.add('active');
+      }
+
+      function hideOverlay() {
+        overlay.classList.remove('active');
+      }
+
+      function openAnalysisWindow(message) {
+        const targetName = `ponza_analysis_${Date.now()}`;
+        const newTab = window.open('', targetName);
+        if (!newTab || newTab.closed) {
+          return null;
+        }
+        newTab.document.open();
+        newTab.document.write(`<!DOCTYPE html><html lang="pt-br"><head><meta charset="UTF-8"><title>Ponza Lab - Analisando</title><style>body{font-family:'Funnel Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#020617;color:#fff;min-height:100vh;margin:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;}h1{margin-bottom:12px;font-size:26px;}p{color:rgba(255,255,255,0.75);max-width:420px;margin:0 auto;font-size:15px;line-height:1.5;}</style></head><body><div><h1>${message}</h1><p>Estamos processando sua análise em uma nova aba. Você será redirecionado automaticamente para o resultado assim que estiver pronto.</p></div></body></html>`);
+        newTab.document.close();
+        return targetName;
+      }
+
+      function prepareAnalysisTab(event, message) {
+        hideOverlay();
+        const targetName = openAnalysisWindow(message);
+        if (!targetName) {
+          showOverlay(message);
+          event.target.removeAttribute('target');
+          return;
+        }
+        event.target.setAttribute('target', targetName);
+      }
+
       function handleFormSubmit(event) {
         if (!fileInput.files.length) {
           alert("Selecione um PDF antes de enviar.");
           return false;
         }
-        var submitter = event && event.submitter;
-        var useAi = submitter && submitter.name === 'use_ai' && submitter.value === '1';
-        var overlayText = overlay.querySelector('p');
-        if (overlayText) {
-          overlayText.textContent = useAi ? 'Analisando com IA ...' : 'Analisando PDF ...';
-        }
-        overlay.classList.add('active');
+        const submitter = event && event.submitter;
+        const loaderMessage = submitter && submitter.dataset.loader ? submitter.dataset.loader : 'Analisando PDF...';
+        prepareAnalysisTab(event, loaderMessage);
         return true;
       }
 
       function handleManualSubmit(event) {
-        var overlayText = overlay.querySelector('p');
-        if (overlayText) {
-          overlayText.textContent = 'Analisando dados...';
-        }
-        overlay.classList.add('active');
+        const submitter = event && event.submitter;
+        const loaderMessage = submitter && submitter.dataset.loader ? submitter.dataset.loader : 'Analisando dados...';
+        prepareAnalysisTab(event, loaderMessage);
         return true;
       }
 

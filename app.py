@@ -954,13 +954,16 @@ def register():
             }]
         )
 
-        # 6️⃣ Mensagem de sucesso
-        success_message = (
-            "Cadastro realizado com sucesso! "
-            f"Abra seu e-mail <strong>{email}</strong> e clique no link enviado para confirmar sua conta. "
-            "Confira também a pasta SPAM."
+        # 6️⃣ Mensagem de sucesso -> redirecionar para login com aviso profissional
+        flash(
+            (
+                "Conta criada com sucesso! Enviamos um link de confirmação para "
+                f"<strong>{email}</strong>. Conclua a verificação e depois faça login "
+                "com suas credenciais para começar o teste gratuito."
+            ),
+            "login_success",
         )
-        return render_template("register.html", success_message=success_message)
+        return redirect(url_for('login'))
 
     # GET
     return render_template("register.html")
