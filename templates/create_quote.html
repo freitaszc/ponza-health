@@ -283,6 +283,20 @@
       transform: translateY(-2px) scale(1.03);
       box-shadow: 0 14px 36px rgba(0, 0, 0, .20)
     }
+
+    .btn.is-busy {
+      pointer-events: none;
+      opacity: 0.7;
+      position: relative;
+    }
+
+    .btn.is-pressed,
+    .icon-btn.is-pressed,
+    .icon-btn-row.is-pressed {
+      transform: scale(0.97) translateY(1px);
+      filter: brightness(1.05);
+      transition-duration: .08s;
+    }
   
     /* Active state unified */
     .sidebar a.menu-item.active,
@@ -291,6 +305,99 @@
       background: rgba(255, 255, 255, 0.18) !important;
       box-shadow: 0 16px 36px rgba(5, 10, 25, 0.35) !important;
       border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease;
+    }
+
+    .loading-overlay.is-visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .loading-card {
+      background: rgba(15, 24, 43, 0.85);
+      border-radius: 24px;
+      padding: 36px 32px;
+      width: min(420px, 90vw);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .loading-logo {
+      display: block;
+      width: 160px;
+      margin: 0 auto 18px;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+    }
+
+    .loading-card h4 {
+      margin: 0 0 8px;
+      color: #fff;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .loading-card p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .loading-dots {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .loading-dots span {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #cbd5f5;
+      opacity: 0.4;
+      animation: quotePulse 1.2s infinite ease-in-out;
+    }
+
+    .loading-dots span:nth-child(2) {
+      animation-delay: .15s;
+    }
+
+    .loading-dots span:nth-child(3) {
+      animation-delay: .3s;
+    }
+
+    @keyframes quotePulse {
+      0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.3;
+      }
+
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loading-dots span {
+        animation: none;
+        opacity: 0.7;
+      }
     }
 
 	</style>
@@ -348,7 +455,7 @@
     <h2>Criar Nova Cotação</h2>
     <div class="panel">
       <h3>Preencha os dados da cotação</h3>
-      <form method="post">
+      <form method="post" id="quoteForm">
         <label for="title">Nome da Cotação</label>
         <input class="input" type="text" name="title" id="title" placeholder="Ex: Reposição de Estoque de Suplementos"
           required>
@@ -388,6 +495,66 @@ Magnésio Dimalato - 5 un." required></textarea>
       </form>
     </div>
   </div>
+  <div class="loading-overlay" id="quoteLoading" aria-live="assertive" aria-hidden="true">
+    <div class="loading-card">
+      <img src="{{ url_for('static', filename='images/ponzalabgrey.svg') }}" alt="PonzaLab" class="loading-logo">
+      <h4>Criando sua cotação</h4>
+      <p>Estamos gerando o PDF e avisando os fornecedores selecionados. Isso pode levar alguns segundos.</p>
+      <div class="loading-dots" role="status" aria-label="Cotação em andamento">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const applyFastClickFeedback = () => {
+        const targets = document.querySelectorAll('.btn, .icon-btn, .icon-btn-row');
+        targets.forEach((target) => {
+          if (target.dataset.fastClickApplied === '1') {
+            return;
+          }
+          target.dataset.fastClickApplied = '1';
+          const press = () => target.classList.add('is-pressed');
+          const release = () => target.classList.remove('is-pressed');
+          target.addEventListener('pointerdown', press);
+          ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach(evt => {
+            target.addEventListener(evt, release);
+          });
+        });
+      };
+
+      applyFastClickFeedback();
+
+      const quoteForm = document.getElementById('quoteForm');
+      const loadingOverlay = document.getElementById('quoteLoading');
+      if (!quoteForm) {
+        return;
+      }
+      const submitBtn = quoteForm.querySelector('button[type="submit"]');
+      quoteForm.addEventListener('submit', (event) => {
+        if (quoteForm.classList.contains('is-submitting')) {
+          event.preventDefault();
+          return;
+        }
+        quoteForm.classList.add('is-submitting');
+        if (submitBtn) {
+          submitBtn.dataset.originalText = submitBtn.textContent;
+          submitBtn.textContent = 'Criando cotação...';
+          submitBtn.classList.add('is-busy');
+          submitBtn.disabled = true;
+          submitBtn.setAttribute('aria-busy', 'true');
+        }
+        if (loadingOverlay) {
+          loadingOverlay.classList.add('is-visible');
+          loadingOverlay.setAttribute('aria-hidden', 'false');
+        }
+      });
+    });
+  </script>
+
 </body>
 
 </html>

@@ -271,6 +271,14 @@
       box-shadow: 0 12px 24px rgba(2, 6, 23, .12)
     }
 
+    .btn.is-pressed,
+    .icon-btn.is-pressed,
+    .icon-btn-row.is-pressed {
+      transform: scale(0.97) translateY(1px);
+      filter: brightness(1.05);
+      transition-duration: .08s;
+    }
+
     .btn-outline {
       background: #fff;
       color: var(--brand-solid);
@@ -530,6 +538,24 @@
 
   <script>
   document.addEventListener('DOMContentLoaded', () => {
+    const applyFastClickFeedback = () => {
+      const targets = document.querySelectorAll('.btn, .icon-btn, .icon-btn-row');
+      targets.forEach((target) => {
+        if (target.dataset.fastClickApplied === '1') {
+          return;
+        }
+        target.dataset.fastClickApplied = '1';
+        const press = () => target.classList.add('is-pressed');
+        const release = () => target.classList.remove('is-pressed');
+        target.addEventListener('pointerdown', press);
+        ['pointerup', 'pointerleave', 'pointercancel', 'blur'].forEach(evt => {
+          target.addEventListener(evt, release);
+        });
+      });
+    };
+
+    applyFastClickFeedback();
+
     const forms = document.querySelectorAll('.js-quote-delete');
     forms.forEach((form) => {
       form.addEventListener('submit', async (event) => {
