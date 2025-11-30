@@ -2357,6 +2357,26 @@ def _build_analysis_context(analysis: dict[str, Any], *, file_name: str, doctor_
     return context
 
 
+def _parse_index_payload(raw_value: Optional[str]) -> set[int]:
+    indexes: set[int] = set()
+    if not raw_value:
+        return indexes
+    for chunk in raw_value.split(","):
+        if not chunk:
+            continue
+        try:
+            indexes.add(int(chunk.strip()))
+        except ValueError:
+            continue
+    return indexes
+
+
+def _filter_excluded_items(items: list[Any], excluded_indexes: set[int]) -> list[Any]:
+    if not items or not excluded_indexes:
+        return items
+    return [value for idx, value in enumerate(items) if idx not in excluded_indexes]
+
+
 def _normalize_label(label: Optional[str]) -> str:
     if not label:
         return ""
@@ -2854,8 +2874,15 @@ def lab_analysis_pdf():
 
     patient = payload.get("patient") or {}
     exams = payload.get("abnormal_exams") or payload.get("exams") or []
-    prescription = payload.get("prescription") or []
+    prescription_raw = payload.get("prescription") or []
+    orientations_raw = payload.get("orientations") or []
     doctor_name = payload.get("doctor_name") or (getattr(current_user(), "name", None) or current_user().username)
+
+    excluded_prescription_indexes = _parse_index_payload(request.form.get("excluded_prescriptions"))
+    excluded_orientation_indexes = _parse_index_payload(request.form.get("excluded_orientations"))
+
+    prescription = _filter_excluded_items(list(prescription_raw), excluded_prescription_indexes)
+    orientations = _filter_excluded_items(list(orientations_raw), excluded_orientation_indexes)
 
     abnormal = [entry for entry in exams if _is_abnormal_result(entry)]
     if not abnormal:
@@ -2885,6 +2912,7 @@ def lab_analysis_pdf():
         patient_info=patient_info,
         exams=abnormal,
         prescription=prescription,
+        orientations=orientations,
         generated_at=datetime.utcnow(),
         logo_url=logo_url,
     )
@@ -2939,7 +2967,6 @@ def lab_analysis_view():
         ai_lab_results=context.get("exams") or [],
         ai_prescription_list=context.get("prescription") or [],
         ai_orientations=context.get("orientations") or [],
-        ai_alerts=context.get("alerts") or [],
         ai_pdf_token=token,
     )
 

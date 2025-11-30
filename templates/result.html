@@ -172,6 +172,49 @@
             color: var(--ink-dim);
             margin-bottom: 32px;
             line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .loading-dots {
+            display: inline-flex;
+            gap: 6px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            background: #1d5299;
+            opacity: 0.2;
+            animation: loadingDot 0.9s ease-in-out infinite;
+        }
+
+        .loading-dot:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+
+        .loading-dot:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes loadingDot {
+            0% {
+                transform: translateY(0);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: translateY(-4px);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(0);
+                opacity: 0.3;
+            }
         }
 
         .loading-steps {
@@ -246,12 +289,23 @@
         .header {
             padding: 28px 16px 8px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
         }
 
         .logo-img {
             width: 400px;
             display: inline-block;
             filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .15));
+            max-width: 100%;
+        }
+
+        .ponzalab-logo {
+            height: 64px;
+            width: auto;
+            filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.12));
         }
 
         h2 {
@@ -438,6 +492,109 @@
             border-bottom: none;
         }
 
+        .recommendation-row.excluded td {
+            background: #f8fafc;
+            color: #94a3b8;
+        }
+
+        .recommendation-row .recommendation-text {
+            max-width: 100%;
+        }
+
+        .recommendation-row.excluded .recommendation-text {
+            text-decoration: line-through;
+        }
+
+        .recommendation-checkbox-cell {
+            text-align: center;
+            width: 140px;
+        }
+
+        .recommendation-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .recommendation-item {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .recommendation-item .recommendation-text {
+            flex: 1;
+        }
+
+        .recommendation-item.excluded {
+            background: #f8fafc;
+            color: #94a3b8;
+        }
+
+        .recommendation-item.excluded .recommendation-text {
+            text-decoration: line-through;
+        }
+
+        .recommendation-toggle {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .recommendation-toggle input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+        }
+
+        .toggle-box {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #1d2546;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .toggle-box::after {
+            content: '';
+            width: 8px;
+            height: 4px;
+            border-left: 2px solid transparent;
+            border-bottom: 2px solid transparent;
+            transform: rotate(-45deg);
+            transition: border-color 0.2s ease;
+        }
+
+        .recommendation-toggle input:checked+.toggle-box {
+            background: linear-gradient(125deg, #031128 0%, #0d2547 40%, #1d5299 100%);
+            border-color: #1d5299;
+            box-shadow: 0 4px 10px rgba(3, 17, 40, 0.2);
+        }
+
+        .recommendation-toggle input:checked+.toggle-box::after {
+            border-color: #fff;
+        }
+
+        .recommendation-row.excluded .toggle-box,
+        .recommendation-item.excluded .toggle-box {
+            background: #e2e8f0;
+            border-color: #cbd5f5;
+            box-shadow: none;
+        }
+
         .status-pill {
             display: inline-flex;
             align-items: center;
@@ -487,7 +644,12 @@
 
             <div class="loading-title">Processando Análise</div>
             <div class="loading-subtitle">
-                Estamos analisando seu documento com inteligência artificial...
+                Estamos analisando seu documento com inteligência artificial
+                <span class="loading-dots" aria-hidden="true">
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                    <span class="loading-dot"></span>
+                </span>
             </div>
 
             <div class="progress-container">
@@ -517,6 +679,7 @@
             <a href="{{ url_for('index') }}">
                 <img src="{{ url_for('static', filename='images/8.svg') }}" class="logo-img" alt="Ponza Health" />
             </a>
+            <img src="{{ url_for('static', filename='images/PonzaLab.svg') }}" class="ponzalab-logo" alt="PonzaLab" />
         </header>
 
         <main class="container">
@@ -577,13 +740,22 @@
                             <tr>
                                 <th>#</th>
                                 <th>Recomendação</th>
+                                <th>Incluir no PDF</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in ai_prescription_list %}
-                            <tr>
+                            <tr class="recommendation-row" data-prescription-index="{{ loop.index0 }}">
                                 <td style="width:50px;">{{ loop.index }}</td>
-                                <td>{{ item }}</td>
+                                <td class="recommendation-text">{{ item }}</td>
+                                <td class="recommendation-checkbox-cell">
+                                    <label class="recommendation-toggle"
+                                        aria-label="Incluir recomendação {{ loop.index }} no PDF">
+                                        <input type="checkbox" class="recommendation-checkbox"
+                                            data-group="prescription" value="{{ loop.index0 }}" checked>
+                                        <span class="toggle-box"></span>
+                                    </label>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -596,9 +768,17 @@
                 <div class="section-title" style="margin-top:12px;">Orientações</div>
                 {% if ai_orientations %}
                 <div class="text-box">
-                    <ul>
+                    <ul class="recommendation-list">
                         {% for item in ai_orientations %}
-                        <li>{{ item }}</li>
+                        <li class="recommendation-item" data-orientation-index="{{ loop.index0 }}">
+                            <span class="recommendation-text">{{ item }}</span>
+                            <label class="recommendation-toggle"
+                                aria-label="Incluir orientação {{ loop.index }} no PDF">
+                                <input type="checkbox" class="recommendation-checkbox" data-group="orientation"
+                                    value="{{ loop.index0 }}" checked>
+                                <span class="toggle-box"></span>
+                            </label>
+                        </li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -606,16 +786,6 @@
                 <div class="text-box">Sem orientações adicionais.</div>
                 {% endif %}
 
-                {% if ai_alerts %}
-                <div class="section-title" style="margin-top:18px;">Alertas</div>
-                <div class="text-box">
-                    <ul>
-                        {% for item in ai_alerts %}
-                        <li>{{ item }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
                 {% else %}
                 <div class="section-title">Diagnóstico</div>
                 <div class="text-box">{{ diagnostic_text }}</div>
@@ -628,6 +798,8 @@
                     {% if ai_analysis %}
                     <form method="post" action="{{ url_for('lab_analysis_pdf') }}" target="_blank">
                         <input type="hidden" name="token" value="{{ ai_pdf_token }}">
+                        <input type="hidden" name="excluded_prescriptions" id="excludedPrescriptionsInput" value="">
+                        <input type="hidden" name="excluded_orientations" id="excludedOrientationsInput" value="">
                         <button type="submit" class="btn">Baixar PDF</button>
                     </form>
                     <a class="btn btn-outline" href="{{ url_for('upload') }}">
@@ -683,8 +855,49 @@
             setTimeout(() => { loadingScreen.style.display = 'none'; }, 600);
         }
 
+        function setupRecommendationControls() {
+            const checkboxes = document.querySelectorAll('.recommendation-checkbox');
+            if (!checkboxes.length) {
+                return;
+            }
+
+            const excludedPrescriptionsInput = document.getElementById('excludedPrescriptionsInput');
+            const excludedOrientationsInput = document.getElementById('excludedOrientationsInput');
+
+            const updateHiddenFields = () => {
+                if (excludedPrescriptionsInput) {
+                    const excludedPrescriptions = Array
+                        .from(document.querySelectorAll('.recommendation-checkbox[data-group="prescription"]'))
+                        .filter((input) => !input.checked)
+                        .map((input) => input.value);
+                    excludedPrescriptionsInput.value = excludedPrescriptions.join(',');
+                }
+
+                if (excludedOrientationsInput) {
+                    const excludedOrientations = Array
+                        .from(document.querySelectorAll('.recommendation-checkbox[data-group="orientation"]'))
+                        .filter((input) => !input.checked)
+                        .map((input) => input.value);
+                    excludedOrientationsInput.value = excludedOrientations.join(',');
+                }
+            };
+
+            checkboxes.forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    const container = checkbox.closest('.recommendation-row') || checkbox.closest('.recommendation-item');
+                    if (container) {
+                        container.classList.toggle('excluded', !checkbox.checked);
+                    }
+                    updateHiddenFields();
+                });
+            });
+
+            updateHiddenFields();
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => activateStep(0), 300);
+            setupRecommendationControls();
         });
 
         // Fallback: force show after 10s

@@ -127,6 +127,19 @@
     {% endif %}
   </section>
 
+  <section>
+    <h2>Orientações</h2>
+    {% if orientations %}
+    <ul>
+      {% for item in orientations %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>Sem orientações adicionais.</p>
+    {% endif %}
+  </section>
+
   <div class="signature-block">
     <div class="signature-line"></div>
     <div>Assinatura do médico</div>
