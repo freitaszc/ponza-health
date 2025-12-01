@@ -33,9 +33,9 @@ from prescription import (
     analyze_pdf,
     send_pdf_whatsapp_template,
     send_pdf_whatsapp_patient,
-    send_reminder_doctor,
     send_reminder_patient,
     send_quote_whatsapp,
+    send_text,
 )
 from exam_analyzer.pdf_extractor import extract_exam_payload
 from exam_analyzer.ai import generate_ai_analysis
@@ -3297,6 +3297,91 @@ def schedule_whatsapp_job(func, run_at, kwargs):
     scheduler.add_job(func, 'date', run_date=run_at, kwargs=kwargs)
 
 
+def _schedule_clinic_summary_job(user: 'User', event_start: datetime) -> None:
+    """Programa o envio diário consolidado para a clínica."""
+    if not user or not getattr(user, "clinic_phone", None):
+        return
+    if not event_start:
+        return
+
+    summary_date = event_start.date()
+    job_id = f"clinic_summary_{user.id}_{summary_date.isoformat()}"
+    if scheduler.get_job(job_id):
+        return
+
+    run_at = datetime(
+        summary_date.year,
+        summary_date.month,
+        summary_date.day,
+        8,
+        0,
+        0,
+    )
+    now = datetime.utcnow()
+    if run_at <= now:
+        run_at = now + timedelta(minutes=1)
+
+    scheduler.add_job(
+        _send_clinic_summary_job,
+        'date',
+        run_date=run_at,
+        kwargs={"user_id": user.id, "summary_date": summary_date.isoformat()},
+        id=job_id,
+        replace_existing=True,
+    )
+
+
+def _send_clinic_summary_job(user_id: int, summary_date: str) -> None:
+    """Envia um resumo com todos os pacientes do dia para a clínica."""
+    with app.app_context():
+        user = User.query.get(user_id)
+        if not user or not user.clinic_phone:
+            return
+
+        try:
+            target_date = datetime.fromisoformat(summary_date).date()
+        except ValueError:
+            target_date = datetime.utcnow().date()
+
+        day_start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
+        day_end = day_start + timedelta(days=1)
+
+        events = (
+            AgendaEvent.query
+            .filter(
+                AgendaEvent.user_id == user.id,
+                AgendaEvent.start >= day_start,
+                AgendaEvent.start < day_end,
+                AgendaEvent.send_reminders.is_(True),
+            )
+            .order_by(AgendaEvent.start.asc())
+            .all()
+        )
+
+        appointments = [
+            ev for ev in events if (ev.type or "").lower() != "bloqueio"
+        ]
+        if not appointments:
+            return
+
+        clinic_name = user.name or user.username or "Clínica"
+        date_str = target_date.strftime("%d/%m/%Y")
+        lines = [
+            f"Bom dia, {clinic_name}!",
+            f"Pacientes do dia {date_str}:",
+        ]
+        for ev in appointments:
+            start_label = ev.start.strftime("%H:%M") if ev.start else "--:--"
+            end_label = ev.end.strftime("%H:%M") if ev.end else ""
+            patient_name = ev.title or "Paciente"
+            phone_label = f" ({ev.phone})" if ev.phone else ""
+            time_block = f"{start_label}{f' - {end_label}' if end_label else ''}"
+            lines.append(f"• {time_block} — {patient_name}{phone_label}")
+
+        message = "\n".join(lines)
+        send_text(user.clinic_phone, message)
+
+
 def _schedule_event_reminders(user: 'User', event: AgendaEvent) -> None:
     if not getattr(event, "send_reminders", False):
         return
@@ -3312,20 +3397,7 @@ def _schedule_event_reminders(user: 'User', event: AgendaEvent) -> None:
     time_start = start_dt.strftime("%H:%M")
     time_end = end_dt.strftime("%H:%M") if end_dt else time_start
 
-    if user.clinic_phone:
-        doctor_run_at = start_dt.replace(hour=8, minute=0, second=0, microsecond=0)
-        schedule_whatsapp_job(
-            func=send_reminder_doctor,
-            run_at=doctor_run_at,
-            kwargs={
-                "clinic_phone": user.clinic_phone,
-                "patient_name": patient_name,
-                "clinic_name": clinic_name,
-                "date_str": date_str,
-                "time_start": time_start,
-                "time_end": time_end,
-            },
-        )
+    _schedule_clinic_summary_job(user, start_dt)
 
     patient_phone = getattr(event, "phone", None)
     if patient_phone:
