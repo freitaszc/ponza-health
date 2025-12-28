@@ -482,6 +482,7 @@
     }
 
 	</style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-modern.css') }}?v=4">
 </head>
 
 <body>
@@ -502,9 +503,12 @@
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+    <img src="{{ url_for('static', filename='images/6.svg') }}" class="sidebar-logo" alt="Ponza Health" />
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
-    <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+        class="fa fa-bars"></i></button>
+  </div>
+
 
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item active"><i class="fa fa-upload"></i><span class="label">Ponza
@@ -580,7 +584,6 @@
         </div>
 
         <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-          <button type="submit" class="btn" name="use_ai" value="0" data-loader="Analisando PDF..." data-new-tab="true">Analisar</button>
           <button type="submit" class="btn btn-outline" name="use_ai" value="1" data-loader="Analisando com IA..." data-new-tab="true">Analisar com IA</button>
         </div>
       </form>
@@ -632,7 +635,6 @@
         </div>
 
         <div style="text-align:center; margin-top:24px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-          <button type="submit" class="btn" name="use_ai" value="0" data-loader="Analisando dados..." data-new-tab="true">Analisar</button>
           <button type="submit" class="btn btn-outline" name="use_ai" value="1" data-loader="Analisando com IA..." data-new-tab="true">Analisar com IA</button>
         </div>
       </form>

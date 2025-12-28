@@ -667,6 +667,7 @@
     }
 
 	</style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-modern.css') }}?v=4">
 </head>
 
 <body>
@@ -681,9 +682,12 @@
 
   <!-- Sidebar -->
   <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+    <img src="{{ url_for('static', filename='images/6.svg') }}" class="sidebar-logo" alt="Ponza Health" />
     <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Minimizar/Maximizar menu"><i
-        class="fa fa-angle-double-left"></i></button>
-    <img src="{{ url_for('static', filename='images/3.svg') }}" class="sidebar-logo" alt="Ponza Health" />
+        class="fa fa-bars"></i></button>
+  </div>
+
     <a href="{{ url_for('index') }}" class="menu-item"><i class="fa fa-home"></i><span class="label">Início</span></a>
     <a href="{{ url_for('upload') }}" class="menu-item"><i class="fa fa-upload"></i><span class="label">Ponza
         Lab</span></a>

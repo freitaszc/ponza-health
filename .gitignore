@@ -4,6 +4,7 @@
 # Python cache
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Environment & credentials
 .env
@@ -33,3 +34,7 @@ keys/
 .vscode/
 .idea/
 
+# Node / frontend build artifacts
+node_modules/
+static/react/
+templates/static/

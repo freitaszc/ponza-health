@@ -41,7 +41,7 @@ from exam_analyzer.pdf_extractor import extract_exam_payload
 from exam_analyzer.ai import generate_ai_analysis
 from flask import (
     Flask, Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify, abort, send_file, g, current_app
+    session, flash, jsonify, abort, send_file, send_from_directory, g, current_app
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -67,10 +67,13 @@ app = Flask(__name__)
 if os.getenv("RENDER"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)  # type: ignore
 
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = int(os.getenv("SEND_FILE_MAX_AGE_DEFAULT", "3600"))
+
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'instance'))
 os.makedirs(BASE_DIR, exist_ok=True)
 STATIC_DIR = os.path.join(app.root_path, 'static')
 os.makedirs(STATIC_DIR, exist_ok=True)
+REACT_STATIC_DIR = os.path.join(STATIC_DIR, 'react')
 UPLOAD_FOLDER = os.path.join(STATIC_DIR, 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -101,6 +104,15 @@ app.config.update(
 )
 
 mail = Mail(app)
+
+def serve_react_index():
+    index_path = os.path.join(REACT_STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return send_from_directory(REACT_STATIC_DIR, "index.html")
+    return (
+        "React build not found. Run npm install and npm run build in templates/frontend.",
+        503,
+    )
 
 
 def allowed_file(filename: str) -> bool:
@@ -674,7 +686,10 @@ def verify_reset_token(token: str, max_age_seconds: int = 3600*24) -> str | None
 @app.route("/forgot_password", methods=["GET", "POST"])
 def pw_forgot():
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip().lower()
+        payload = request.get_json(silent=True)
+        if not payload:
+            payload = request.form
+        email = (payload.get("email") or "").strip().lower()
         user = User.query.filter(func.lower(User.email) == email).first()
 
         if user:
@@ -700,10 +715,12 @@ def pw_forgot():
             except Exception as e:
                 app.logger.exception("Erro ao enviar e-mail de reset")
 
+        if _request_wants_json():
+            return jsonify({"success": True})
         flash("Se este e-mail existir, enviaremos um link de recuperação.", "info")
         return redirect(url_for("pw_forgot"))
 
-    return render_template("pw_forgot.html")
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Reset de senha
@@ -712,22 +729,33 @@ def pw_forgot():
 def pw_reset(token):
     email = verify_reset_token(token)
     if not email:
+        if _request_wants_json():
+            return jsonify({"error": "invalid_token"}), 400
         flash("Link inválido ou expirado.", "danger")
         return redirect(url_for("pw_forgot"))
 
     if request.method == "POST":
-        password = (request.form.get("password") or "").strip()
-        confirm = (request.form.get("confirm") or "").strip()
+        payload = request.get_json(silent=True)
+        if not payload:
+            payload = request.form
+        password = (payload.get("password") or "").strip()
+        confirm = (payload.get("confirm") or "").strip()
 
         if not password or len(password) < 6:
+            if _request_wants_json():
+                return jsonify({"error": "password_too_short"}), 400
             flash("Informe uma nova senha com pelo menos 6 caracteres.", "danger")
             return redirect(request.url)
         if password != confirm:
+            if _request_wants_json():
+                return jsonify({"error": "password_mismatch"}), 400
             flash("As senhas não coincidem.", "danger")
             return redirect(request.url)
 
         user = User.query.filter(func.lower(User.email) == email.lower()).first()
         if not user:
+            if _request_wants_json():
+                return jsonify({"error": "user_not_found"}), 404
             flash("Usuário não encontrado.", "danger")
             return redirect(url_for("login"))
 
@@ -749,10 +777,12 @@ def pw_reset(token):
         except Exception:
             app.logger.exception("Erro ao enviar e-mail de confirmação de troca de senha")
 
+        if _request_wants_json():
+            return jsonify({"success": True})
         flash("Senha alterada com sucesso. Faça login.", "success")
         return redirect(url_for("login"))
 
-    return render_template("pw_reset.html", token=token)
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Helpers / Auth
@@ -936,6 +966,72 @@ def user_exists(sess, username: Optional[str] = None, email: Optional[str] = Non
             return "email"
     return None
 
+def _register_validation_error(username: str, email: str, password: str, confirm: str) -> Optional[str]:
+    if len(password) < 8:
+        return "A senha deve ter pelo menos 8 caracteres."
+    if not re.search(r"[A-Z]", password):
+        return "A senha deve conter pelo menos uma letra maiuscula."
+    if not re.search(r"\d", password):
+        return "A senha deve conter pelo menos um numero."
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\\-+=]", password):
+        return "A senha deve conter pelo menos um caractere especial."
+    if password != confirm:
+        return "As senhas nao coincidem."
+    if not username:
+        return "Informe um nome de usuario."
+    if User.query.filter_by(username=username).first():
+        return "Este nome de usuario ja esta em uso."
+    existing_email = User.query.filter(func.lower(User.email) == email.lower()).first()
+    if existing_email:
+        return "Este e-mail ja esta cadastrado."
+    return None
+
+def _process_register(payload: dict[str, Any]) -> tuple[bool, str]:
+    username = (payload.get("username") or "").strip()
+    email = (payload.get("email") or "").strip().lower()
+    password = payload.get("password") or ""
+    confirm = payload.get("confirm") or ""
+    plan = (payload.get("plan") or "").strip()
+
+    error = _register_validation_error(username, email, password, confirm)
+    if error:
+        return False, error
+
+    s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    token = s.dumps(
+        {
+            "username": username,
+            "email": email,
+            "password_hash": generate_password_hash(password),
+            "plan": plan,
+        },
+        salt="email-confirm",
+    )
+    confirm_url = url_for("auth.verify_email", token=token, _external=True)
+
+    html = render_template(
+        "emails/verify_account.html",
+        username=username,
+        confirm_url=confirm_url,
+        current_year=datetime.utcnow().year,
+    )
+    send_email(
+        subject="Confirme sua conta - Ponza Health",
+        recipients=[email],
+        html=html,
+        inline_images=[{
+            "filename": "logo.png",
+            "path": os.path.join("static", "images", "1.png"),
+            "cid": "logo",
+        }],
+    )
+
+    message = (
+        "Conta criada com sucesso! Enviamos um link de confirmacao para "
+        f"{email}. Conclua a verificacao e depois faca login."
+    )
+    return True, message
+
 @app.context_processor
 def inject_user_context():
     u = getattr(g, "user", None) or get_logged_user()
@@ -987,6 +1083,16 @@ def append_trial_modal(response):
             pass
     return response
 
+@app.after_request
+def add_static_cache_headers(response):
+    path = request.path or ""
+    if path.startswith("/static/react/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
+    if path.startswith("/static/"):
+        response.headers.setdefault("Cache-Control", "public, max-age=86400")
+    return response
+
 auth_bp = Blueprint('auth', __name__, template_folder='templates/auth')
 
 # ------------------------------------------------------------------------------
@@ -995,90 +1101,27 @@ auth_bp = Blueprint('auth', __name__, template_folder='templates/auth')
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = (request.form.get('username') or '').strip()
-        email = (request.form.get('email') or '').strip().lower()
-        password = request.form.get('password') or ''
-        confirm = request.form.get('confirm') or ''
-        plan = (request.form.get('plan') or '').strip()  # <- novo campo
+        payload = request.get_json(silent=True)
+        if not payload:
+            payload = request.form
 
-        # 1️⃣ Validação de senha
-        if len(password) < 8:
-            return render_template("register.html",
-                                   error_message="A senha deve ter pelo menos <strong>8 caracteres</strong>.")
-        if not re.search(r"[A-Z]", password):
-            return render_template("register.html",
-                                   error_message="A senha deve conter pelo menos <strong>uma letra maiúscula</strong>.")
-        if not re.search(r"\d", password):
-            return render_template("register.html",
-                                   error_message="A senha deve conter pelo menos <strong>um número</strong>.")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=]", password):
-            return render_template("register.html",
-                                   error_message="A senha deve conter pelo menos <strong>um caractere especial</strong>.")
+        ok, message = _process_register(payload)
+        if _request_wants_json():
+            if ok:
+                return jsonify({
+                    "success": True,
+                    "message": message,
+                    "redirect": url_for("login"),
+                })
+            return jsonify({"success": False, "error": message}), 400
 
-        # 2️⃣ Confirmação de senha
-        if password != confirm:
-            return render_template("register.html",
-                                   error_message="As senhas não coincidem.")
+        if ok:
+            flash(message, "login_success")
+            return redirect(url_for("login"))
+        flash(message, "login_error")
+        return redirect(url_for("auth.register"))
 
-        # 3️⃣ Verificar duplicações
-        if not username:
-            return render_template("register.html",
-                                   error_message="Informe um <strong>nome de usuário</strong>.")
-
-        if User.query.filter_by(username=username).first():
-            return render_template("register.html",
-                                   error_message="Este <strong>nome de usuário</strong> já está em uso.")
-
-        existing_email = User.query.filter(func.lower(User.email) == email.lower()).first()
-        if existing_email:
-            return render_template("register.html",
-                                   error_message="Este <strong>e-mail</strong> já está cadastrado.")
-
-        # 4️⃣ Criar token de verificação
-        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-        token = s.dumps(
-            {
-                'username': username,
-                'email': email,
-                'password_hash': generate_password_hash(password),
-                'plan': plan  # <- incluímos o plano no token
-            },
-            salt='email-confirm'
-        )
-
-        confirm_url = url_for('auth.verify_email', token=token, _external=True)
-
-        # 5️⃣ Enviar e-mail de verificação
-        html = render_template(
-            "emails/verify_account.html",
-            username=username,
-            confirm_url=confirm_url,
-            current_year=datetime.utcnow().year
-        )
-        send_email(
-            subject='Confirme sua conta - Ponza Health',
-            recipients=[email],
-            html=html,
-            inline_images=[{
-                "filename": "logo.png",
-                "path": os.path.join("static", "images", "1.png"),
-                "cid": "logo"
-            }]
-        )
-
-        # 6️⃣ Mensagem de sucesso -> redirecionar para login com aviso profissional
-        flash(
-            (
-                "Conta criada com sucesso! Enviamos um link de confirmação para "
-                f"<strong>{email}</strong>. Conclua a verificação e depois faça login "
-                "com suas credenciais para começar o teste gratuito."
-            ),
-            "login_success",
-        )
-        return redirect(url_for('login'))
-
-    # GET
-    return render_template("register.html")
+    return serve_react_index()
 
 
 # ------------------------------------------------------------------------------
@@ -1230,7 +1273,7 @@ app.register_blueprint(auth_bp)
 # ------------------------------------------------------------------------------
 @app.route('/')
 def hero():
-    return render_template("hero.html")
+    return serve_react_index()
 
 MIN_PASSWORD_LEN = 8
 
@@ -1247,31 +1290,64 @@ def _first(form, *keys, default=""):
             return v.strip()
     return default
 
+def _login_with_credentials(login_input: str, pwd: str) -> tuple[bool, str]:
+    if '@' in login_input:
+        user = User.query.filter(func.lower(User.email) == login_input.lower()).first()
+    else:
+        user = User.query.filter(User.username == login_input).first()
+        if not user and login_input.lower() == 'admin':
+            user = User.query.filter(User.username == 'admin').first()
+
+    stored_hash = getattr(user, 'password_hash', None) if user else None
+    if not user or not stored_hash or not check_password_hash(stored_hash, pwd):
+        return False, 'Usuario ou senha invalidos.'
+
+    session['user_id'] = user.id
+    session['username'] = user.username
+    return True, ""
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    payload = request.get_json(silent=True) or {}
+    login_input = (payload.get('login') or '').strip()
+    pwd = payload.get('password') or ''
+    ok, error = _login_with_credentials(login_input, pwd)
+    if not ok:
+        return jsonify({"success": False, "error": error}), 401
+    return jsonify({"success": True, "redirect": url_for("index")})
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    payload = request.get_json(silent=True) or {}
+    ok, message = _process_register(payload)
+    if ok:
+        return jsonify({
+            "success": True,
+            "message": message,
+            "redirect": url_for("login"),
+        })
+    return jsonify({"success": False, "error": message}), 400
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        login_input = (request.form.get('login') or '').strip()
-        pwd         = request.form.get('password') or ''
-
-        # busca por e-mail ou username (mantém fallback admin)
-        if '@' in login_input:
-            user = User.query.filter(func.lower(User.email) == login_input.lower()).first()
-        else:
-            user = User.query.filter(User.username == login_input).first()
-            if not user and login_input.lower() == 'admin':
-                user = User.query.filter(User.username == 'admin').first()
-
-        stored_hash = getattr(user, 'password_hash', None) if user else None
-        if not user or not stored_hash or not check_password_hash(stored_hash, pwd):
+        payload = request.get_json(silent=True)
+        if not payload:
+            payload = request.form
+        login_input = (payload.get('login') or '').strip()
+        pwd = payload.get('password') or ''
+        ok, error = _login_with_credentials(login_input, pwd)
+        if not ok:
+            if _request_wants_json():
+                return jsonify({"success": False, "error": error}), 401
             flash('Usuário ou senha inválidos.', 'login_error')
             return redirect(url_for('login'))
 
-        # sucesso de login com flash exclusivo
-        session['user_id']  = user.id
-        session['username'] = user.username
+        if _request_wants_json():
+            return jsonify({"success": True, "redirect": url_for("index")})
         return redirect(url_for('index'))
 
-    return render_template('login.html')
+    return serve_react_index()
 
 @app.route('/logout')
 def logout():
@@ -1280,23 +1356,43 @@ def logout():
 
 @app.route('/privacy_policy')
 def privacy_policy():
-    return render_template("privacy_policy.html")
+    return serve_react_index()
+
+@app.route('/privacy')
+def privacy_redirect():
+    return redirect(url_for('privacy_policy'))
 
 @app.route('/termos')
 def terms():
-    return render_template("terms.html")
+    return serve_react_index()
+
+@app.route('/terms')
+def terms_redirect():
+    return redirect(url_for('terms'))
 
 @app.route('/planos')
 def prices():
-    return render_template("prices.html")
+    return serve_react_index()
 
 @app.route('/about')
 def about():
-    return render_template("about.html")
+    return serve_react_index()
 
 @app.route('/centraldeajuda')
 def help():
-    return render_template("help.html")
+    return serve_react_index()
+
+@app.route('/ajuda')
+def ajuda():
+    return serve_react_index()
+
+@app.route('/quem-somos')
+def quem_somos():
+    return serve_react_index()
+
+@app.route('/cadastro')
+def cadastro():
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Dashboard
@@ -1674,7 +1770,7 @@ def subscribe():
         return redirect(url_for('account'))
 
     # renderiza a página de preços (ou template de checkout)
-    return render_template('prices.html')
+    return redirect(url_for('prices'))
 
 # ------------------------------------------------------------------------------
 # Stripe Subscription Integration
@@ -4419,6 +4515,10 @@ def create_quote():
 
 @app.route('/quotes/respond/<token>', methods=['GET', 'POST'], endpoint='public_quote_response')
 def public_quote_response(token: str):
+    wants_json = _request_wants_json()
+    if request.method == 'GET' and not wants_json:
+        return serve_react_index()
+
     serializer = _quote_response_serializer()
     max_age = int(os.getenv("QUOTE_RESPONSE_TOKEN_MAX_AGE", 60 * 60 * 24 * 30))
     expired_token = False
@@ -4437,39 +4537,49 @@ def public_quote_response(token: str):
         except Exception:
             data = None
     except BadSignature:
+        if wants_json:
+            return jsonify({"error": "Link invalido."}), 404
         abort(404)
 
     if not data:
+        if wants_json:
+            return jsonify({"error": "Link invalido."}), 404
         abort(404)
 
     quote_id = data.get("q")
     supplier_id = data.get("s")
     if not quote_id or not supplier_id:
+        if wants_json:
+            return jsonify({"error": "Link invalido."}), 404
         abort(404)
 
     quote = Quote.query.get_or_404(quote_id)
     supplier = Supplier.query.get_or_404(supplier_id)
 
     if supplier not in (quote.suppliers or []):
+        if wants_json:
+            return jsonify({"error": "Acesso negado."}), 403
         abort(403)
 
+    clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
+    clinic_name = clinic_name or (quote.user.username if quote.user else "")
+    clinic_address = getattr(quote.user, "clinic_address", "") if quote.user else ""
+
     if expired_token:
-        clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
-        clinic_name = clinic_name or (quote.user.username if quote.user else "")
-        clinic_address = getattr(quote.user, "clinic_address", "") if quote.user else ""
-        return render_template(
-            'quote_public_response.html',
-            quote=quote,
-            supplier=supplier,
-            items=[],
-            prefill_prices=[],
-            prefill_deadlines=[],
-            submitted=False,
-            expired=True,
-            clinic_name=clinic_name,
-            clinic_address=clinic_address,
-            error_message="",
-        ), 410
+        if wants_json:
+            return jsonify({
+                "expired": True,
+                "clinic_name": clinic_name,
+                "clinic_address": clinic_address,
+                "supplier": {
+                    "id": supplier.id,
+                    "name": supplier.name,
+                },
+                "items": [],
+                "prefill": [],
+                "submitted": False,
+            }), 410
+        return ("", 410)
 
     try:
         items_raw = json.loads(quote.items or "[]")
@@ -4490,30 +4600,44 @@ def public_quote_response(token: str):
         except Exception:
             existing_answers = []
 
-    prefill_prices: list[str] = []
-    prefill_deadlines: list[str] = []
+    prefill: list[dict[str, str]] = []
     for idx in range(len(items)):
         ans = existing_answers[idx] if idx < len(existing_answers) and isinstance(existing_answers[idx], dict) else {}
-        prefill_prices.append(str(ans.get("price", "")).strip())
-        prefill_deadlines.append(str(ans.get("deadline", "")).strip())
+        prefill.append({
+            "price": str(ans.get("price", "")).strip(),
+            "deadline": str(ans.get("deadline", "")).strip(),
+        })
 
-    submitted = False
-    error_message = ""
+    submitted = bool(response_obj and response_obj.submitted_at)
     if request.method == 'POST':
         answers_payload: list[dict[str, str]] = []
-        for idx, item in enumerate(items):
-            price_val = (request.form.get(f'price_{idx}') or '').strip()
-            deadline_val = (request.form.get(f'deadline_{idx}') or '').strip()
-            prefill_prices[idx] = price_val
-            prefill_deadlines[idx] = deadline_val
-            answers_payload.append({
-                "item": item,
-                "price": price_val,
-                "deadline": deadline_val,
-            })
+        if wants_json:
+            payload = request.get_json(silent=True) or {}
+            answers_input = payload.get("answers")
+            if not isinstance(answers_input, list):
+                answers_input = []
+            for idx, item in enumerate(items):
+                answer = answers_input[idx] if idx < len(answers_input) and isinstance(answers_input[idx], dict) else {}
+                price_val = str(answer.get("price", "")).strip()
+                deadline_val = str(answer.get("deadline", "")).strip()
+                answers_payload.append({
+                    "item": item,
+                    "price": price_val,
+                    "deadline": deadline_val,
+                })
+        else:
+            for idx, item in enumerate(items):
+                price_val = (request.form.get(f'price_{idx}') or '').strip()
+                deadline_val = (request.form.get(f'deadline_{idx}') or '').strip()
+                answers_payload.append({
+                    "item": item,
+                    "price": price_val,
+                    "deadline": deadline_val,
+                })
 
         if not answers_payload:
-            error_message = "Nenhum item para responder."
+            if wants_json:
+                return jsonify({"success": False, "message": "Nenhum item para responder."}), 400
         else:
             if not response_obj:
                 response_obj = QuoteResponse(
@@ -4527,25 +4651,25 @@ def public_quote_response(token: str):
             response_obj.submitted_at = datetime.utcnow()
             db.session.commit()
             submitted = True
-            error_message = ""
 
-    clinic_name = quote.user.name or (quote.user.company.name if quote.user and quote.user.company else None)
-    clinic_name = clinic_name or (quote.user.username if quote.user else "")
-    clinic_address = getattr(quote.user, "clinic_address", "") if quote.user else ""
+        if wants_json:
+            return jsonify({"success": True, "submitted": submitted})
 
-    return render_template(
-        'quote_public_response.html',
-        quote=quote,
-        supplier=supplier,
-        items=list(enumerate(items)),
-        prefill_prices=prefill_prices,
-        prefill_deadlines=prefill_deadlines,
-        submitted=submitted,
-        expired=False,
-        clinic_name=clinic_name,
-        clinic_address=clinic_address,
-        error_message=error_message,
-    )
+    if wants_json:
+        return jsonify({
+            "expired": False,
+            "clinic_name": clinic_name,
+            "clinic_address": clinic_address,
+            "supplier": {
+                "id": supplier.id,
+                "name": supplier.name,
+            },
+            "items": items,
+            "prefill": prefill,
+            "submitted": submitted,
+        })
+
+    return serve_react_index()
 
 
 @app.route('/quotes/<int:quote_id>', methods=['GET'], endpoint='quote_view')
@@ -5395,4 +5519,5 @@ def server_error(e):
 # Entrypoint
 # ------------------------------------------------------------------------------
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT", "5000")), debug=True)
+    debug_enabled = os.getenv("FLASK_DEBUG", "0").strip() == "1"
+    app.run(host='0.0.0.0', port=int(os.getenv("PORT", "5000")), debug=debug_enabled)
