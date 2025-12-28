@@ -9,6 +9,7 @@ stripe>=10.0.0
 Flask-Migrate==4.0.5
 alembic>=1.13.0
 Weasyprint
+reportlab
 PyPDF2>=3.0,<4
 itsdangerous
 Flask-Mail>=0.9.1
