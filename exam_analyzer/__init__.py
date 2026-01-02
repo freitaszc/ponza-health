@@ -1,2 +1,1 @@
-"""Standalone exam analyzer application package."""
-
+"""Exam analyzer helpers used by the main app."""
