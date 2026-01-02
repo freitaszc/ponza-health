@@ -5819,24 +5819,21 @@ def inject_globals():
 
 @app.errorhandler(403)
 def forbidden(e):
-    try:
-        return render_template("403.html"), 403
-    except TemplateNotFound:
-        return "403 - Proibido", 403
+    if _request_wants_json():
+        return jsonify({"error": "forbidden"}), 403
+    return "403 - Proibido", 403
 
 @app.errorhandler(404)
 def not_found(e):
-    try:
-        return render_template("404.html"), 404
-    except TemplateNotFound:
-        return "404 - Não encontrado", 404
+    if _request_wants_json():
+        return jsonify({"error": "not_found"}), 404
+    return "404 - Não encontrado", 404
 
 @app.errorhandler(500)
 def server_error(e):
-    try:
-        return render_template("500.html"), 500
-    except TemplateNotFound:
-        return "500 - Erro interno", 500
+    if _request_wants_json():
+        return jsonify({"error": "server_error"}), 500
+    return "500 - Erro interno", 500
 
 # ------------------------------------------------------------------------------
 # Entrypoint
