@@ -620,68 +620,16 @@ def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None)
 # ------------------------------------------------------------------------------
 @app.route("/admin/users", methods=["GET", "POST"])
 def admin_users():
-    u = get_logged_user()
-    if not u or (u.username or "").lower() != "admin":
-        abort(403)
-
-    all_users = User.query.order_by(User.created_at.desc()).all()
-    # Convert current time to date for comparisons in the template
-    now = datetime.utcnow().date()
-    return render_template("admin_users.html", users=all_users, now=now)
+    abort(404)
 
 
 @app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
 def delete_user(user_id):
-    u = get_logged_user()
-    if not u or (u.username or "").lower() != "admin":
-        abort(403)
-
-    target = User.query.get_or_404(user_id)
-    if (target.username or "").lower() == "admin":
-        flash("Conta admin não pode ser excluída.", "error")
-    else:
-        db.session.delete(target)
-        db.session.commit()
-        flash("Usuário excluído com sucesso.", "success")
-    return redirect(url_for("admin_users"))
+    abort(404)
 
 @app.route("/admin/users/extend", methods=["POST"])
 def admin_extend_subscription():
-    u = get_logged_user()
-    if not u or (u.username or "").lower() != "admin":
-        abort(403)
-
-    user_id = request.form.get("user_id", type=int)
-    months: int = request.form.get("months", type=int) or 0
-    if months <= 0:
-        flash("Selecione um número válido de meses.", "warning")
-        return redirect(url_for("admin_users"))
-
-    target = User.query.get_or_404(user_id)
-    if (target.username or "").lower() == "admin":
-        flash("A conta admin não pode ser alterada.", "warning")
-        return redirect(url_for("admin_users"))
-
-    now = datetime.utcnow()
-
-    # ✅ Ensure plan_expiration is datetime (not str)
-    plan_exp = target.plan_expiration
-    if isinstance(plan_exp, str):
-        try:
-            plan_exp = datetime.fromisoformat(plan_exp)
-        except Exception:
-            plan_exp = None
-
-    # ✅ Choose base date for extension
-    base_date = plan_exp if plan_exp and plan_exp > now else now
-
-    target.plan_status = "paid"
-    target.plan_expiration = base_date + timedelta(days=30 * months)
-
-    db.session.commit()
-
-    flash(f"Assinatura de {target.username} estendida por {months} mês(es).", "success")
-    return redirect(url_for("admin_users"))
+    abort(404)
 
 
 # ------------------------------------------------------------------------------
@@ -4567,148 +4515,36 @@ def get_or_create_default_doctor() -> int:
 @app.route('/doctors')
 @login_required
 def doctors():
-    u = current_user()
-    q = (request.args.get('q') or '').strip().lower()
-    specialty_f = (request.args.get('specialty') or '').strip()
-
-    base = _doctor_scoped_query()
-
-    if q:
-        like = f"%{q}%"
-        base = base.filter(
-            or_(
-                Doctor.name.ilike(like),
-                Doctor.crm.ilike(like),
-                Doctor.specialty.ilike(like),
-                Doctor.email.ilike(like)
-            )
-        )
-
-    if specialty_f:
-        base = base.filter(Doctor.specialty == specialty_f)
-
-    items = base.order_by(Doctor.id.desc()).all()
-
-    specs = [r[0] for r in db.session.query(Doctor.specialty)
-             .filter(Doctor.specialty.isnot(None))
-             .filter(Doctor.specialty != '')
-             .distinct()
-             .order_by(Doctor.specialty.asc())
-             .all()]
-
-    return render_template('doctors.html', doctors=items, specialties=specs, notifications_unread=0)
+    abort(404)
 
 @app.route('/api_doctors')
 def api_doctors():
-    base = _doctor_scoped_query().order_by(Doctor.name)
-    docs = base.all()
-    return jsonify([{"id": d.id, "name": d.name} for d in docs])
+    abort(404)
 
 @app.route('/doctors/add', methods=['POST'], endpoint='add_doctor_route')
 @login_required
 def add_doctor_route():
-    u = current_user()
-    name      = (request.form.get('name') or '').strip()
-    crm       = (request.form.get('crm') or '').strip()
-    email     = (request.form.get('email') or '').strip().lower()
-    phone     = (request.form.get('phone') or '').strip()
-    specialty = (request.form.get('specialty') or '').strip()
-
-    if not name:
-        flash('Informe o nome do profissional.', 'warning')
-        return redirect(url_for('doctors'))
-
-    if email and not basic_email(email):
-        flash('E-mail inválido.', 'warning')
-        return redirect(url_for('doctors'))
-
-    # Se modelo tiver user_id, preenche com o usuário atual
-    d_kwargs = dict(name=name or None, crm=crm or None, email=email or None,
-                    phone=phone or None, specialty=specialty or None)
-    if hasattr(Doctor, 'user_id'):
-        d_kwargs['user_id'] = u.id
-
-    d = Doctor(**d_kwargs)
-    db.session.add(d)
-    db.session.commit()
-    flash('Profissional cadastrado com sucesso!', 'success')
-    return redirect(url_for('doctors'))
+    abort(404)
 
 @app.route('/doctors/<int:doctor_id>', methods=['GET', 'POST'], endpoint='doctor_view')
 @login_required
 def doctor_view(doctor_id):
-    d = _doctor_get_or_404_scoped(doctor_id)  # << usa o helper correto
-
-    if request.method == 'POST':
-        d.name      = (request.form.get('name') or '').strip()
-        d.email     = (request.form.get('email') or '').strip()
-        d.crm       = (request.form.get('crm') or '').strip()
-        d.phone     = (request.form.get('phone') or '').strip()
-        d.specialty = (request.form.get('specialty') or '').strip()
-        try:
-            db.session.commit()
-            flash('Profissional atualizado com sucesso.', 'success')
-            return redirect(url_for('doctors'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Falha ao salvar: {e}', 'warning')
-
-    return render_template('doctor_view.html', doctor=d)
+    abort(404)
 
 @app.route('/doctors/<int:doctor_id>/update', methods=['POST'])
 @login_required
 def doctor_update(doctor_id):
-    d = _doctor_get_or_404_scoped(doctor_id)
-
-    d.name       = (request.form.get('name') or '').strip() or d.name
-    d.email      = (request.form.get('email') or '').strip() or None
-    d.crm        = (request.form.get('crm') or '').strip() or None
-    d.phone      = (request.form.get('phone') or '').strip() or None
-    d.specialty  = (request.form.get('specialty') or '').strip() or None
-
-    db.session.commit()
-    flash('Profissional atualizado!', 'success')
-    return redirect(url_for('doctor_view', doctor_id=d.id))
+    abort(404)
 
 @app.route('/doctor/<int:doctor_id>/edit', methods=['GET', 'POST'], endpoint='doctor_edit')
 @login_required
 def doctor_edit(doctor_id):
-    d = _doctor_get_or_404_scoped(doctor_id)
-
-    if request.method == 'POST':
-        name      = (request.form.get('name') or '').strip()
-        crm       = (request.form.get('crm') or '').strip()
-        email     = (request.form.get('email') or '').strip().lower()
-        phone     = (request.form.get('phone') or '').strip()
-        specialty = (request.form.get('specialty') or '').strip()
-
-        if not name:
-            flash("Nome é obrigatório.", "warning")
-            return redirect(url_for('doctor_edit', doctor_id=doctor_id))
-        if email and not basic_email(email):
-            flash("E-mail inválido.", "warning")
-            return redirect(url_for('doctor_edit', doctor_id=doctor_id))
-
-        d.name = name
-        d.crm = crm or None
-        d.email = email or None
-        d.phone = phone or None
-        d.specialty = specialty or None
-
-        db.session.commit()
-        flash("Profissional atualizado com sucesso!", "success")
-        return redirect(url_for('doctors'))
-
-    return render_template('doctor_edit.html', doctor=d)
+    abort(404)
 
 @app.route('/doctor/<int:doctor_id>/delete', methods=['POST'], endpoint='doctor_delete')
 @login_required
 def doctor_delete(doctor_id):
-    d = _doctor_get_or_404_scoped(doctor_id)
-    db.session.delete(d)
-    db.session.commit()
-    flash("Profissional removido.", "info")
-    return redirect(url_for('doctors'))
+    abort(404)
 
 # ------------------------------------------------------------------------------
 # Cotações / Fornecedores / Produtos
