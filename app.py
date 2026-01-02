@@ -1417,11 +1417,7 @@ def cadastro():
 # ------------------------------------------------------------------------------
 # Dashboard
 # ------------------------------------------------------------------------------
-@app.route('/index')
-@login_required
-def index():
-    u = current_user()
-
+def _build_dashboard_payload(u: User) -> dict[str, Any]:
     # ---------------------------------------
     # Métricas gerais
     # ---------------------------------------
@@ -1450,18 +1446,17 @@ def index():
     # ---------------------------------------
     # Consultas na última semana (Primeira x Retorno) via AgendaEvent.type
     # ---------------------------------------
-    start_7d = today - timedelta(days=6)
     consults_week_series = []  # [{d:'dd/mm', primeira:int, retorno:int}]
     for i in range(7):
-        day = start_7d + timedelta(days=i)
+        day = start_7 + timedelta(days=i)
         day_start = datetime.combine(day, datetime.min.time())
-        day_end   = datetime.combine(day, datetime.max.time())
+        day_end = datetime.combine(day, datetime.max.time())
         qday = (
             AgendaEvent.query
             .filter(
                 AgendaEvent.user_id == u.id,
                 AgendaEvent.start >= day_start,
-                AgendaEvent.end   <= day_end
+                AgendaEvent.end <= day_end
             )
         ).all()
         retorno = sum(1 for e in qday if (e.type or "").strip().lower() == "retorno")
@@ -1538,7 +1533,35 @@ def index():
 
     # Convênio 30 dias
     insurance_particular_30 = sum(1 for e in events_30 if (e.billing or "").lower() == "particular")
-    insurance_convenio_30   = sum(1 for e in events_30 if (e.billing or "").lower() == "convenio")
+    insurance_convenio_30 = sum(1 for e in events_30 if (e.billing or "").lower() == "convenio")
+
+    # PDFs analisados (últimos 7 dias)
+    pdf_counts = {}
+    for i in range(7):
+        day = start_7 + timedelta(days=i)
+        pdf_counts[day] = 0
+    try:
+        pdfs = (
+            PdfFile.query
+            .join(SecureFile, PdfFile.secure_file_id == SecureFile.id)
+            .filter(
+                SecureFile.user_id == u.id,
+                PdfFile.uploaded_at >= datetime.combine(start_7, datetime.min.time()),
+            )
+            .all()
+        )
+        for pdf in pdfs:
+            if not pdf.uploaded_at:
+                continue
+            day = pdf.uploaded_at.date()
+            if day in pdf_counts:
+                pdf_counts[day] += 1
+    except Exception as e:
+        print("[INDEX] pdf analytics error:", e)
+    pdf_analyses_last7 = [
+        {"d": day.strftime("%d/%m"), "count": int(pdf_counts.get(day, 0))}
+        for day in sorted(pdf_counts.keys())
+    ]
 
     # Estoque baixo
     try:
@@ -1633,34 +1656,47 @@ def index():
     except Exception as e:
         print("[INDEX] quotes stats/table error:", e)
 
-    # Render
-    return render_template(
-        'index.html',
-        total_patients=total_patients,
-        total_consults=total_consults,
-        used=used,
-        remaining=remaining,
-        package_used=used,
-        package_limit=total,
-        package_total=total,
-        consults_week_series=consults_week_series,
-        patients_new_30=patients_new_30,
-        patients_return_30=patients_return_30,
-        male_count=male_count,
-        female_count=female_count,
-        procedures_return_30=procedures_return_30,
-        procedures_first_30=procedures_first_30,
-        insurance_particular_30=insurance_particular_30,
-        insurance_convenio_30=insurance_convenio_30,
-        low_stock=low_stock,
-        quotes_total=quotes_total,
-        quotes_responded=quotes_responded,
-        quotes_pending=quotes_pending,
-        quotes_items=quotes_items,
-        notifications_unread=0,
-        trial_active = (u.trial_expiration and u.trial_expiration >= datetime.utcnow().date())
+    return {
+        "username": getattr(u, "name", None) or getattr(u, "username", None) or "",
+        "is_admin": ((getattr(u, "username", "") or "").lower() == "admin"),
+        "total_patients": total_patients,
+        "total_consults": total_consults,
+        "used": used,
+        "remaining": remaining,
+        "package_used": used,
+        "package_limit": total,
+        "package_total": total,
+        "consults_week_series": consults_week_series,
+        "patients_new_30": patients_new_30,
+        "patients_return_30": patients_return_30,
+        "male_count": male_count,
+        "female_count": female_count,
+        "procedures_return_30": procedures_return_30,
+        "procedures_first_30": procedures_first_30,
+        "insurance_particular_30": insurance_particular_30,
+        "insurance_convenio_30": insurance_convenio_30,
+        "pdf_analyses_last7": pdf_analyses_last7,
+        "low_stock": low_stock,
+        "quotes_total": quotes_total,
+        "quotes_responded": quotes_responded,
+        "quotes_pending": quotes_pending,
+        "quotes_items": quotes_items,
+        "notifications_unread": 0,
+        "trial_active": bool(u.trial_expiration and u.trial_expiration >= datetime.utcnow().date()),
+    }
 
-    )
+
+@app.route('/api/dashboard', methods=['GET'])
+@login_required
+def dashboard_api():
+    u = current_user()
+    return jsonify(_build_dashboard_payload(u))
+
+
+@app.route('/index')
+@login_required
+def index():
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Compra de Pacotes
