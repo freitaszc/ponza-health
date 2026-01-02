@@ -7,6 +7,7 @@ import mimetypes
 import secrets
 import stripe
 import multiprocessing
+import time
 from flask_migrate import Migrate
 from io import BytesIO
 from functools import wraps
@@ -350,6 +351,24 @@ def _ensure_package_usage(user: User, *, base_total: Optional[int] = None) -> tu
         changed = True
 
     return pkg, changed
+
+
+def _analysis_package_status(user: User) -> tuple[PackageUsage, int]:
+    """Retorna o pacote do usuário e quantas análises restam."""
+    pkg, changed = _ensure_package_usage(user, base_total=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
+    if changed:
+        db.session.commit()
+    used = _coerce_int(getattr(pkg, "used", 0))
+    total = _coerce_int(getattr(pkg, "total", DEFAULT_FREE_ANALYSIS_ALLOWANCE), default=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
+    remaining = max(total - used, 0)
+    return pkg, remaining
+
+
+def _consume_analysis_slot(pkg: PackageUsage) -> None:
+    """Incrementa o uso de análises após uma execução bem-sucedida."""
+    pkg.used = _coerce_int(getattr(pkg, "used", 0)) + 1
+    db.session.add(pkg)
+    db.session.commit()
 
 
 def _apply_plan_allowance(user: User, plan: str, previous_plan: Optional[str] = None) -> bool:
@@ -2118,28 +2137,52 @@ def upload():
     return _handle_pdf_upload(request, u, analyze_pdf, use_ai=use_ai)
 
 
+@app.route('/api/upload', methods=['POST'])
+@login_required
+def api_upload():
+    from prescription import analyze_pdf
+
+    u = current_user()
+    use_ai = str(request.form.get('use_ai') or '').lower() in {'1', 'true', 'on', 'yes'}
+
+    if request.form.get('manual_entry') == '1':
+        ok, payload = _process_manual_entry_payload(request.form, u, analyze_pdf, use_ai=use_ai)
+    else:
+        ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai)
+
+    if not ok:
+        return jsonify({"success": False, "error": payload.get("error")}), 400
+
+    return jsonify({"success": True, **payload})
+
+
 # =====================================================================
 # Helpers internos para manter a rota enxuta
 # =====================================================================
 
-def _handle_manual_entry(request, u, analyze_pdf, *, use_ai=False):
-    """Processa inserção manual de resultados."""
-    name          = (request.form.get('name') or '').strip()
-    age           = (request.form.get('age') or '').strip()
-    cpf           = (request.form.get('cpf') or '').strip()
-    gender        = (request.form.get('gender') or '').strip()
-    phone         = (request.form.get('phone') or '').strip()
-    doctor_name   = (request.form.get('doctor') or '').strip()
-    doctor_phone  = (request.form.get('doctor_phone') or '').strip()
-    patient_name  = (request.form.get('patient_name') or '').strip()
-    patient_phone = (request.form.get('patient_phone') or '').strip()
-    lab_results   = (request.form.get('lab_results') or '').strip()
+def _process_manual_entry_payload(form, u, analyze_pdf, *, use_ai=False) -> tuple[bool, dict[str, Any]]:
+    name = (form.get('name') or '').strip()
+    age = (form.get('age') or '').strip()
+    cpf = (form.get('cpf') or '').strip()
+    gender = (form.get('gender') or '').strip()
+    phone = (form.get('phone') or '').strip()
+    doctor_name = (form.get('doctor') or '').strip()
+    doctor_phone = (form.get('doctor_phone') or '').strip()
+    patient_name = (form.get('patient_name') or '').strip()
+    patient_phone = (form.get('patient_phone') or '').strip()
+    lab_results = (form.get('lab_results') or '').strip()
 
-    send_doctor  = request.form.get('send_doctor') == '1'
-    send_patient = request.form.get('send_patient') == '1'
+    send_doctor = form.get('send_doctor') == '1'
+    send_patient = form.get('send_patient') == '1'
 
     if not lab_results:
-        return redirect(url_for('upload', error="Digite os resultados no campo de texto."))
+        return False, {"error": "Digite os resultados no campo de texto."}
+
+    pkg, remaining = _analysis_package_status(u)
+    if remaining <= 0:
+        return False, {
+            "error": "Seu pacote de análises acabou. Compre mais créditos para continuar usando o Ponza Lab."
+        }
 
     refs_path = _project_references_json()
     dgn, rx, *_ = analyze_pdf(
@@ -2180,18 +2223,24 @@ def _handle_manual_entry(request, u, analyze_pdf, *, use_ai=False):
             clinic_phone=u.clinic_phone
         )
 
-    return redirect(url_for('result', patient_id=p.id))
+    _consume_analysis_slot(pkg)
+    return True, {"redirect_url": url_for('result', patient_id=p.id), "patient_id": p.id}
 
-def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
-    """Processa upload de arquivo PDF, analisa e envia relatórios via WhatsApp."""
 
+def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tuple[bool, dict[str, Any]]:
     file = request.files.get('pdf_file')
     if not file or not file.filename.lower().endswith('.pdf'):
-        return redirect(url_for('upload', error="Nenhum PDF válido enviado."))
+        return False, {"error": "Nenhum PDF válido enviado."}
 
     content = file.read()
     if not content:
-        return redirect(url_for('upload', error="PDF vazio ou inválido."))
+        return False, {"error": "PDF vazio ou inválido."}
+
+    pkg, remaining = _analysis_package_status(u)
+    if remaining <= 0:
+        return False, {
+            "error": "Seu pacote de análises acabou. Compre mais créditos para continuar usando o Ponza Lab."
+        }
 
     sf = SecureFile(
         user_id=u.id,
@@ -2317,7 +2366,23 @@ def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
             clinic_phone=u.clinic_phone
         )
 
-    return redirect(url_for('result', patient_id=p.id))
+    _consume_analysis_slot(pkg)
+    return True, {"redirect_url": url_for('result', patient_id=p.id), "patient_id": p.id}
+
+
+def _handle_manual_entry(request, u, analyze_pdf, *, use_ai=False):
+    """Processa inserção manual de resultados."""
+    ok, payload = _process_manual_entry_payload(request.form, u, analyze_pdf, use_ai=use_ai)
+    if not ok:
+        return redirect(url_for('upload', error=payload.get("error")))
+    return redirect(payload["redirect_url"])
+
+def _handle_pdf_upload(request, u, analyze_pdf, *, use_ai=False):
+    """Processa upload de arquivo PDF, analisa e envia relatórios via WhatsApp."""
+    ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai)
+    if not ok:
+        return redirect(url_for('upload', error=payload.get("error")))
+    return redirect(payload["redirect_url"])
 
 
 def _handle_pdf_upload_ai(
@@ -2827,6 +2892,12 @@ def _attach_consult_and_notes(p, dgn, rx):
 @app.route('/patient_result/<int:patient_id>')
 @login_required
 def patient_result(patient_id):
+    return serve_react_index()
+
+
+@app.route('/api/patient_result/<int:patient_id>')
+@login_required
+def api_patient_result(patient_id):
     u = current_user()
     patient = Patient.query.get_or_404(patient_id)
     if patient.user_id != u.id:
@@ -2845,14 +2916,26 @@ def patient_result(patient_id):
         parts = notes.split("Prescrição:", 1)
         diagnosis = parts[0].strip()
         prescription = parts[1].strip()
+    else:
+        diagnosis = notes.strip() if notes else ""
 
-    return render_template(
-        'result.html',
-        patient=patient,
-        diagnostic_text=diagnosis,
-        prescription_text=prescription,
-        notifications_unread=0,
-    )
+    patient_payload = {
+        "id": patient.id,
+        "name": patient.name,
+        "birthdate": patient.birthdate.strftime("%d/%m/%Y") if patient.birthdate else "",
+        "sex": patient.sex,
+        "cpf": patient.cpf,
+        "phone_primary": patient.phone_primary,
+        "phone_secondary": patient.phone_secondary,
+    }
+
+    return jsonify({
+        "mode": "classic",
+        "patient": patient_payload,
+        "diagnosis": diagnosis,
+        "prescription": prescription,
+        "download_pdf_url": url_for('download_pdf', patient_id=patient.id),
+    })
 
 @app.route('/download_pdf/<int:patient_id>')
 @login_required
@@ -3064,9 +3147,15 @@ def lab_analysis_pdf():
 @app.route('/lab_analysis/view')
 @login_required
 def lab_analysis_view():
+    return serve_react_index()
+
+
+@app.route('/api/lab_analysis/view')
+@login_required
+def api_lab_analysis_view():
     token = request.args.get("token")
     if not token:
-        return redirect(url_for('upload'))
+        return jsonify({"success": False, "error": "Token ausente."}), 400
     serializer = URLSafeSerializer(app.config['SECRET_KEY'], salt="lab-analysis-pdf")
     try:
         payload = serializer.loads(token)
@@ -3088,18 +3177,20 @@ def lab_analysis_view():
         file_name=payload.get("file_name") or "",
         doctor_name=doctor_name,
     )
-    return render_template(
-        "result.html",
-        patient=None,
-        diagnostic_text=context.get("summary") or "",
-        prescription_text="\n".join(context.get("prescription") or []),
-        ai_analysis=True,
-        ai_patient_details=context.get("patient_details") or [],
-        ai_lab_results=context.get("exams") or [],
-        ai_prescription_list=context.get("prescription") or [],
-        ai_orientations=context.get("orientations") or [],
-        ai_pdf_token=token,
-    )
+    patient_details = [
+        {"label": label, "value": value} for label, value in (context.get("patient_details") or [])
+    ]
+    return jsonify({
+        "mode": "ai",
+        "patient_details": patient_details,
+        "summary": context.get("summary") or "",
+        "exams": context.get("exams") or [],
+        "prescription": context.get("prescription") or [],
+        "orientations": context.get("orientations") or [],
+        "alerts": context.get("alerts") or [],
+        "pdf_token": token,
+        "doctor_name": doctor_name,
+    })
 
 @app.route('/public_download')
 def public_download():
