@@ -3966,8 +3966,18 @@ def register_patient():
 
     u = current_user()
 
+    if request.method == 'GET' and not _request_wants_json():
+        return serve_react_index()
+
     # URL absoluta da imagem padrão (útil para gravar direto no campo profile_image)
     default_image_url = url_for('static', filename='images/user-icon.png')
+    wants_json = _request_wants_json()
+
+    def _register_patient_error(message: str, fields: Optional[list[str]] = None):
+        if wants_json:
+            return jsonify({"success": False, "error": message, "fields": fields or []}), 400
+        flash(message, "warning")
+        return redirect(url_for('catalog'))
 
     if request.method == 'POST':
         # -------- campos básicos
@@ -4023,23 +4033,10 @@ def register_patient():
         if not phone_pri: missing.append('phone_primary')
 
         if missing:
-            flash("Preencha todos os campos obrigatórios.", "warning")
-            # Re-renderiza mantendo valores já digitados
-            return render_template(
-                'register_patient.html',
-                form=request.form,
-                errors=missing,
-                default_image_url=default_image_url
-            )
+            return _register_patient_error("Preencha todos os campos obrigatórios.", missing)
 
         if email and not basic_email(email):
-            flash("E-mail inválido.", "warning")
-            return render_template(
-                'register_patient.html',
-                form=request.form,
-                errors=['email'],
-                default_image_url=default_image_url
-            )
+            return _register_patient_error("E-mail inválido.", ["email"])
 
         # -------- foto de perfil (opcional): salva em /static/uploads/patients
         profile_rel = default_image_url  # fallback padrão
@@ -4059,12 +4056,9 @@ def register_patient():
                 # salva caminho relativo /static/...
                 profile_rel = "/" + os.path.relpath(dest_path, STATIC_DIR).replace("\\", "/")
             else:
-                flash("Tipo de arquivo não permitido. Use png, jpg ou jpeg.", "warning")
-                return render_template(
-                    'register_patient.html',
-                    form=request.form,
-                    errors=['profile_image'],
-                    default_image_url=default_image_url
+                return _register_patient_error(
+                    "Tipo de arquivo não permitido. Use png, jpg ou jpeg.",
+                    ["profile_image"],
                 )
 
         # -------- cria paciente
@@ -4117,6 +4111,9 @@ def edit_patient(patient_id):
     patient = Patient.query.get_or_404(patient_id)
     if patient.user_id != u.id:
         abort(403)
+
+    if request.method == 'GET' and not _request_wants_json():
+        return serve_react_index()
 
     if request.method == 'POST':
         name = (request.form.get('name') or '').strip()
