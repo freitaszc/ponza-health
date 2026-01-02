@@ -41,7 +41,8 @@ from exam_analyzer.pdf_extractor import extract_exam_payload
 from exam_analyzer.ai import generate_ai_analysis
 from flask import (
     Flask, Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify, abort, send_file, send_from_directory, g, current_app
+    session, flash, jsonify, abort, send_file, send_from_directory, g, current_app,
+    get_flashed_messages
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -1682,8 +1683,8 @@ def purchase():
             flash("Erro ao iniciar pagamento. Tente novamente mais tarde.", "danger")
             return redirect(url_for('payments'))
 
-    # Se for GET, só renderiza a página
-    return render_template('purchase.html', notifications_unread=0)
+    # Se for GET, entrega a aplicação React
+    return serve_react_index()
 
 
 @app.route('/payments', methods=['GET'])
@@ -1694,7 +1695,7 @@ def payments():
     - Comprar pacotes de análises
     - Assinar plano mensal
     """
-    return render_template('purchase.html', notifications_unread=0)
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Conta
@@ -1702,13 +1703,18 @@ def payments():
 @app.route('/account')
 @login_required
 def account():
+    return serve_react_index()
+
+
+@app.route('/api/account', methods=['GET'])
+@login_required
+def account_api():
     """
-    Página da conta: mostra status do plano, dias restantes do trial e botão para assinar.
+    Dados da conta para o dashboard em React.
     """
     u = current_user()
     now = datetime.utcnow()
 
-    # calcular dados do trial
     trial_expiration = getattr(u, "trial_expiration", None)
     if trial_expiration:
         remaining_td = trial_expiration - now.date()
@@ -1718,27 +1724,56 @@ def account():
         remaining_days = 0
         trial_active = False
 
-    # status pago?
-    plan_status = getattr(u, "plan_status", None) or "inactive"
+    plan_status = (getattr(u, "plan_status", None) or "inactive").lower()
     plan_expiration = getattr(u, "plan_expiration", None)
     is_paid_active = False
     if plan_status == "paid":
         if (plan_expiration is None) or (plan_expiration and plan_expiration >= now):
             is_paid_active = True
 
-    # admin bypass
-    is_admin = (getattr(u, "username", "").lower() == "admin")
+    profile_image = (u.profile_image or DEFAULT_USER_IMAGE).strip()
+    if not profile_image:
+        profile_image = DEFAULT_USER_IMAGE
+    if not profile_image.startswith(("/files/img/", "/static/")):
+        profile_image = url_for("static", filename=profile_image)
 
-    return render_template(
-        'account.html',
-        user=u,
-        trial_active=trial_active,
-        trial_remaining_days=remaining_days,
-        plan_status=plan_status,
-        plan_expiration=plan_expiration,
-        is_paid_active=is_paid_active,
-        is_admin=is_admin
-    )
+    plan_name = (getattr(u, "plan", "") or "").lower()
+    plan_labels = {
+        "monthly": "Mensal",
+        "yearly": "Anual",
+    }
+
+    messages = [
+        {"category": category, "message": message}
+        for category, message in get_flashed_messages(with_categories=True)
+    ]
+
+    return jsonify({
+        "user": {
+            "id": u.id,
+            "username": getattr(u, "username", "") or "",
+            "name": getattr(u, "name", "") or "",
+            "email": getattr(u, "email", "") or "",
+            "clinic_phone": getattr(u, "clinic_phone", "") or "",
+            "clinic_address": getattr(u, "clinic_address", "") or "",
+            "profile_image": profile_image,
+        },
+        "plan": {
+            "status": plan_status,
+            "name": plan_name or None,
+            "label": plan_labels.get(plan_name) if plan_name else None,
+            "expires_at": plan_expiration.strftime("%Y-%m-%d") if plan_expiration else None,
+            "is_active": is_paid_active,
+        },
+        "trial": {
+            "active": trial_active,
+            "remaining_days": int(remaining_days),
+            "expires_at": trial_expiration.strftime("%Y-%m-%d") if trial_expiration else None,
+        },
+        "is_admin": (getattr(u, "username", "").lower() == "admin"),
+        "notifications_unread": 0,
+        "messages": messages,
+    })
 
 @app.route('/subscribe', methods=['GET', 'POST'])
 @login_required
