@@ -52,7 +52,6 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import NullPool
 from werkzeug.middleware.proxy_fix import ProxyFix
 from apscheduler.schedulers.background import BackgroundScheduler #type:ignore
-from jinja2 import TemplateNotFound
 
 from models import (
     db, User, Patient, Doctor, Consult, PackageUsage,
@@ -119,6 +118,57 @@ def serve_react_index():
 
 def allowed_file(filename: str) -> bool:
     return bool(filename) and '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+TRIAL_EXEMPT_ENDPOINTS = {
+    "trial_locked",
+    "api_trial_status",
+    "subscribe_pay_mensal",
+    "subscribe_pay_anual",
+}
+
+
+def _normalize_trial_expiration(value: Any) -> Optional[date]:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return None
+
+
+def _plan_is_active(plan_status: Optional[str], plan_expires: Any) -> bool:
+    if plan_status != "paid":
+        return False
+    if plan_expires is None:
+        return True
+    now = datetime.utcnow()
+    if isinstance(plan_expires, datetime):
+        return plan_expires >= now
+    if isinstance(plan_expires, date):
+        return plan_expires >= now.date()
+    return False
+
+
+def _build_trial_status(user: User) -> dict[str, Any]:
+    now_date = datetime.utcnow().date()
+    trial_expiration = _normalize_trial_expiration(getattr(user, "trial_expiration", None))
+    plan_status = getattr(user, "plan_status", None)
+    plan_expires = getattr(user, "plan_expiration", None)
+    plan_active = _plan_is_active(plan_status, plan_expires)
+    trial_active = bool(trial_expiration and trial_expiration >= now_date)
+    trial_expired = bool(trial_expiration and trial_expiration < now_date)
+    return {
+        "plan_active": plan_active,
+        "plan_status": plan_status or "",
+        "plan_expires": plan_expires.isoformat() if isinstance(plan_expires, (date, datetime)) else None,
+        "trial_active": trial_active,
+        "trial_expired": trial_expired,
+        "trial_expiration": trial_expiration.isoformat() if trial_expiration else None,
+        "plans": {
+            "monthly": url_for("subscribe_pay_mensal"),
+            "yearly": url_for("subscribe_pay_anual"),
+        },
+    }
 
 DEFAULT_FREE_ANALYSIS_ALLOWANCE = 25
 ANNUAL_PLAN_BONUS_ANALYSES = 30
@@ -865,38 +915,24 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
         if uname == "admin":
             return f(*args, **kwargs)
 
-        # Get relevant fields
-        now = datetime.utcnow()
-        now_date = now.date()  # 👈 convert once for safe comparison
-        trial_expiration_raw = getattr(u, "trial_expiration", None)
-        if isinstance(trial_expiration_raw, datetime):
-            trial_expiration = trial_expiration_raw.date()
-        else:
-            trial_expiration = trial_expiration_raw
+        trial_expiration = _normalize_trial_expiration(getattr(u, "trial_expiration", None))
         plan_status = getattr(u, "plan_status", None)
         plan_expires = getattr(u, "plan_expiration", None)
 
         # Paid users: allow if still valid
-        if plan_status == "paid" and (
-            plan_expires is None or plan_expires >= now
-        ):
+        if _plan_is_active(plan_status, plan_expires):
             return f(*args, **kwargs)
 
         # Trial users: compare dates only
+        now_date = datetime.utcnow().date()
         if trial_expiration and trial_expiration >= now_date:
             return f(*args, **kwargs)
 
-        # Trial expirou → exibir modal e bloquear ações de escrita
+        # Trial expirou → bloquear acesso e liberar apenas pagamento
         if trial_expiration:
-            g.trial_expired_modal = True
             message = "Seu período de teste de 14 dias expirou. Faça a assinatura para continuar usando o sistema."
-            g.trial_modal_message = message
-            try:
-                g.trial_modal_expiration_label = trial_expiration.strftime('%d/%m/%Y')
-            except Exception:
-                g.trial_modal_expiration_label = None
 
-            if request.method in ("GET", "HEAD", "OPTIONS"):
+            if request.endpoint in TRIAL_EXEMPT_ENDPOINTS:
                 return f(*args, **kwargs)
 
             if _request_wants_json():
@@ -909,7 +945,7 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
                     },
                 }), 402
 
-            return render_template('trial_locked.html'), 402
+            return redirect(url_for('trial_locked'))
 
         # fallback legacy: sem trial → direciona para planos
         return redirect(url_for('prices'))
@@ -940,11 +976,11 @@ def _register_validation_error(username: str, email: str, password: str, confirm
     if not re.search(r"[A-Z]", password):
         return "A senha deve conter pelo menos uma letra maiuscula."
     if not re.search(r"\d", password):
-        return "A senha deve conter pelo menos um numero."
+        return "A senha deve conter pelo menos um número."
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\\-+=]", password):
         return "A senha deve conter pelo menos um caractere especial."
     if password != confirm:
-        return "As senhas nao coincidem."
+        return "As senhas não coincidem."
     if not username:
         return "Informe um nome de usuario."
     if User.query.filter_by(username=username).first():
@@ -1014,42 +1050,6 @@ def inject_user_context():
         }
     }
 
-
-@app.after_request
-def append_trial_modal(response):
-    """Acopla o modal de teste expirado em respostas HTML quando necessário."""
-    if not getattr(g, "trial_expired_modal", False):
-        return response
-
-    try:
-        if response.status_code != 200 or response.direct_passthrough:
-            return response
-        mimetype = (response.mimetype or '').lower()
-        if not mimetype.startswith('text/html'):
-            return response
-
-        snippet = render_template(
-            'components/trial_expired_modal.html',
-            message=g.get('trial_modal_message'),
-            trial_end_label=g.get('trial_modal_expiration_label'),
-        )
-        html = response.get_data(as_text=True)
-        lower_html = html.lower()
-        closing_tag = '</body>'
-        idx = lower_html.rfind(closing_tag)
-        if idx != -1:
-            html = html[:idx] + snippet + html[idx:]
-        else:
-            html = html + snippet
-        response.set_data(html)
-    except TemplateNotFound:
-        return response
-    except Exception as exc:
-        try:
-            current_app.logger.exception("Falha ao injetar modal de trial expirado: %s", exc)
-        except Exception:
-            pass
-    return response
 
 @app.after_request
 def add_static_cache_headers(response):
@@ -1321,6 +1321,17 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/trial_locked')
+@login_required
+def trial_locked():
+    return serve_react_index()
+
+@app.route('/api/trial_status')
+@login_required
+def api_trial_status():
+    u = current_user()
+    return jsonify(_build_trial_status(u))
 
 @app.route('/privacy_policy')
 def privacy_policy():
