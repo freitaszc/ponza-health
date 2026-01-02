@@ -2148,16 +2148,7 @@ def upload():
     u = current_user()
 
     if request.method == 'GET':
-        return render_template(
-            'upload.html',
-            success=request.args.get('success', type=int),
-            success_id=request.args.get('success_id', type=int),
-            error=request.args.get('error'),
-            analysis=None,
-            analysis_token=None,
-            analysis_error=None,
-            notifications_unread=0
-        )
+        return serve_react_index()
 
     use_ai = str(request.form.get('use_ai') or '').lower() in {'1', 'true', 'on', 'yes'}
 
@@ -2298,11 +2289,10 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
     db.session.add(pf)
     db.session.commit()
 
-    # Dados informados manualmente pelo médico no formulário
     manual_name = (request.form.get('patient_manual_name') or '').strip()
-    manual_age  = (request.form.get('patient_manual_age') or '').strip()
+    manual_age = (request.form.get('patient_manual_age') or '').strip()
     manual_gender = (request.form.get('patient_manual_sex') or '').strip()
-    manual_phone  = (request.form.get('patient_manual_phone') or '').strip()
+    manual_phone = (request.form.get('patient_manual_phone') or '').strip()
 
     manual_birthdate_str = None
     if manual_age:
@@ -2324,37 +2314,85 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
     if manual_phone:
         manual_overrides["telefone"] = manual_phone
 
-    send_doctor  = request.form.get('send_doctor') == '1'
+    send_doctor = request.form.get('send_doctor') == '1'
     send_patient = request.form.get('send_patient') == '1'
 
-    doctor_name_input   = (request.form.get('doctor_name') or '').strip()
-    doctor_phone  = (request.form.get('doctor_phone') or '').strip()
-    patient_name  = (request.form.get('patient_name') or '').strip()
+    doctor_name_input = (request.form.get('doctor_name') or '').strip()
+    doctor_phone = (request.form.get('doctor_phone') or '').strip()
+    patient_name = (request.form.get('patient_name') or '').strip()
     patient_phone = (request.form.get('patient_phone') or '').strip()
 
     clinic_contact = (u.clinic_phone or u.name or u.username or '').strip() or '-'
     doctor_display = doctor_name_input or (getattr(u, "name", None) or u.username)
 
     if use_ai:
-        return _handle_pdf_upload_ai(
-            user=u,
-            file_bytes=content,
-            file_name=file.filename,
-            manual_overrides=manual_overrides,
-            manual_phone=manual_phone,
-            doctor_text=doctor_name_input,
-            doctor_display=doctor_display,
-            send_doctor=send_doctor,
-            send_patient=send_patient,
-            doctor_phone=doctor_phone,
-            patient_name_field=patient_name,
-            patient_phone_field=patient_phone,
-            clinic_contact=clinic_contact,
-            pdf_entry=pf,
+        try:
+            analysis = _perform_ai_lab_analysis(content, manual_overrides)
+        except RuntimeError as exc:
+            return False, {"error": str(exc)}
+
+        patient_block = analysis.get("paciente") or {}
+        patient = _get_or_create_patient(
+            u,
+            name=patient_block.get("nome"),
+            cpf=(patient_block.get("cpf") or "").strip(),
+            gender=patient_block.get("sexo"),
+            phone=manual_phone or patient_block.get("telefone"),
+            birthdate=patient_block.get("data_nascimento"),
         )
 
-    refs_path = _project_references_json()
+        if doctor_name_input:
+            _assign_doctor_to_patient(u, patient, doctor_name_input)
 
+        diagnosis_text = analysis.get("resumo_clinico") or ""
+        prescription_text = "\n".join(analysis.get("prescricao") or [])
+        _attach_consult_and_notes(patient, diagnosis_text, prescription_text)
+
+        pf.patient_id = patient.id
+        db.session.add(pf)
+        db.session.commit()
+
+        if send_doctor and doctor_phone:
+            send_pdf_whatsapp_template(
+                "relatorio_ponza",
+                doctor_name_input or doctor_display,
+                patient.name,
+                doctor_phone,
+                patient.id,
+                clinic_contact=clinic_contact,
+            )
+
+        if send_patient and patient_phone:
+            send_pdf_whatsapp_patient(
+                patient_name or patient.name,
+                patient_phone,
+                patient.id,
+                clinic_phone=u.clinic_phone
+            )
+
+        _consume_analysis_slot(pkg)
+        context = _build_analysis_context(analysis, file_name=file.filename, doctor_name=doctor_display)
+        serializer = URLSafeSerializer(app.config['SECRET_KEY'], salt="lab-analysis-pdf")
+        token_payload = {
+            "patient": context.get("patient") or {},
+            "doctor_name": context.get("doctor_name"),
+            "exams": context.get("exams") or [],
+            "abnormal_exams": context.get("abnormal_exams") or [],
+            "prescription": context.get("prescription") or [],
+            "summary": context.get("summary") or "",
+            "orientations": context.get("orientations") or [],
+            "alerts": context.get("alerts") or [],
+            "file_name": context.get("file_name"),
+        }
+        analysis_token = serializer.dumps(token_payload)
+
+        return True, {
+            "redirect_url": url_for('lab_analysis_view', token=analysis_token),
+            "analysis_token": analysis_token,
+            "patient_id": patient.id,
+        }
+
+    refs_path = _project_references_json()
     dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = analyze_pdf(
         content,
         references_path=refs_path,
@@ -2380,7 +2418,7 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
     if doctor_ai:
         _assign_doctor_to_patient(u, p, doctor_ai)
 
-    notes_blob = _attach_consult_and_notes(p, dgn, rx)
+    _attach_consult_and_notes(p, dgn, rx)
     pf.patient_id = p.id
     db.session.commit()
 
@@ -2442,16 +2480,7 @@ def _handle_pdf_upload_ai(
     try:
         analysis = _perform_ai_lab_analysis(file_bytes, manual_overrides)
     except RuntimeError as exc:
-        return render_template(
-            'upload.html',
-            analysis=None,
-            analysis_error=str(exc),
-            analysis_token=None,
-            notifications_unread=0,
-            success=None,
-            success_id=None,
-            error=None
-        )
+        return redirect(url_for('upload', error=str(exc)))
 
     patient_block = analysis.get("paciente") or {}
     patient = _get_or_create_patient(
