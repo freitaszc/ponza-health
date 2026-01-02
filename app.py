@@ -3160,7 +3160,6 @@ def build_agenda_snapshot(user: 'User') -> dict[str, Any]:
             AgendaEvent.start >= now
         )
         .order_by(AgendaEvent.start.asc())
-        .limit(8)
         .all()
     )
 
@@ -3233,24 +3232,7 @@ def build_agenda_snapshot(user: 'User') -> dict[str, Any]:
 @app.route('/agenda', methods=['GET'], endpoint='agenda')
 @login_required
 def agenda_view():
-    user = current_user()
-    snapshot = build_agenda_snapshot(user)
-
-    try:
-        return render_template(
-            'agenda.html',
-            summary=snapshot["summary"],
-            upcoming_events=snapshot["upcoming_events"],
-            type_summary=snapshot["type_summary"],
-            waitlist_count=snapshot["waitlist_count"],
-        )
-    except TemplateNotFound:
-        return """
-        <!doctype html><meta charset="utf-8">
-        <h1>Agenda</h1>
-        <p>Crie o template <code>templates/agenda.html</code>.</p>
-        <p><a href="{0}">Voltar</a></p>
-        """.format(url_for('index'))
+    return serve_react_index()
 
 
 @app.route('/api/agenda_snapshot', methods=['GET'])
