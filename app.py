@@ -3595,6 +3595,243 @@ def api_event_mutation(event_id: int):
 # ------------------------------------------------------------------------------
 # Catálogo / Pacientes
 # ------------------------------------------------------------------------------
+def _normalize_birthdate_input(value: Optional[str]) -> Optional[date]:
+    if not value:
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    only_digits = re.sub(r'\D', '', raw)
+    if len(only_digits) == 8:
+        raw = f"{only_digits[:2]}/{only_digits[2:4]}/{only_digits[4:]}"
+    return _parse_birthdate(raw)
+
+def _resolve_patient_image(path: Optional[str]) -> str:
+    if not path:
+        return url_for('static', filename='images/user-icon.png')
+    if path.startswith(('/static/', '/files/')):
+        return path
+    if path.startswith('/uploads/'):
+        return f"/static{path}"
+    if path.startswith('uploads/'):
+        return f"/static/{path}"
+    if path.startswith('images/'):
+        return url_for('static', filename=path)
+    return path
+
+def _serialize_patient_summary(patient: Patient) -> dict:
+    return {
+        "id": patient.id,
+        "name": patient.name,
+        "phone_primary": patient.phone_primary or "",
+        "doctor_name": patient.doctor.name if patient.doctor else "",
+        "status": patient.status or "Inativo",
+        "profile_image": _resolve_patient_image(patient.profile_image),
+    }
+
+def _serialize_patient_detail(patient: Patient) -> dict:
+    return {
+        "id": patient.id,
+        "name": patient.name or "",
+        "birthdate": patient.birthdate.strftime("%d/%m/%Y") if patient.birthdate else "",
+        "sex": patient.sex or "",
+        "email": patient.email or "",
+        "cpf": patient.cpf or "",
+        "phone_primary": patient.phone_primary or "",
+        "phone_secondary": patient.phone_secondary or "",
+        "notes": patient.notes or "",
+        "cep": patient.address_cep or "",
+        "street": patient.address_street or "",
+        "number": patient.address_number or "",
+        "complement": patient.address_complement or "",
+        "district": patient.address_district or "",
+        "city": patient.address_city or "",
+        "state": patient.address_state or "",
+        "profile_image": _resolve_patient_image(patient.profile_image),
+    }
+
+@app.route('/api/patients', methods=['GET', 'POST'])
+@login_required
+def api_patients():
+    u = current_user()
+
+    if request.method == 'GET':
+        search = (request.args.get('search') or '').strip().lower()
+        status = (request.args.get('status') or '').strip()
+
+        patients = Patient.query.filter_by(user_id=u.id).all()
+        if search:
+            patients = [p for p in patients if search in (p.name or '').lower()]
+        if status:
+            patients = [p for p in patients if (p.status or '') == status]
+
+        return jsonify({
+            "patients": [_serialize_patient_summary(p) for p in patients],
+            "total": len(patients),
+        })
+
+    data = request.form if not request.is_json else (request.get_json(silent=True) or {})
+    default_image_url = url_for('static', filename='images/user-icon.png')
+
+    name = (data.get('name') or '').strip()
+    birthdate_raw = (data.get('birthdate') or '').strip()
+    birthdate = _normalize_birthdate_input(birthdate_raw)
+    sex = (data.get('sex') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    cpf = (data.get('cpf') or data.get('document') or '').strip().replace('.', '').replace('-', '')
+    notes = (data.get('notes') or '').strip()
+    phone_pri = (data.get('phone_primary') or data.get('phone') or '').strip()
+    phone_sec = (data.get('phone_secondary') or '').strip()
+    cep = (data.get('cep') or data.get('zipcode') or '').strip()
+    street = (data.get('street') or '').strip()
+    number = (data.get('number') or '').strip()
+    complement = (data.get('complement') or '').strip()
+    district = (data.get('district') or '').strip()
+    city = (data.get('city') or '').strip()
+    state = (data.get('state') or '').strip().upper()
+
+    missing = []
+    if not name:
+        missing.append("name")
+    if not birthdate:
+        missing.append("birthdate")
+    if not sex:
+        missing.append("sex")
+    if not phone_pri:
+        missing.append("phone_primary")
+
+    if missing:
+        return jsonify(success=False, error="Preencha todos os campos obrigatorios."), 400
+    if email and not basic_email(email):
+        return jsonify(success=False, error="E-mail invalido."), 400
+
+    profile_rel = default_image_url
+    file = request.files.get('profile_image')
+    if file and file.filename:
+        if allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            ext = filename.rsplit('.', 1)[1].lower()
+            dest_dir = os.path.join(STATIC_DIR, "uploads", "patients")
+            os.makedirs(dest_dir, exist_ok=True)
+            new_name = f"patient_{u.id}_{int(time.time())}.{ext}"
+            dest_path = os.path.join(dest_dir, new_name)
+            file.save(dest_path)
+            profile_rel = "/" + os.path.relpath(dest_path, STATIC_DIR).replace("\\", "/")
+        else:
+            return jsonify(success=False, error="Tipo de arquivo não permitido."), 400
+
+    p = Patient(
+        user_id=u.id,
+        name=name,
+        birthdate=birthdate,
+        sex=sex or None,
+        email=email or None,
+        cpf=cpf or None,
+        notes=notes or None,
+        profile_image=profile_rel or default_image_url,
+        phone_primary=phone_pri,
+        phone_secondary=phone_sec or None,
+        address_cep=cep or None,
+        address_street=street or None,
+        address_number=number or None,
+        address_complement=complement or None,
+        address_district=district or None,
+        address_city=city or None,
+        address_state=state or None,
+    )
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(success=True, patient_id=p.id), 201
+
+@app.route('/api/patients/<int:patient_id>', methods=['GET', 'POST', 'PUT'])
+@login_required
+def api_patient_detail(patient_id: int):
+    u = current_user()
+    patient = Patient.query.get_or_404(patient_id)
+    if patient.user_id != u.id:
+        abort(403)
+
+    if request.method == 'GET':
+        return jsonify(success=True, patient=_serialize_patient_detail(patient))
+
+    data = request.form if not request.is_json else (request.get_json(silent=True) or {})
+
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify(success=False, error="Informe o nome do paciente."), 400
+
+    birthdate_raw = (data.get('birthdate') or '').strip()
+    birthdate = _normalize_birthdate_input(birthdate_raw) if birthdate_raw else None
+    sex = (data.get('sex') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    cpf = (data.get('cpf') or data.get('document') or '').strip().replace('.', '').replace('-', '')
+    notes = (data.get('notes') or '').strip()
+    phone_pri = (data.get('phone_primary') or data.get('phone') or '').strip()
+    phone_sec = (data.get('phone_secondary') or '').strip()
+    cep = (data.get('cep') or data.get('zipcode') or '').strip()
+    street = (data.get('street') or '').strip()
+    number = (data.get('number') or '').strip()
+    complement = (data.get('complement') or '').strip()
+    district = (data.get('district') or '').strip()
+    city = (data.get('city') or '').strip()
+    state = (data.get('state') or '').strip().upper()
+
+    if email and not basic_email(email):
+        return jsonify(success=False, error="E-mail invalido."), 400
+
+    file = request.files.get('profile_image')
+    if file and file.filename:
+        if not allowed_file(file.filename):
+            return jsonify(success=False, error="Tipo de arquivo não permitido."), 400
+
+        filename = secure_filename(file.filename)
+        ext = filename.rsplit('.', 1)[1].lower()
+        if ext not in {"png", "jpg", "jpeg"}:
+            return jsonify(success=False, error="Tipo de arquivo não permitido."), 400
+
+        content = file.read()
+        if not content:
+            return jsonify(success=False, error="Arquivo de imagem invalido."), 400
+
+        old_rel = (patient.profile_image or "").replace("\\", "/")
+        old_sid = _extract_securefile_id_from_url(old_rel)
+        if old_sid:
+            _delete_securefile_if_owned(old_sid, u.id)
+        else:
+            _safe_remove_patient_photo(old_rel)
+
+        new_name = f"patient_{u.id}_{int(time.time())}.{ext}"
+        sf = SecureFile(
+            user_id=u.id,
+            kind="patient_profile_image",
+            filename=new_name,
+            mime_type=file.mimetype or f"image/{ext}",
+            size_bytes=len(content),
+            data=content,
+        )
+        db.session.add(sf)
+        db.session.flush()
+        patient.profile_image = f"/files/img/{sf.id}"
+
+    patient.name = name
+    patient.birthdate = birthdate
+    patient.sex = sex or None
+    patient.email = email or None
+    patient.cpf = cpf or None
+    patient.notes = notes or None
+    patient.phone_primary = phone_pri
+    patient.phone_secondary = phone_sec or None
+    patient.address_cep = cep or None
+    patient.address_street = street or None
+    patient.address_number = number or None
+    patient.address_complement = complement or None
+    patient.address_district = district or None
+    patient.address_city = city or None
+    patient.address_state = state or None
+
+    db.session.commit()
+    return jsonify(success=True, patient_id=patient.id)
+
 @app.route('/catalog/register', methods=['GET', 'POST'])
 @login_required
 def register_patient():
@@ -3727,33 +3964,19 @@ def register_patient():
         db.session.add(p)
         db.session.commit()
 
+        if wants_json:
+            return jsonify({"success": True, "id": p.id, "redirect_url": url_for('catalog')})
         flash('Paciente cadastrado com sucesso.', 'success')
         return redirect(url_for('catalog'))
 
     # GET
-    return render_template('register_patient.html', default_image_url=default_image_url)
+    return serve_react_index()
 
 
 @app.route('/catalog')
 @login_required
 def catalog():
-    u = current_user()
-    search = request.args.get('search', '').strip().lower()
-    status = request.args.get('status', '').strip()
-
-    patients = Patient.query.filter_by(user_id=u.id).all()
-    if search:
-        patients = [p for p in patients if search in (p.name or '').lower()]
-    if status:
-        patients = [p for p in patients if (p.status or '') == status]
-
-    # Lista de médicos: se modelo tiver user_id, filtra; senão, lista todos
-    base_docs = Doctor.query
-    if hasattr(Doctor, 'user_id'):
-        base_docs = base_docs.filter((Doctor.user_id == u.id) | (Doctor.user_id.is_(None)))
-    doctors_list = base_docs.order_by(Doctor.name).all()
-
-    return render_template('catalog.html', patients=patients, doctors=doctors_list)
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Editar Paciente (com upload de foto via SecureFile)
@@ -3875,7 +4098,7 @@ def edit_patient(patient_id):
         flash("Paciente atualizado com sucesso.", "success")
         return redirect(url_for('catalog'))
 
-    return render_template('edit_patient.html', patient=patient)
+    return serve_react_index()
 
 # ------------------------------------------------------------------------------
 # Foto do paciente (upload/remover) — compatível com SecureFile
@@ -4012,11 +4235,7 @@ def patient_info(patient_id):
     """
     Exibe informações do paciente.
     """
-    u = current_user()
-    patient = Patient.query.get_or_404(patient_id)
-    if patient.user_id != u.id:
-        abort(403)
-    return render_template('patient_info.html', patient=patient)
+    return serve_react_index()
 
 
 @app.route('/api/add_patient', methods=['POST'])
