@@ -4560,96 +4560,205 @@ def doctor_delete(doctor_id):
 # ------------------------------------------------------------------------------
 # Cotações / Fornecedores / Produtos
 # ------------------------------------------------------------------------------
-@app.route('/quotes', methods=['GET'], endpoint='quote_index')
+def _format_dt_br(value: Optional[datetime]) -> Optional[str]:
+    if not value:
+        return None
+    try:
+        return value.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        try:
+            return value.strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            return None
+
+def _normalize_quote_items(raw: Any) -> list[str]:
+    if isinstance(raw, list):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    if isinstance(raw, str):
+        return [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    return []
+
+def _load_quote_items(raw_text: Optional[str]) -> list[str]:
+    if not raw_text:
+        return []
+    try:
+        parsed = json.loads(raw_text)
+        if isinstance(parsed, list):
+            return _normalize_quote_items(parsed)
+    except Exception:
+        pass
+    return _normalize_quote_items(raw_text)
+
+def _normalize_quote_answers(raw: Optional[str]) -> list[dict[str, str]]:
+    answers = []
+    payload: Any = []
+    if raw:
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            payload = []
+    if isinstance(payload, dict) and "answers" in payload:
+        payload = payload.get("answers") or []
+    if not isinstance(payload, list):
+        return answers
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        price = str(item.get("price", "")).strip()
+        deadline = item.get("deadline", "")
+        if price:
+            try:
+                price_val = Decimal(str(price).replace(".", "").replace(",", "."))
+                price = f"{price_val:.2f}".replace(".", ",")
+            except Exception:
+                price = price or ""
+        deadline_val = ""
+        if deadline is not None and str(deadline).strip():
+            try:
+                deadline_val = str(int(deadline))
+            except Exception:
+                deadline_val = str(deadline).strip()
+        answers.append({"price": price, "deadline": deadline_val})
+    return answers
+
+@app.route('/api/quotes', methods=['GET', 'POST'])
 @login_required
-def quote_index():
+def api_quotes():
     u = current_user()
-    # busca todas as cotações do usuário
-    quotes = Quote.query.filter(Quote.user_id == u.id).order_by(Quote.created_at.desc()).all()
+    if request.method == 'GET':
+        quotes = Quote.query.filter(Quote.user_id == u.id).order_by(Quote.created_at.desc()).all()
+        items = []
+        for q in quotes:
+            items.append({
+                "id": q.id,
+                "title": q.title,
+                "created_at_br": _format_dt_br(q.created_at),
+                "suppliers": [{"id": s.id, "name": s.name} for s in (q.suppliers or [])],
+                "responses_count": len(q.responses or []),
+            })
+        return jsonify({"quotes": items})
 
-    # Ajusta timezone e contagens
-    for q in quotes:
-        q.created_at_br = q.created_at.astimezone(ZoneInfo("America/Sao_Paulo")) if q.created_at else None
-        # contagem de fornecedores via relationship
-        q.suppliers_count = len(q.suppliers or [])
-        # contagem de respostas via relationship
-        q.responses_count = len(q.responses or [])
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    raw_items = data.get("items")
+    items_list = _normalize_quote_items(raw_items)
+    supplier_ids = data.get("supplier_ids") or []
 
-    return render_template('quote_index.html', quotes=quotes)
+    if not title:
+        return jsonify(success=False, error="Informe o nome da cotação."), 400
+    if not items_list:
+        return jsonify(success=False, error="Informe ao menos um item."), 400
 
+    try:
+        supplier_ids = [int(x) for x in supplier_ids if str(x).strip()]
+    except Exception:
+        supplier_ids = []
 
-@app.route('/quotes/<int:quote_id>/results', methods=['GET'], endpoint='quote_results')
+    selected_suppliers = []
+    if supplier_ids:
+        selected_suppliers = Supplier.query.filter(
+            Supplier.user_id == u.id,
+            Supplier.id.in_(supplier_ids),
+        ).all()
+
+    q = Quote(
+        user_id=u.id,
+        title=title,
+        items=json.dumps(items_list, ensure_ascii=False),
+    )
+    q.suppliers = selected_suppliers  # type: ignore
+
+    db.session.add(q)
+    db.session.commit()
+
+    try:
+        for s_item in selected_suppliers:
+            if not s_item.phone:
+                continue
+            response_link = _build_supplier_quote_link(q.id, s_item.id)
+            wa_err = send_quote_whatsapp(
+                supplier_name=s_item.name,
+                quote_title=title,
+                phone=s_item.phone,
+                quote_items=items_list,
+                response_url=response_link,
+            )
+            if wa_err:
+                current_app.logger.error(
+                    f"[WA] send_quote_whatsapp failed for supplier {s_item.name}: {wa_err}"
+                )
+    except Exception as e:
+        current_app.logger.error(f"[WA] erro no pipeline de envio da cotação: {e}")
+
+    return jsonify(success=True, id=q.id, redirect_url=url_for('quote_view', quote_id=q.id))
+
+@app.route('/api/quotes/<int:quote_id>', methods=['GET'])
 @login_required
-def quote_results(quote_id: int):
+def api_quote_detail(quote_id: int):
     u = current_user()
     q = Quote.query.get_or_404(quote_id)
     if q.user_id != u.id:
         abort(403)
 
-    # 1) Itens: converte o JSON salvo em items (continua Text mas é JSON válido)
-    items: list[str] = []
-    try:
-        parsed = json.loads(q.items or "[]")
-        if isinstance(parsed, list):
-            items = [str(x).strip() for x in parsed if str(x).strip()]
-    except Exception:
-        # fallback: caso seja texto simples
-        raw = (q.items or "").strip()
-        items = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    items = _load_quote_items(q.items)
+    responses_out = []
+    for resp in q.responses or []:
+        supplier = Supplier.query.get(resp.supplier_id) if resp.supplier_id else None
+        supplier_name = supplier.name if supplier else f"Fornecedor #{resp.supplier_id}"
+        answers_raw = _normalize_quote_answers(resp.answers)
+        answers = []
+        for idx, item in enumerate(items):
+            if idx >= len(answers_raw):
+                break
+            entry = answers_raw[idx]
+            answers.append({
+                "item": item,
+                "price": entry.get("price") or "",
+                "deadline": entry.get("deadline") or "",
+            })
+        responses_out.append({
+            "supplier": supplier_name,
+            "submitted_at": _format_dt_br(resp.submitted_at),
+            "answers": answers,
+        })
 
-    # 2) Fornecedores diretamente do relacionamento
+    return jsonify({
+        "success": True,
+        "quote": {"id": q.id, "title": q.title},
+        "items": items,
+        "responses": responses_out,
+        "meta": {"created_at": _format_dt_br(q.created_at)},
+    })
+
+@app.route('/api/quotes/<int:quote_id>/results', methods=['GET'])
+@login_required
+def api_quote_results(quote_id: int):
+    u = current_user()
+    q = Quote.query.get_or_404(quote_id)
+    if q.user_id != u.id:
+        abort(403)
+
+    items = _load_quote_items(q.items)
     suppliers = q.suppliers or []
-    supplier_names = [s.name or f"Fornecedor #{s.id}" for s in suppliers]
+    supplier_payload = [{"id": s.id, "name": s.name or f"Fornecedor #{s.id}"} for s in suppliers]
     quote_suppliers_ids = [s.id for s in suppliers]
 
-    # 3) Respostas via relacionamento
-    quote_responses: dict[int, dict] = {}
-    for r in q.responses:
-        sid = r.supplier_id
+    responses_map: dict[int, list[dict[str, str]]] = {}
+    for resp in q.responses or []:
+        sid = resp.supplier_id
         if not sid:
             continue
-        # respostas armazenadas como JSON em r.answers
-        answers = []
-        try:
-            payload = json.loads(r.answers) if r.answers else []
-            if isinstance(payload, list):
-                answers = payload
-            elif isinstance(payload, dict) and "answers" in payload:
-                answers = payload.get("answers") or []
-        except Exception:
-            pass
+        responses_map[sid] = _normalize_quote_answers(resp.answers)
 
-        norm = []
-        for a in answers:
-            if isinstance(a, dict):
-                price = str(a.get("price", "")).strip()
-                deadline = a.get("deadline", "")
-                try:
-                    price_val = Decimal(str(price).replace(",", "."))
-                    price = f"{price_val:.2f}".replace(".", ",")
-                except Exception:
-                    price = price or ""
-                try:
-                    deadline = int(deadline)
-                except Exception:
-                    deadline = str(deadline).strip() or ""
-                norm.append({"price": price, "deadline": deadline})
-        quote_responses[sid] = {"answers": norm}
-
-    # 4) Melhor preço por item
     best_per_item: dict[int, int] = {}
     for idx in range(len(items)):
         best_sid = None
         best_price = None
         for sid in quote_suppliers_ids:
-            resp = quote_responses.get(sid)
-            if not resp:
-                continue
-            answers = resp.get("answers") or []
+            answers = responses_map.get(sid) or []
             if idx >= len(answers):
                 continue
-            a = answers[idx]
-            price_s = str(a.get("price", "")).strip()
+            price_s = (answers[idx].get("price") or "").strip()
             try:
                 price_val = Decimal(price_s.replace(".", "").replace(",", ".")) if price_s else None
             except Exception:
@@ -4660,16 +4769,25 @@ def quote_results(quote_id: int):
         if best_sid is not None:
             best_per_item[idx] = best_sid
 
-    return render_template(
-        'quote_results.html',
-        quote=q,
-        supplier_names=supplier_names,
-        quote_items=list(enumerate(items)),
-        quote_suppliers=quote_suppliers_ids,
-        quote_responses=quote_responses,
-        best_per_item=best_per_item,
-        notifications_unread=0
-    )
+    return jsonify({
+        "success": True,
+        "quote": {"id": q.id, "title": q.title},
+        "items": items,
+        "suppliers": supplier_payload,
+        "responses": responses_map,
+        "best_per_item": best_per_item,
+    })
+
+@app.route('/quotes', methods=['GET'], endpoint='quote_index')
+@login_required
+def quote_index():
+    return serve_react_index()
+
+
+@app.route('/quotes/<int:quote_id>/results', methods=['GET'], endpoint='quote_results')
+@login_required
+def quote_results(quote_id: int):
+    return serve_react_index()
 
 
 def _quote_response_serializer() -> URLSafeTimedSerializer:
@@ -4700,6 +4818,8 @@ def _build_supplier_quote_link(quote_id: int, supplier_id: int) -> str:
 @login_required
 def create_quote():
     u = current_user()
+    if request.method == 'GET' and not _request_wants_json():
+        return serve_react_index()
     if request.method == 'POST':
         title = (request.form.get('title') or '').strip()
         raw_items = (request.form.get('items') or '').strip()
@@ -4745,8 +4865,7 @@ def create_quote():
         flash('Cotação criada com sucesso!', 'success')
         return redirect(url_for('quote_index'))
 
-    suppliers = Supplier.query.filter_by(user_id=u.id).all()
-    return render_template('create_quote.html', suppliers=suppliers)
+    return serve_react_index()
 
 
 @app.route('/quotes/respond/<token>', methods=['GET', 'POST'], endpoint='public_quote_response')
@@ -4911,87 +5030,7 @@ def public_quote_response(token: str):
 @app.route('/quotes/<int:quote_id>', methods=['GET'], endpoint='quote_view')
 @login_required
 def quotes_view(quote_id):
-    u = current_user()
-    q = Quote.query.get_or_404(quote_id)
-    if q.user_id != u.id:
-        abort(403)
-    items: list[str] = []
-    try:
-        parsed = json.loads(q.items or "[]")
-        if isinstance(parsed, list):
-            items = [str(x).strip() for x in parsed if str(x).strip()]
-    except Exception:
-        raw = (q.items or "").strip()
-        if raw:
-            items = [ln.strip() for ln in raw.splitlines() if ln.strip()]
-
-    responses_data: list[dict[str, Any]] = []
-    for resp in q.responses or []:
-        answers_payload: list[Any] = []
-        try:
-            payload = json.loads(resp.answers or "[]")
-            if isinstance(payload, list):
-                answers_payload = payload
-            elif isinstance(payload, dict) and "answers" in payload:
-                candidate = payload.get("answers")
-                if isinstance(candidate, list):
-                    answers_payload = candidate
-        except Exception:
-            answers_payload = []
-
-        normalized_answers: list[dict[str, Any]] = []
-        for idx, ans in enumerate(answers_payload):
-            if not isinstance(ans, dict):
-                continue
-            price_raw = str(ans.get("price", "")).strip()
-            deadline_raw = ans.get("deadline", "")
-            item_label = str(ans.get("item", "")).strip()
-
-            price_display = price_raw
-            if price_raw:
-                sanitized = price_raw.replace(".", "").replace(",", ".")
-                try:
-                    price_decimal = Decimal(sanitized)
-                    price_display = f"{price_decimal:.2f}".replace(".", ",")
-                except (InvalidOperation, ValueError):
-                    price_display = price_raw
-            deadline_display = ""
-            if isinstance(deadline_raw, (int, float)):
-                deadline_display = str(int(deadline_raw))
-            elif deadline_raw:
-                deadline_display = str(deadline_raw).strip()
-            if not item_label:
-                item_label = items[idx] if idx < len(items) else f"Item {idx + 1}"
-
-            normalized_answers.append({
-                "index": idx,
-                "item": item_label,
-                "price": price_display or "—",
-                "deadline": deadline_display or "—",
-            })
-
-        submitted_at = (
-            resp.submitted_at.astimezone(ZoneInfo("America/Sao_Paulo"))
-            if getattr(resp, "submitted_at", None)
-            else None
-        )
-
-        responses_data.append({
-            "supplier": (resp.supplier.name if resp.supplier else f"Fornecedor #{resp.supplier_id}"),
-            "submitted_at": submitted_at,
-            "answers": normalized_answers,
-        })
-
-    created_at_br = q.created_at.astimezone(ZoneInfo("America/Sao_Paulo")) if q.created_at else None
-
-    return render_template(
-        'quote_view.html',
-        quote=q,
-        items=items,
-        responses=responses_data,
-        created_at_br=created_at_br,
-        notifications_unread=0,
-    )
+    return serve_react_index()
 
 
 @app.route('/quotes/<int:quote_id>/delete', methods=['POST'], endpoint='quote_delete')
