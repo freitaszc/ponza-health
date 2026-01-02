@@ -168,7 +168,7 @@ const sections = [
     ),
   },
   {
-    id: 'alteracoes',
+    id: 'alterações',
     title: '14. Alterações destes Termos',
     content: (
       <p>
@@ -184,8 +184,8 @@ const sections = [
       <ul className="legal-contact">
         <li>
           E-mail:{' '}
-          <a href="mailto:contato@ponzahealth.com" target="_blank" rel="noreferrer">
-            contato@ponzahealth.com
+          <a href="mailto:ponzahealth@gmail.com" target="_blank" rel="noreferrer">
+            ponzahealth@gmail.com
           </a>
         </li>
         <li>

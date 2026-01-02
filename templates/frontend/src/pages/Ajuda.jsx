@@ -169,7 +169,7 @@ const helpFaqGroups = [
         answer: (
           <>
             Use o botão de WhatsApp, envie e-mail para{' '}
-            <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a> ou agende um onboarding no primeiro mês
+            <a href="mailto:ponzahealth@gmail.com">ponzahealth@gmail.com</a> ou agende um onboarding no primeiro mês
             sem custo.
           </>
         ),

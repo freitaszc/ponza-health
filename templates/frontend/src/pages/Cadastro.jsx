@@ -68,7 +68,7 @@ export default function Cadastro() {
         <div className="auth-card auth-card--center">
           <div className="auth-card-head">
             <h2>Criar conta</h2>
-            <img src="/static/images/7.svg" alt="Ponza Health" />
+            <img src="/static/images/6.svg" alt="Ponza Health" />
           </div>
 
           {error ? (
@@ -93,11 +93,11 @@ export default function Cadastro() {
             </label>
             <label>
               Senha
-              <input type="password" name="password" placeholder="••••••••" required />
+              <input type="password" name="password" required />
             </label>
             <label>
               Confirmar senha
-              <input type="password" name="confirm" placeholder="••••••••" required />
+              <input type="password" name="confirm" required />
             </label>
             <label>
               Plano

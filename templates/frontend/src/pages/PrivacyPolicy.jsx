@@ -158,8 +158,8 @@ const sections = [
         <ul className="legal-contact">
           <li>
             Suporte:{' '}
-            <a href="mailto:contato@ponzahealth.com" target="_blank" rel="noreferrer">
-              contato@ponzahealth.com
+            <a href="mailto:ponzahealth@gmail.com" target="_blank" rel="noreferrer">
+              ponzahealth@gmail.com
             </a>{' '}
             — <a href="tel:+5533984613689">+55 33 98461-3689</a>
           </li>

@@ -150,7 +150,7 @@ const aboutSections = [
     content: (
       <p>
         Quer construir saúde digital com propósito? Envie seu currículo ou portfólio para{' '}
-        <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>.
+        <a href="mailto:ponzahealth@gmail.com">ponzahealth@gmail.com</a>.
       </p>
     ),
   },
@@ -160,7 +160,7 @@ const aboutSections = [
     content: (
       <ul>
         <li>
-          E-mail: <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
+          E-mail: <a href="mailto:ponzahealth@gmail.com">ponzahealth@gmail.com</a>
         </li>
         <li>
           Telefone/WhatsApp: <a href="tel:+5533984613689">+55 33 98461-3689</a>

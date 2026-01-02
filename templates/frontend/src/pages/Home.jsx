@@ -106,7 +106,7 @@ export default function Home() {
           </div>
           <aside className="hero-media fade-up delay-2" aria-label="Dashboard do sistema">
             <img
-              src="/static/images/macponza.svg"
+              src="/static/images/macponza.png"
               alt="Dashboard médico do Ponza Health exibindo gestão de pacientes e indicadores"
               className="hero-image"
             />
@@ -148,7 +148,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="integracoes" className="section integrations">
+      <section id="integrações" className="section integrations">
         <div className="container">
           <div className="section-head">
             <h2 className="section-title">Integrações</h2>

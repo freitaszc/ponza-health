@@ -5,7 +5,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="container footer-grid">
         <div className="footer-brand">
-          <img src="/static/images/ponzalogo.svg" alt="Ponza Health" />
+          <img src="/static/images/6.svg" alt="Ponza Health" />
           <p>
             Plataforma completa para gestão clínica com agenda, estoque, cotações e análises automatizadas. Menos
             tarefas repetitivas, mais tempo para o cuidado.
@@ -33,7 +33,7 @@ export function SiteFooter() {
               <Link to="/#recursos">Agenda múltipla</Link>
             </li>
             <li>
-              <Link to="/#integracoes">Integrações</Link>
+              <Link to="/#integrações">Integrações</Link>
             </li>
           </ul>
         </div>
@@ -57,7 +57,7 @@ export function SiteFooter() {
           <h4>Contato</h4>
           <ul className="link-list">
             <li>
-              <a href="mailto:contato@ponzahealth.com">contato@ponzahealth.com</a>
+              <a href="mailto:ponzahealth@gmail.com">ponzahealth@gmail.com</a>
             </li>
             <li>
               <a href="tel:+5533984613689">+55 33 98461-3689</a>

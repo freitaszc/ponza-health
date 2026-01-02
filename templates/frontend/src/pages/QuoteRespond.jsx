@@ -107,7 +107,7 @@ export default function QuoteRespond() {
       <div className="quote-public-card">
         <header className="quote-public-header">
           <div className="quote-public-brand">
-            <img src="/static/images/3.svg" alt="Ponza Health" />
+            <img src="/static/images/6.svg" alt="Ponza Health" />
             <div>
               <span className="quote-public-name">{data?.clinic_name || 'Equipe Ponza Health'}</span>
               {data?.clinic_address ? (

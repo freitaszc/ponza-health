@@ -14,7 +14,7 @@ export function SiteHeader() {
     <header className="navbar">
       <div className="container nav-inner">
         <Link className="brand" to="/" aria-label="Ponza Health">
-          <img src="/static/images/7.svg" alt="Ponza Health" />
+          <img src="/static/images/5.svg" alt="Ponza Health" />
         </Link>
 
         <nav className="nav-links" aria-label="Navegação principal">
