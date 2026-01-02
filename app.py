@@ -5034,13 +5034,7 @@ def add_supplier():
 @app.route('/suppliers')
 @login_required
 def suppliers():
-    u = current_user()
-    sups = Supplier.query.filter_by(user_id=u.id).order_by(Supplier.name.asc()).all()
-    try:
-        return render_template('suppliers.html', suppliers=sups)
-    except TemplateNotFound:
-        lis = "".join(f"<li>{s.name} — {s.email or ''} {s.phone or ''}</li>" for s in sups)
-        return f"<h1>Fornecedores</h1><ul>{lis or '<li>(vazio)</li>'}</ul>"
+    return serve_react_index()
     
 @app.route('/api/suppliers', methods=['GET', 'POST'])
 @login_required
@@ -5072,30 +5066,77 @@ def api_suppliers():
 @app.route('/products', methods=['GET'])
 @login_required
 def products():
+    return serve_react_index()
+
+
+@app.route('/api/products', methods=['GET', 'POST'])
+@login_required
+def api_products():
     u = current_user()
+    if request.method == 'GET':
+        q = Product.query.filter(Product.user_id == u.id)
 
-    q = Product.query.filter(Product.user_id == u.id)
-
-    # pesquisa por nome/código (exemplo)
-    search = (request.args.get('search') or '').strip()
-    if search:
-        like = f"%{search}%"
-        q = q.filter(
-            or_(
-                func.lower(Product.name).like(func.lower(like)),
-                func.lower(func.coalesce(Product.code, '')).like(func.lower(like))
+        search = (request.args.get('search') or '').strip()
+        if search:
+            like = f"%{search}%"
+            q = q.filter(
+                or_(
+                    func.lower(Product.name).like(func.lower(like)),
+                    func.lower(func.coalesce(Product.code, '')).like(func.lower(like))
+                )
             )
+
+        status = (request.args.get('status') or '').strip()
+        if status in ('Ativo', 'Inativo'):
+            q = q.filter(func.trim(Product.status) == status)
+
+        products = q.order_by(Product.created_at.desc()).all()
+        return jsonify({
+            "products": [{
+                "id": p.id,
+                "name": p.name,
+                "quantity": p.quantity or 0,
+                "purchase_price": float(p.purchase_price or 0),
+                "sale_price": float(p.sale_price or 0),
+                "status": (p.status or 'Inativo').strip() or 'Inativo',
+            } for p in products],
+            "is_admin": ((getattr(u, "username", "") or "").lower() == "admin"),
+            "notifications_unread": 0,
+        })
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    quantity = _to_int(data.get('quantity'), 0)
+    purchase_price = float(_to_decimal(data.get('purchase_price')))
+    sale_price = float(_to_decimal(data.get('sale_price')))
+
+    if not name:
+        return jsonify(success=False, error='Informe o nome do produto.'), 400
+
+    try:
+        p = Product(
+            user_id=u.id,
+            name=name,
+            purchase_price=purchase_price,
+            sale_price=sale_price,
+            quantity=quantity,
+            status='Ativo',
+            created_at=datetime.utcnow()
         )
+        db.session.add(p)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=f'Falha ao salvar produto: {e}'), 500
 
-    # filtro de status com trim para evitar espaços
-    status = (request.args.get('status') or '').strip()
-    if status in ('Ativo', 'Inativo'):
-        q = q.filter(func.trim(Product.status) == status)
-
-    q = q.order_by(Product.created_at.desc())
-
-    products = q.all()
-    return render_template('products.html', products=products)
+    return jsonify(success=True, product={
+        "id": p.id,
+        "name": p.name,
+        "quantity": p.quantity or 0,
+        "purchase_price": float(p.purchase_price or 0),
+        "sale_price": float(p.sale_price or 0),
+        "status": (p.status or 'Inativo').strip() or 'Inativo',
+    }), 201
 
 def _to_decimal(val, default="0"):
     if val is None:
@@ -5418,11 +5459,18 @@ def update_supplier(supplier_id):
     if getattr(s, 'user_id', None) and s.user_id != u.id:
         abort(403)
 
-    name  = (request.form.get('name') or '').strip()
-    phone = (request.form.get('phone') or '').strip()
-    email = (request.form.get('email') or '').strip()
+    prefers_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') if data else request.form.get('name') or '').strip()
+    phone = (data.get('phone') if data else request.form.get('phone') or '').strip()
+    email = (data.get('email') if data else request.form.get('email') or '').strip()
 
     if not name:
+        if prefers_json:
+            return jsonify(success=False, error="Nome é obrigatório."), 400
         flash('Nome é obrigatório.', 'warning')
         return redirect(url_for('suppliers'))
 
@@ -5430,6 +5478,11 @@ def update_supplier(supplier_id):
     s.phone = phone or None
     s.email = email or None
     db.session.commit()
+    if prefers_json:
+        return jsonify(
+            success=True,
+            supplier={"id": s.id, "name": s.name, "phone": s.phone, "email": s.email},
+        )
     flash('Fornecedor atualizado com sucesso!', 'success')
     return redirect(url_for('suppliers'))
 
@@ -5441,8 +5494,14 @@ def delete_supplier(supplier_id):
     if getattr(s, 'user_id', None) and s.user_id != u.id:
         abort(403)
 
+    prefers_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
     db.session.delete(s)
     db.session.commit()
+    if prefers_json:
+        return jsonify(success=True)
     flash('Fornecedor excluído.', 'info')
     return redirect(url_for('suppliers'))
 
