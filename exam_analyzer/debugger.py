@@ -94,7 +94,7 @@ def main() -> int:
 
     pdf_path = Path(args.pdf)
     if not pdf_path.exists():
-        print(f"Arquivo nao encontrado: {pdf_path}")
+        print(f"Arquivo não encontrado: {pdf_path}")
         return 1
     file_bytes = pdf_path.read_bytes()
 

@@ -10,11 +10,19 @@
       margin: 20mm 15mm;
     }
 
+    :root {
+      --ink: #0c1c34;
+      --ink-dim: #475569;
+      --accent: #0f63ff;
+      --accent-dark: #0b3b99;
+      --border: #cbd5f1;
+    }
+
     body {
       margin: 0;
-      font-family: "Times New Roman", serif;
+      font-family: "Funnel Sans", "Helvetica Neue", Arial, sans-serif;
       font-size: 13.5px;
-      color: #111;
+      color: var(--ink);
     }
 
     .header {
@@ -22,17 +30,18 @@
       justify-content: space-between;
       align-items: flex-start;
       padding-bottom: 12px;
-      border-bottom: 1px solid #000;
+      border-bottom: 1px solid var(--border);
     }
 
     .patient-info {
       white-space: pre-wrap;
       max-width: 65%;
       line-height: 1.35;
+      color: var(--ink-dim);
     }
 
     .logo {
-      width: 150px;
+      width: 170px;
     }
 
     h2 {
@@ -40,6 +49,7 @@
       margin: 24px 0 12px;
       text-align: center;
       text-transform: uppercase;
+      color: var(--accent-dark);
     }
 
     table {
@@ -51,13 +61,14 @@
 
     th,
     td {
-      border: 1px solid #aaa;
+      border: 1px solid var(--border);
       padding: 6px 8px;
       text-align: left;
     }
 
     th {
-      background: #f3f4f6;
+      background: #f1f5f9;
+      color: var(--ink);
     }
 
     ul {
@@ -71,7 +82,7 @@
     }
 
     .signature-line {
-      border-top: 1px solid #000;
+      border-top: 1px solid #334155;
       width: 320px;
       margin: 0 auto 8px;
     }

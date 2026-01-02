@@ -2386,7 +2386,7 @@ def _perform_ai_lab_analysis(file_bytes: bytes, overrides: dict[str, str]) -> di
             patient_block[key] = value
     analysis["paciente"] = patient_block
     analysis.setdefault("exames", [])
-    analysis.setdefault("orientacoes", [])
+    analysis.setdefault("orientações", [])
     analysis.setdefault("alertas", [])
     analysis["raw_exams"] = list(analysis.get("exames") or [])
     reference_table = payload.get("reference_table") or {}
@@ -2445,7 +2445,7 @@ def _build_analysis_context(analysis: dict[str, Any], *, file_name: str, doctor_
         "abnormal_exams": abnormal if abnormal else [entry for entry in exams if _is_abnormal_result(entry)],
         "summary": analysis.get("resumo_clinico") or "",
         "prescription": analysis.get("prescricao") or [],
-        "orientations": analysis.get("orientacoes") or [],
+        "orientations": analysis.get("orientações") or [],
         "alerts": analysis.get("alertas") or [],
         "doctor_name": doctor_name,
         "file_name": file_name,
@@ -3045,7 +3045,7 @@ def lab_analysis_view():
         "abnormal_exams": payload.get("abnormal_exams") or [],
         "resumo_clinico": payload.get("summary") or "",
         "prescricao": payload.get("prescription") or [],
-        "orientacoes": payload.get("orientations") or [],
+        "orientações": payload.get("orientations") or [],
         "alertas": payload.get("alerts") or [],
     }
     context = _build_analysis_context(

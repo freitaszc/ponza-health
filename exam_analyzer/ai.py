@@ -63,7 +63,7 @@ OUTPUT_SPEC = {
     ],
     "resumo_clinico": "",
     "prescricao": [],
-    "orientacoes": [],
+    "orientações": [],
     "alertas": [],
 }
 
@@ -79,9 +79,9 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         "- Identifique paciente (nome, data de nascimento, CPF, sexo se existir).\n"
         "- Para cada exame, capture exatamente o valor, unidade e referencia indicados.\n"
         "- Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
-        "- Use apenas os valores do laudo; nao invente. Se nao encontrar, deixe campo vazio.\n"
+        "- Use apenas os valores do laudo; não invente. Se não encontrar, deixe campo vazio.\n"
         "- Classifique status comparando com a referencia escrita.\n"
-        "- Liste as alteracoes relevantes no resumo clinico, proponha condutas e orientacoes breves.\n"
+        "- Liste as alterações relevantes no resumo clinico, proponha condutas e orientações breves.\n"
         "- Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo, sem texto fora do JSON:\n"
         f"{schema}\n"
     )
@@ -113,7 +113,7 @@ def generate_ai_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "ok": False,
             "content": "",
-            "error": "OPENAI_API_KEY nao configurada (verifique o .env ou a variavel de ambiente).",
+            "error": "OPENAI_API_KEY não configurada (verifique o .env ou a variavel de ambiente).",
             "details": None,
         }
     project = os.getenv("OPENAI_PROJECT")
@@ -139,7 +139,7 @@ def generate_ai_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
             content = completion.choices[0].message.content if completion.choices else ""
             data = _extract_json(content or "")
             if not data:
-                raise ValueError("Nao foi possivel interpretar o JSON retornado.")
+                raise ValueError("Não foi possivel interpretar o JSON retornado.")
             return {
                 "ok": True,
                 "content": content or "",

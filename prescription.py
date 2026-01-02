@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 # Palavras/segmentos que comumente aparecem em cabeçalhos/rodapés e não são nomes
 _NAME_STOPWORDS = {
     "responsavel", "responsável", "formula", "fórmula", "utilizada", "utilizado",
-    "conferido", "liberado", "eletronicamente", "sob", "numero", "número", "nº",
+    "conferido", "liberado", "eletronicamente", "sob", "número", "número", "nº",
     "laudo", "relatorio", "relatório", "exame", "paciente", "nome", "assinatura",
     "assinado", "dr", "dra", "crm", "crf", "cpf", "telefone", "contato"
 }
@@ -1777,7 +1777,7 @@ def send_quote_whatsapp(supplier_name, phone, quote_title, quote_items, response
         "to": to,
         "type": "template",
         "template": {
-            "name": "ponzahealth_cotacao",
+            "name": "ponzahealth_cotação",
             "language": {"code": "pt_BR"},
             "components": [{
                 "type": "body",
