@@ -27,11 +27,24 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
-        // Only forward image assets to Flask during dev; leave React assets to Vite
-        '/static/images': 'http://localhost:5000',
-        '/static/uploads': 'http://localhost:5000',
-        '/static/profile_images': 'http://localhost:5000',
+        // Forward Flask-managed pages/assets during dev
+        '/static': 'http://localhost:5000',
         '/api': 'http://localhost:5000',
+        '/download_pdf': 'http://localhost:5000',
+        '/lab_analysis/pdf': 'http://localhost:5000',
+        '/public_download': 'http://localhost:5000',
+        '/products/': 'http://localhost:5000',
+        '/delete_product': 'http://localhost:5000',
+        '/toggle_patient_status': 'http://localhost:5000',
+        '/delete_patient': 'http://localhost:5000',
+        '/suppliers/': 'http://localhost:5000',
+        '/update_supplier': 'http://localhost:5000',
+        '/purchase_package': 'http://localhost:5000',
+        '/subscribe_pay': 'http://localhost:5000',
+        '/doctors': 'http://localhost:5000',
+        '/doctor_view': 'http://localhost:5000',
+        '/admin_users': 'http://localhost:5000',
+        '/logout': 'http://localhost:5000',
       },
     },
   }
