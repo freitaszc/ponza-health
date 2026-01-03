@@ -1,29 +1,75 @@
 # Ponza Health
 
-## Exam Analyzer
+### Technology to amplify clinic results
 
-Ferramentas de suporte para a analise de laudos por IA.
+Platform that improves day-to-day clinic management and automation. Ponza Health bundles features that keep everything organized, fast, and easy to track.
 
-### Debugger de linha de comando
+### Custom dashboard
 
-Use `exam_analyzer/debugger.py` para investigar problemas no terminal (pipeline estruturado, montagem do payload e chamada da IA):
+Charts and indicators that surface the most important metrics. You can follow appointments, patients, inventory, analyses, and more without digging around.
 
-```bash
-cd Web
-python exam_analyzer/debugger.py caminho/para/laudo.pdf --require-ocr --run-ai
-```
+### AI exam analysis
 
-Ele mostra cada etapa, imprime rastros de excecao quando houver erros (ex.: PdfminerException) e reporta falhas da API (`401 Unauthorized`, etc.). O `--run-ai` e opcional caso queira evitar chamadas ao modelo.
+Ponza Lab automates exam analysis. You can upload PDFs or enter data manually. The system interprets results, suggests medications, and next steps. Prescriptions are editable so the doctor can adjust to each case.
 
-### Supabase e limites de conexões
+### Automated quotes
 
-O banco roda no Supabase e o PgBouncer deles tem um limite rígido de conexões simultâneas. Para evitar erros `MaxClientsInSessionMode`, configure as variáveis:
+Send quotes to multiple suppliers via WhatsApp and receive responses as they fill out. Price and lead-time comparisons are ready with minimal effort.
 
-- `SUPABASE_DATABASE_URL`: URL completa do Postgres (use o endpoint `pooler` e mantenha `sslmode=require`).
-- `SUPABASE_MAX_CLIENTS`: total de conexões que **esse** serviço pode consumir. Se o plano permitir 6 e outro serviço usa 2, defina `4`.
-- `SUPABASE_RESERVED_CONNECTIONS` (opcional): subtrai conexões do valor acima para deixar vagas para scripts externos.
-- `DB_FORCE_NULLPOOL=1`: força o SQLAlchemy a abrir/fechar cada conexão sob demanda (já entra automaticamente quando o limite é <= `WEB_CONCURRENCY`).
-- `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_TIMEOUT`: usados quando o NullPool está desativado. Ajuste-os somente se você tiver um limite alto.
-- `WEB_CONCURRENCY`: a Render permite definir o número de workers do Gunicorn por variável de ambiente. Defina `1` ou `2` se o Supabase tiver poucos slots.
+### Patient catalog
 
-O app agora controla um semáforo global antes de cada requisição que toca o banco, então requisições extras esperam em vez de disparar `OperationalError`. Ainda assim, se o Supabase estiver totalmente ocupado por outros clientes, será necessário liberar conexões ou aumentar o plano.
+Manage patients in a simple way. The system makes it easy to import records from other sources using files.
+
+### Inventory control
+
+Track product entry and exit, with recent movement history and a clear view of what needs attention.
+
+### Agenda
+
+Plan the day with clarity. Use filters, a waitlist, and quickly find upcoming appointments.
+
+### How the app works (technical overview)
+
+- React (Vite) frontend as an SPA with internal routing and fast screens.
+- Flask backend exposing the API that powers dashboard, patients, quotes, inventory, and agenda.
+- Postgres on Supabase, with extra care around PgBouncer connection limits.
+- AI pipeline in `exam_analyzer` to process PDFs, apply OCR when needed, and call the model.
+- Lightweight browser cache to speed up previously loaded screens.
+
+# Ponza Health - Português
+
+## Tecnologia para ampliar resultados de clínicas
+
+Plataforma que melhora a gestão e a automação do dia a dia da clínica. A Ponza Health reúne features que deixam tudo mais organizado, rápido e fácil de acompanhar.
+
+### Dashboard personalizado
+
+Gráficos e indicadores que mostram as variáveis mais importantes. Você acompanha consultas, pacientes, estoque, análises e outros dados sem precisar ficar caçando informação.
+
+### Análises de exames com IA
+
+O Ponza Lab faz a análise automatizada de exames. Dá para enviar PDFs ou inserir os dados manualmente. O sistema interpreta resultados, sugere medicamentos e próximas ações. A prescrição é personalizável, então o médico ajusta o que fizer sentido para cada caso.
+
+### Cotações automatizadas
+
+Envie cotações para vários fornecedores via WhatsApp e receba respostas conforme forem preenchendo. O comparativo de preços e prazos fica pronto sem esforço.
+
+### Catálogo de pacientes
+
+Gerencie pacientes de forma simples. O sistema facilita a importação de cadastros de outro lugar por meio de arquivos.
+
+### Controle de estoque
+
+Tenha controle de entrada e saída dos produtos, com histórico completo das movimentações recentes e visão clara do que precisa de atenção.
+
+### Agenda
+
+Coordene o dia com clareza. Use filtros, lista de espera e encontre agendamentos dos próximos dias com poucos cliques.
+
+## Como o app funciona (termos técnicos)
+
+- Frontend em React (Vite) como SPA, com rotas internas e telas rápidas.
+- Backend em Flask expondo a API que alimenta dashboard, pacientes, cotações, estoque e agenda.
+- Banco Postgres no Supabase, com cuidado nos limites de conexão do PgBouncer.
+- Pipeline de IA no `exam_analyzer` para processar PDFs, aplicar OCR quando necessário e chamar o modelo.
+- Cache leve no navegador para acelerar telas que já foram carregadas.
