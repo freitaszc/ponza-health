@@ -62,6 +62,55 @@ def _extract_full_text(file_bytes: bytes) -> str:
         return ""
 
 
+def _merge_patient_payload(base: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
+    if not incoming:
+        return base
+    mapping = {
+        "nome": ("nome", "name"),
+        "sexo": ("sexo", "gender"),
+        "data_nascimento": ("data_nascimento", "birth_date"),
+        "telefone": ("telefone", "phone"),
+        "cpf": ("cpf", "cpf"),
+    }
+    merged = dict(base)
+    for target_key, candidates in mapping.items():
+        if merged.get(target_key):
+            continue
+        for key in candidates:
+            value = incoming.get(key)
+            if value:
+                merged[target_key] = value
+                break
+    return merged
+
+
+def _normalize_lab_results(raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    normalized: List[Dict[str, Any]] = []
+    for item in raw_results:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("nome") or item.get("name") or item.get("test")
+        if not name:
+            continue
+        normalized.append({
+            "nome": name,
+            "valor": item.get("valor") if "valor" in item else item.get("value"),
+            "unidade": item.get("unidade") if "unidade" in item else item.get("unit"),
+            "referencia": item.get("referencia") if "referencia" in item else item.get("reference"),
+            "raw_line": item.get("raw_line") or item.get("source") or item.get("raw"),
+        })
+    return normalized
+
+
+def _should_enrich_extraction(patient: Dict[str, Any], lab_results: List[Dict[str, Any]]) -> bool:
+    min_results = int(os.getenv("EXAM_ANALYSIS_MIN_RESULTS", "4"))
+    if len(lab_results) < min_results:
+        return True
+    if any(patient.get(key) for key in ("nome", "cpf", "data_nascimento", "sexo", "telefone")):
+        return False
+    return True
+
+
 PATIENT_KEYWORDS = (
     "paciente",
     "nome",
@@ -108,6 +157,10 @@ def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
             continue
         if any(char.isdigit() for char in line):
             if any(hint in lower for hint in RESULT_HINTS) or ":" in line or "-" in line:
+                result_lines.append(line)
+                continue
+            # Keep numeric lines with letters even if they don't have a hint/colon.
+            if any(char.isalpha() for char in line):
                 result_lines.append(line)
     return {"patient_lines": patient_lines, "result_lines": result_lines}
 
@@ -189,9 +242,27 @@ def extract_exam_payload(
     if len(lab_results) > max_results:
         lab_results = lab_results[:max_results]
 
+    structured_ms = 0
     ocr_ms = 0
     ocr_pages = 0
-    if require_ocr or len(raw_text) < int(os.getenv("EXAM_ANALYSIS_OCR_MIN_CHARS", "200")):
+    should_enrich = _should_enrich_extraction(patient, lab_results)
+    if should_enrich:
+        try:
+            from pdf_pipeline.structured_extractor import run_pipeline
+
+            structured_start = time.perf_counter()
+            pipeline = run_pipeline(file_bytes, references_path, require_ocr=False)
+            structured_ms = round((time.perf_counter() - structured_start) * 1000)
+            raw_text = pipeline.raw_text or raw_text
+            patient = _merge_patient_payload(patient, pipeline.patient_data or {})
+            pipeline_results = _normalize_lab_results(pipeline.lab_results or [])
+            if pipeline_results:
+                lab_results = pipeline_results
+        except Exception:
+            structured_ms = 0
+
+    min_chars = int(os.getenv("EXAM_ANALYSIS_OCR_MIN_CHARS", "200"))
+    if require_ocr or len(raw_text) < min_chars or _should_enrich_extraction(patient, lab_results):
         try:
             from pdf_pipeline.structured_extractor import run_pipeline
 
@@ -199,24 +270,35 @@ def extract_exam_payload(
             pipeline = run_pipeline(file_bytes, references_path, require_ocr=True)
             ocr_ms = round((time.perf_counter() - ocr_start) * 1000)
             raw_text = pipeline.raw_text or raw_text
-            patient = pipeline.patient_data or patient
-            lab_results = pipeline.lab_results or lab_results
+            patient = _merge_patient_payload(patient, pipeline.patient_data or {})
+            pipeline_results = _normalize_lab_results(pipeline.lab_results or [])
+            if pipeline_results:
+                lab_results = pipeline_results
             ocr_pages = pipeline.artifacts.ocr_pages
         except Exception:
             ocr_ms = 0
+
+    if structured_ms:
+        timings["structured_extract_ms"] = structured_ms
     if ocr_ms:
         timings["ocr_ms"] = ocr_ms
+
+    key_lines = _extract_key_lines(raw_text)
+    if len(lab_results) > max_results:
+        lab_results = lab_results[:max_results]
 
     references_raw = _load_reference_payload(references_path)
     merged_lines = (key_lines.get("patient_lines") or []) + (key_lines.get("result_lines") or [])
     max_lines = int(os.getenv("EXAM_ANALYSIS_MAX_LINES", "200"))
     max_excerpt = int(os.getenv("EXAM_ANALYSIS_MAX_EXCERPT_CHARS", "6000"))
+    include_raw_excerpt = _should_enrich_extraction(patient, lab_results)
     return {
         "patient": patient,
         "lab_results": lab_results,
         "suggestions": [],
         "key_lines": merged_lines[:max_lines],
         "raw_excerpt": raw_text[:max_excerpt],
+        "include_raw_excerpt": include_raw_excerpt,
         "reference_table": references_raw,
         "references_path": references_path,
         "artifacts": {

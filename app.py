@@ -2784,10 +2784,34 @@ def _perform_ai_lab_analysis(
     post_start = time.perf_counter()
     analysis = ai_response.get("analysis") or {}
     patient_block = analysis.get("paciente") or {}
+    payload_patient = payload.get("patient") or {}
+    for key in ("nome", "sexo", "data_nascimento", "cpf", "telefone"):
+        if not patient_block.get(key) and payload_patient.get(key):
+            patient_block[key] = payload_patient.get(key)
+    analysis["paciente"] = patient_block
+    payload_results = payload.get("lab_results") or []
+    analysis_exams = list(analysis.get("exames") or [])
+    min_results = int(os.getenv("EXAM_ANALYSIS_MIN_RESULTS", "4"))
+    if payload_results:
+        if not analysis_exams or len(analysis_exams) < min_results:
+            analysis_exams = payload_results
+        else:
+            existing = {
+                str(entry.get("nome") or entry.get("name") or entry.get("test") or "").strip().lower()
+                for entry in analysis_exams
+                if isinstance(entry, dict)
+            }
+            for entry in payload_results:
+                if not isinstance(entry, dict):
+                    continue
+                name = str(entry.get("nome") or entry.get("name") or entry.get("test") or "").strip().lower()
+                if name and name not in existing:
+                    analysis_exams.append(entry)
+                    existing.add(name)
+        analysis["exames"] = analysis_exams
     for key, value in overrides.items():
         if value:
             patient_block[key] = value
-    analysis["paciente"] = patient_block
     analysis.setdefault("exames", [])
     analysis.setdefault("orientações", [])
     analysis.setdefault("alertas", [])

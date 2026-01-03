@@ -78,6 +78,7 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
     patient = payload.get("patient") or {}
     lab_results = payload.get("lab_results") or []
     key_lines = payload.get("key_lines") or []
+    raw_excerpt = payload.get("raw_excerpt") or ""
     if len(key_lines) > MAX_KEY_LINES:
         key_lines = key_lines[:MAX_KEY_LINES]
     input_payload = {
@@ -85,6 +86,8 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         "lab_results": lab_results,
         "key_lines": key_lines,
     }
+    if payload.get("include_raw_excerpt") and raw_excerpt:
+        input_payload["raw_excerpt"] = raw_excerpt[:MAX_TEXT]
     schema = json.dumps(OUTPUT_SPEC, ensure_ascii=False, indent=2)
     input_json = json.dumps(input_payload, ensure_ascii=False, indent=2)
     return (
@@ -92,6 +95,7 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         f"{input_json}\n"
         "Instrucoes:\n"
         "- Use os dados estruturados acima; se algo estiver faltando, consulte key_lines.\n"
+        "- Se lab_results estiver incompleto, use raw_excerpt como apoio.\n"
         "- Para cada exame, capture valor, unidade e referencia indicados.\n"
         "- Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
         "- Use apenas os valores fornecidos; nao invente. Se nao encontrar, deixe campo vazio.\n"

@@ -58,7 +58,7 @@ export default function QuoteRespond() {
 
   const subtitle = useMemo(() => {
     if (!data) return ''
-    return `${data.clinic_name || 'Equipe Ponza Health'} convidou você para informar preços e prazos.`
+    return `${data.clinic_name || 'Equipe Ponza Health'} te enviou um pedido para informar preços e prazos dos produtos abaixo.`
   }, [data])
 
   const updateAnswer = (index, field, value) => {
