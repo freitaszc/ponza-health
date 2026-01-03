@@ -95,6 +95,10 @@ export default function QuoteRespond() {
     return (
       <section className="quote-public">
         <div className="quote-public-card">
+          <div className="quote-public-top">
+            <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-top-logo" />
+            <span className="quote-public-top-tag">Portal de cotação</span>
+          </div>
           <h1>Link inválido</h1>
           <p className="quote-public-subtitle">Este link de cotação não é válido.</p>
         </div>
@@ -105,32 +109,44 @@ export default function QuoteRespond() {
   return (
     <section className="quote-public">
       <div className="quote-public-card">
+        <div className="quote-public-top">
+          <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-top-logo" />
+          <span className="quote-public-top-tag">Portal de cotação</span>
+        </div>
+
         <header className="quote-public-header">
-          <div className="quote-public-brand">
-            <img src="/static/images/6.svg" alt="Ponza Health" />
-            <div>
-              <span className="quote-public-name">{data?.clinic_name || 'Equipe Ponza Health'}</span>
-              {data?.clinic_address ? (
-                <span className="quote-public-address">{data.clinic_address}</span>
-              ) : null}
-            </div>
+          <div className="quote-public-title">
+            <p className="quote-public-kicker">Cotação</p>
+            <h1>Responder cotação</h1>
+            <p className="quote-public-subtitle">{subtitle}</p>
           </div>
-          <span className="quote-public-logo">Ponza Health</span>
+          <div className="quote-public-clinic">
+            <span className="quote-public-clinic-label">Clínica solicitante</span>
+            <strong>{data?.clinic_name || 'Equipe Ponza Health'}</strong>
+            {data?.clinic_address ? (
+              <span className="quote-public-address">{data.clinic_address}</span>
+            ) : null}
+          </div>
         </header>
 
-        <h1>Responder Cotação</h1>
-        <p className="quote-public-subtitle">{subtitle}</p>
-
         <div className="quote-public-supplier">
-          <span>Fornecedor:</span>
-          <strong>{data?.supplier?.name || '-'}</strong>
+          <div>
+            <span>Fornecedor</span>
+            <strong>{data?.supplier?.name || '-'}</strong>
+          </div>
+          <span className="quote-public-chip">Link exclusivo</span>
         </div>
+        <p className="quote-public-hint">
+          Este link é exclusivo para este fornecedor. Se precisar ajustar valores, basta editar e reenviar.
+        </p>
 
         {loading ? <div className="quote-public-status">Carregando...</div> : null}
         {error ? <div className="quote-public-status is-error">{error}</div> : null}
         {success ? <div className="quote-public-status">{success}</div> : null}
         {data?.submitted ? (
-          <div className="quote-public-status">Você já enviou uma resposta. Ajuste os valores e envie novamente se precisar.</div>
+          <div className="quote-public-status">
+            Você já enviou uma resposta. Ajuste os valores e envie novamente se precisar.
+          </div>
         ) : null}
 
         {data?.expired ? (
@@ -139,44 +155,57 @@ export default function QuoteRespond() {
 
         {!data?.expired && data?.items?.length ? (
           <form className="quote-public-form" onSubmit={handleSubmit}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Preço unitário (R$)</th>
-                  <th>Prazo (dias)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((item, index) => (
-                  <tr key={`${item}-${index}`}>
-                    <td>{item}</td>
-                    <td>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ex: 125,90"
-                        value={answers[index]?.price || ''}
-                        onChange={(e) => updateAnswer(index, 'price', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="Ex: 5"
-                        value={answers[index]?.deadline || ''}
-                        onChange={(e) => updateAnswer(index, 'deadline', e.target.value)}
-                      />
-                    </td>
+            <div className="quote-public-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Preço unitário</th>
+                    <th>Prazo</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {data.items.map((item, index) => (
+                    <tr key={`${item}-${index}`}>
+                      <td>
+                        <div className="quote-public-item">
+                          <span className="quote-public-index">{index + 1}</span>
+                          <span className="quote-public-item-name">{item}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="quote-input">
+                          <span>R$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ex: 125,90"
+                            value={answers[index]?.price || ''}
+                            onChange={(e) => updateAnswer(index, 'price', e.target.value)}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div className="quote-input quote-input--compact">
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            placeholder="Ex: 5"
+                            value={answers[index]?.deadline || ''}
+                            onChange={(e) => updateAnswer(index, 'deadline', e.target.value)}
+                          />
+                          <span>dias</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="quote-public-actions">
               <button type="submit" disabled={submitting}>
-                {submitting ? 'Enviando...' : 'Enviar resposta'}
+                {submitting ? 'Enviando...' : data?.submitted ? 'Atualizar resposta' : 'Enviar resposta'}
               </button>
             </div>
           </form>

@@ -210,7 +210,7 @@ export default function QuoteView() {
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Descricao</th>
+                        <th>Descrição</th>
                       </tr>
                     </thead>
                     <tbody>

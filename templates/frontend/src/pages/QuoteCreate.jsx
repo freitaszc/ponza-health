@@ -191,7 +191,7 @@ export default function QuoteCreate() {
                 <span>Nome da cotação *</span>
                 <input
                   className="dashboard-input"
-                  placeholder="Ex: Reposicao de estoque"
+                  placeholder="Ex: Reposição de estoque"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   required
@@ -249,7 +249,7 @@ export default function QuoteCreate() {
             <div className="quote-overlay__card">
               <img src="/static/images/6.svg" alt="Ponza Health" />
               <h3>Criando sua cotação</h3>
-              <p>Estamos gerando o PDF e avisando os fornecedores selecionados.</p>
+              <p>Estamos enviando seu pedido aos fornecedores selecionados.</p>
               <div className="loading-dots">
                 <span />
                 <span />
