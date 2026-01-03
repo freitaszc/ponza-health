@@ -95,9 +95,13 @@ export default function QuoteRespond() {
     return (
       <section className="quote-public">
         <div className="quote-public-card">
-          <div className="quote-public-top">
-            <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-top-logo" />
-            <span className="quote-public-top-tag">Portal de cotação</span>
+          <div className="quote-public-brand">
+            <div className="quote-public-brand-main">
+              <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-brand-logo" />
+              <div className="quote-public-brand-meta">
+                <span className="quote-public-brand-name">Ponza Health</span>
+              </div>
+            </div>
           </div>
           <h1>Link inválido</h1>
           <p className="quote-public-subtitle">Este link de cotação não é válido.</p>
@@ -109,36 +113,26 @@ export default function QuoteRespond() {
   return (
     <section className="quote-public">
       <div className="quote-public-card">
-        <div className="quote-public-top">
-          <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-top-logo" />
-          <span className="quote-public-top-tag">Portal de cotação</span>
+        <div className="quote-public-brand">
+          <div className="quote-public-brand-main">
+            <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-brand-logo" />
+            <div className="quote-public-brand-meta">
+              <span className="quote-public-brand-name">{data?.clinic_name || 'Equipe Ponza Health'}</span>
+              {data?.clinic_address ? (
+                <span className="quote-public-brand-address">{data.clinic_address}</span>
+              ) : null}
+            </div>
+          </div>
+          <img src="/static/images/15.svg" alt="Ponza Health" className="quote-public-brand-mark" />
         </div>
 
-        <header className="quote-public-header">
-          <div className="quote-public-title">
-            <p className="quote-public-kicker">Cotação</p>
-            <h1>Responder cotação</h1>
-            <p className="quote-public-subtitle">{subtitle}</p>
-          </div>
-          <div className="quote-public-clinic">
-            <span className="quote-public-clinic-label">Clínica solicitante</span>
-            <strong>{data?.clinic_name || 'Equipe Ponza Health'}</strong>
-            {data?.clinic_address ? (
-              <span className="quote-public-address">{data.clinic_address}</span>
-            ) : null}
-          </div>
-        </header>
+        <h1>Responder cotação</h1>
+        <p className="quote-public-subtitle">{subtitle}</p>
 
-        <div className="quote-public-supplier">
-          <div>
-            <span>Fornecedor</span>
-            <strong>{data?.supplier?.name || '-'}</strong>
-          </div>
-          <span className="quote-public-chip">Link exclusivo</span>
+        <div className="quote-public-supplier-tag">
+          <span>Fornecedor:</span>
+          <strong>{data?.supplier?.name || '-'}</strong>
         </div>
-        <p className="quote-public-hint">
-          Este link é exclusivo para este fornecedor. Se precisar ajustar valores, basta editar e reenviar.
-        </p>
 
         {loading ? <div className="quote-public-status">Carregando...</div> : null}
         {error ? <div className="quote-public-status is-error">{error}</div> : null}
@@ -150,71 +144,69 @@ export default function QuoteRespond() {
         ) : null}
 
         {data?.expired ? (
-          <div className="quote-public-status is-error">Este link expirou. Solicite um novo link à clínica.</div>
+          <>
+            <div className="quote-public-status is-error">
+              Este link expirou. Solicite um novo link à clínica.
+            </div>
+            <p className="quote-public-expired">
+              Dica: reenviar a cotação pelo WhatsApp gera um token atualizado automaticamente.
+            </p>
+          </>
         ) : null}
 
         {!data?.expired && data?.items?.length ? (
           <form className="quote-public-form" onSubmit={handleSubmit}>
-            <div className="quote-public-response">
-              <div className="quote-public-response-head">
-                <div>
-                  <h2>Itens da cotação</h2>
-                  <p>Preencha o preço e o prazo para cada produto indicado pela clínica.</p>
-                </div>
-                <span className="quote-public-count">{data.items.length} itens</span>
-              </div>
-              <div className="quote-public-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Preço unitário</th>
-                      <th>Prazo (dias)</th>
+            <div className="quote-public-table-wrap">
+              <table className="quote-public-table" aria-label="Itens da cotação">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Preço unitário (R$)</th>
+                    <th>Prazo (dias)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((item, index) => (
+                    <tr key={`${item}-${index}`}>
+                      <td>
+                        <div className="quote-public-item">
+                          <span className="quote-public-index">{index + 1}</span>
+                          <span className="quote-public-item-name">{item}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="quote-input">
+                          <span>R$</span>
+                          <input
+                            type="text"
+                            name={`price_${index}`}
+                            inputMode="decimal"
+                            placeholder="Ex: 125,90"
+                            aria-label={`Preço do item ${item}`}
+                            value={answers[index]?.price || ''}
+                            onChange={(e) => updateAnswer(index, 'price', e.target.value)}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <div className="quote-input quote-input--compact">
+                          <input
+                            type="number"
+                            name={`deadline_${index}`}
+                            min="0"
+                            step="1"
+                            placeholder="Ex: 5"
+                            aria-label={`Prazo em dias do item ${item}`}
+                            value={answers[index]?.deadline || ''}
+                            onChange={(e) => updateAnswer(index, 'deadline', e.target.value)}
+                          />
+                          <span>dias</span>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {data.items.map((item, index) => (
-                      <tr key={`${item}-${index}`}>
-                        <td>
-                          <div className="quote-public-item">
-                            <span className="quote-public-index">{index + 1}</span>
-                            <span className="quote-public-item-name">{item}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="quote-input">
-                            <span>R$</span>
-                            <input
-                              type="text"
-                              name={`price_${index}`}
-                              inputMode="decimal"
-                              placeholder="Ex: 125,90"
-                              aria-label={`Preço do item ${item}`}
-                              value={answers[index]?.price || ''}
-                              onChange={(e) => updateAnswer(index, 'price', e.target.value)}
-                            />
-                          </div>
-                        </td>
-                        <td>
-                          <div className="quote-input quote-input--compact">
-                            <input
-                              type="number"
-                              name={`deadline_${index}`}
-                              min="0"
-                              step="1"
-                              placeholder="Ex: 5"
-                              aria-label={`Prazo em dias do item ${item}`}
-                              value={answers[index]?.deadline || ''}
-                              onChange={(e) => updateAnswer(index, 'deadline', e.target.value)}
-                            />
-                            <span>dias</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <div className="quote-public-actions">
               <button type="submit" disabled={submitting}>
