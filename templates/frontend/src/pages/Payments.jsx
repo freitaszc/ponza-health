@@ -101,6 +101,18 @@ export default function Payments() {
         text: 'Pagamento cancelado. Se precisar de ajuda, fale com nosso time.',
       })
     }
+    if (params.get('error') === 'checkout_unavailable') {
+      next.push({
+        type: 'error',
+        text: 'Pagamento indisponível no momento. Fale com o suporte.',
+      })
+    }
+    if (params.get('error') === 'checkout_error') {
+      next.push({
+        type: 'error',
+        text: 'Não foi possível iniciar o checkout agora. Tente novamente.',
+      })
+    }
     return next
   }, [])
 

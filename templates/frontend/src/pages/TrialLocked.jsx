@@ -14,15 +14,23 @@ const resolvePlanUrl = (value, fallback) => {
 
 export default function TrialLocked() {
   const { navigate } = useRouter()
+  const initialErrorCode =
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('error') : ''
+  const errorMessage = {
+    checkout_unavailable: 'Pagamento indisponível no momento. Fale com o suporte.',
+    checkout_error: 'Não foi possível iniciar o checkout agora. Tente novamente.',
+  }[initialErrorCode || ''] || ''
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(errorMessage)
 
   useEffect(() => {
     let active = true
     const load = async () => {
       setLoading(true)
-      setError('')
+      if (!errorMessage) {
+        setError('')
+      }
       try {
         const response = await fetch('/api/trial_status', { credentials: 'include' })
         if (response.redirected && response.url.includes('/login')) {
@@ -50,7 +58,7 @@ export default function TrialLocked() {
     return () => {
       active = false
     }
-  }, [navigate])
+  }, [navigate, errorMessage])
 
   const trialLabel = status?.trial_expiration
     ? new Date(status.trial_expiration).toLocaleDateString('pt-BR')

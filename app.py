@@ -149,7 +149,25 @@ def _plan_is_active(plan_status: Optional[str], plan_expires: Any) -> bool:
     return False
 
 
+def _is_admin_user(user: User) -> bool:
+    username = (getattr(user, "username", "") or "").strip().lower()
+    return username == "admin"
+
+
 def _build_trial_status(user: User) -> dict[str, Any]:
+    if _is_admin_user(user):
+        return {
+            "plan_active": True,
+            "plan_status": "admin",
+            "plan_expires": None,
+            "trial_active": False,
+            "trial_expired": False,
+            "trial_expiration": None,
+            "plans": {
+                "monthly": url_for("subscribe_pay_mensal"),
+                "yearly": url_for("subscribe_pay_anual"),
+            },
+        }
     now_date = datetime.utcnow().date()
     trial_expiration = _normalize_trial_expiration(getattr(user, "trial_expiration", None))
     plan_status = getattr(user, "plan_status", None)
@@ -892,6 +910,8 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
         if not u:
             return redirect(url_for('login'))
         g.user = u
+        if _is_admin_user(u):
+            return f(*args, **kwargs)
 
         trial_expiration = _normalize_trial_expiration(getattr(u, "trial_expiration", None))
         plan_status = getattr(u, "plan_status", None)
@@ -1806,19 +1826,31 @@ STRIPE_PRICE_PACKAGE_50 = os.getenv("STRIPE_PRICE_PACKAGE_50", "")
 STRIPE_PRICE_PACKAGE_150 = os.getenv("STRIPE_PRICE_PACKAGE_150", "")
 STRIPE_PRICE_PACKAGE_500 = os.getenv("STRIPE_PRICE_PACKAGE_500", "")
 
+def _stripe_checkout_error_redirect(user: User, code: str):
+    status = _build_trial_status(user)
+    target = "trial_locked" if status.get("trial_expired") else "payments"
+    return redirect(url_for(target, error=code))
+
 @app.route("/subscribe_pay_mensal")
 @login_required
 def subscribe_pay_mensal():
     """Gera link de pagamento do Stripe para o plano mensal (R$ 79,90)."""
     user = current_user()
-    session = stripe.checkout.Session.create(
-        mode="subscription",
-        payment_method_types=["card"],
-        line_items=[{"price": STRIPE_PRICE_MONTHLY, "quantity": 1}],
-        metadata={"user_id": str(user.id), "plan": "monthly"},
-        success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
-    )
+    if not stripe.api_key or not STRIPE_PRICE_MONTHLY:
+        current_app.logger.error("[Stripe] Configuracao incompleta para plano mensal.")
+        return _stripe_checkout_error_redirect(user, "checkout_unavailable")
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price": STRIPE_PRICE_MONTHLY, "quantity": 1}],
+            metadata={"user_id": str(user.id), "plan": "monthly"},
+            success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+        )
+    except Exception:
+        current_app.logger.exception("[Stripe] Falha ao criar sessao de checkout mensal.")
+        return _stripe_checkout_error_redirect(user, "checkout_error")
     print("[Stripe] ✅ Sessão criada: plano mensal")
     url = session.url or url_for("payments")
     return redirect(url, code=303)
@@ -1828,14 +1860,21 @@ def subscribe_pay_mensal():
 def subscribe_pay_anual():
     """Gera link de pagamento do Stripe para o plano anual (R$ 838,80)."""
     user = current_user()
-    session = stripe.checkout.Session.create(
-        mode="subscription",
-        payment_method_types=["card"],
-        line_items=[{"price": STRIPE_PRICE_YEARLY, "quantity": 1}],
-        metadata={"user_id": str(user.id), "plan": "yearly"},
-        success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
-    )
+    if not stripe.api_key or not STRIPE_PRICE_YEARLY:
+        current_app.logger.error("[Stripe] Configuracao incompleta para plano anual.")
+        return _stripe_checkout_error_redirect(user, "checkout_unavailable")
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price": STRIPE_PRICE_YEARLY, "quantity": 1}],
+            metadata={"user_id": str(user.id), "plan": "yearly"},
+            success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+        )
+    except Exception:
+        current_app.logger.exception("[Stripe] Falha ao criar sessao de checkout anual.")
+        return _stripe_checkout_error_redirect(user, "checkout_error")
     print("[Stripe] ✅ Sessão criada: plano anual")
     url = session.url or url_for("payments")
     return redirect(url, code=303)
