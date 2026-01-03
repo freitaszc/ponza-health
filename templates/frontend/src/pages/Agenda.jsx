@@ -131,6 +131,21 @@ const buildLocalISO = (dateStr, timeStr) => {
   return formatLocalISO(base)
 }
 
+const buildEndISO = (dateStr, startTime, endTime) => {
+  if (!endTime) return null
+  const startDate = parseDateBR(dateStr)
+  const endDate = parseDateBR(dateStr)
+  if (!startDate || !endDate) return null
+  const startParts = (startTime && startTime.length ? startTime : '08:00').split(':').map(Number)
+  const endParts = endTime.split(':').map(Number)
+  startDate.setHours(startParts[0] || 0, startParts[1] || 0, 0, 0)
+  endDate.setHours(endParts[0] || 0, endParts[1] || 0, 0, 0)
+  if (endDate <= startDate) {
+    endDate.setDate(endDate.getDate() + 1)
+  }
+  return formatLocalISO(endDate)
+}
+
 const capitalize = (value) => {
   if (!value) return ''
   const str = value.toString().toLowerCase()
@@ -523,14 +538,7 @@ export default function Agenda() {
       return
     }
     const startISO = buildLocalISO(addForm.date, addForm.time)
-    let endISO = addForm.endTime ? buildLocalISO(addForm.date, addForm.endTime) : null
-    if (endISO && startISO) {
-      const startDate = new Date(startISO)
-      const endDate = new Date(endISO)
-      if (!(endDate > startDate)) {
-        endISO = null
-      }
-    }
+    const endISO = buildEndISO(addForm.date, addForm.time, addForm.endTime)
     setAddSubmitting(true)
     try {
       const payload = {
@@ -577,14 +585,7 @@ export default function Agenda() {
       return
     }
     const startISO = buildLocalISO(editForm.date, editForm.time)
-    let endISO = editForm.endTime ? buildLocalISO(editForm.date, editForm.endTime) : null
-    if (endISO && startISO) {
-      const startDate = new Date(startISO)
-      const endDate = new Date(endISO)
-      if (!(endDate > startDate)) {
-        endISO = null
-      }
-    }
+    const endISO = buildEndISO(editForm.date, editForm.time, editForm.endTime)
     setEditSubmitting(true)
     try {
       const payload = {
@@ -940,7 +941,7 @@ export default function Agenda() {
                   </span>
                 </label>
                 <p className="dashboard-form__hint">
-                  Pacientes recebem um lembrete automático 60 minutos antes do horário agendado.
+                  Pacientes recebem um lembrete ao criar a consulta e 60 minutos antes do horário agendado.
                 </p>
               </div>
               <div className="dashboard-form__row">
@@ -1094,7 +1095,7 @@ export default function Agenda() {
                   </span>
                 </label>
                 <p className="dashboard-form__hint">
-                  Pacientes recebem um lembrete automático 60 minutos antes do horário agendado.
+                  Pacientes recebem um lembrete ao criar a consulta e 60 minutos antes do horário agendado.
                 </p>
               </div>
               <div className="dashboard-form__row">

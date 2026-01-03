@@ -4262,6 +4262,19 @@ section[id],
   padding: 0;
 }
 
+.agenda-calendar .fc .fc-timegrid-event .fc-event-main {
+  height: 100%;
+}
+
+.agenda-calendar .fc .fc-timegrid-event .event-chip {
+  height: 100%;
+  align-content: start;
+}
+
+.agenda-calendar .fc .fc-timegrid-event {
+  min-height: 32px;
+}
+
 .event-chip {
   background: #fff;
   border: 1px solid var(--border);

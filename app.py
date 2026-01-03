@@ -3886,6 +3886,8 @@ def api_add_event():
     end_dt = _parse_iso_to_naive_utc(end_s) if end_s else start_dt + timedelta(hours=1)
     if end_s and not end_dt:
         return jsonify(success=False, error="Formato de data/hora inválido (end)."), 400
+    if end_dt and end_dt <= start_dt:
+        end_dt = end_dt + timedelta(days=1)
 
     ev = AgendaEvent(
         user_id=u.id,
@@ -3903,21 +3905,28 @@ def api_add_event():
     db.session.commit()
 
     if send_reminders:
-        _schedule_event_reminders(u, ev)
+        _schedule_event_reminders(u, ev, include_created=True)
 
     return jsonify(success=True, event_id=ev.id), 201
 
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-def schedule_whatsapp_job(func, run_at, kwargs):
+def schedule_whatsapp_job(func, run_at, kwargs, *, job_id: Optional[str] = None):
     """Agenda o envio de mensagens no horário correto."""
     if run_at is None:
         return
-    now = datetime.utcnow()
+    now = datetime.now()
     if run_at <= now:
         run_at = now + timedelta(minutes=1)
-    scheduler.add_job(func, 'date', run_date=run_at, kwargs=kwargs)
+    scheduler.add_job(
+        func,
+        'date',
+        run_date=run_at,
+        kwargs=kwargs,
+        id=job_id,
+        replace_existing=True,
+    )
 
 
 def _schedule_clinic_summary_job(user: 'User', event_start: datetime) -> None:
@@ -3940,7 +3949,7 @@ def _schedule_clinic_summary_job(user: 'User', event_start: datetime) -> None:
         0,
         0,
     )
-    now = datetime.utcnow()
+    now = datetime.now()
     if run_at <= now:
         run_at = now + timedelta(minutes=1)
 
@@ -3964,7 +3973,7 @@ def _send_clinic_summary_job(user_id: int, summary_date: str) -> None:
         try:
             target_date = datetime.fromisoformat(summary_date).date()
         except ValueError:
-            target_date = datetime.utcnow().date()
+            target_date = datetime.now().date()
 
         day_start = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
         day_end = day_start + timedelta(days=1)
@@ -4005,7 +4014,15 @@ def _send_clinic_summary_job(user_id: int, summary_date: str) -> None:
         send_text(user.clinic_phone, message)
 
 
-def _schedule_event_reminders(user: 'User', event: AgendaEvent) -> None:
+def _remove_event_reminders(event_id: int) -> None:
+    for suffix in ("created", "one_hour"):
+        job_id = f"agenda_{event_id}_{suffix}"
+        job = scheduler.get_job(job_id)
+        if job:
+            scheduler.remove_job(job_id)
+
+
+def _schedule_event_reminders(user: 'User', event: AgendaEvent, *, include_created: bool) -> None:
     if not getattr(event, "send_reminders", False):
         return
     start_dt = getattr(event, "start", None)
@@ -4024,19 +4041,36 @@ def _schedule_event_reminders(user: 'User', event: AgendaEvent) -> None:
 
     patient_phone = getattr(event, "phone", None)
     if patient_phone:
-        patient_run_at = (start_dt - timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0)
-        schedule_whatsapp_job(
-            func=send_reminder_patient,
-            run_at=patient_run_at,
-            kwargs={
-                "patient_phone": patient_phone,
-                "patient_name": patient_name,
-                "clinic_name": clinic_name,
-                "date_str": date_str,
-                "time_start": time_start,
-                "time_end": time_end,
-            },
-        )
+        if include_created:
+            schedule_whatsapp_job(
+                func=send_reminder_patient,
+                run_at=datetime.now(),
+                kwargs={
+                    "patient_phone": patient_phone,
+                    "patient_name": patient_name,
+                    "clinic_name": clinic_name,
+                    "date_str": date_str,
+                    "time_start": time_start,
+                    "time_end": time_end,
+                },
+                job_id=f"agenda_{event.id}_created",
+            )
+
+        one_hour_before = start_dt - timedelta(hours=1)
+        if one_hour_before > datetime.now():
+            schedule_whatsapp_job(
+                func=send_reminder_patient,
+                run_at=one_hour_before,
+                kwargs={
+                    "patient_phone": patient_phone,
+                    "patient_name": patient_name,
+                    "clinic_name": clinic_name,
+                    "date_str": date_str,
+                    "time_start": time_start,
+                    "time_end": time_end,
+                },
+                job_id=f"agenda_{event.id}_one_hour",
+            )
 
 @app.route('/api/events', methods=['POST'])
 @login_required
@@ -4057,6 +4091,7 @@ def api_event_mutation(event_id: int):
         abort(403)
 
     if request.method == 'DELETE':
+        _remove_event_reminders(event_id)
         db.session.delete(ev)
         db.session.commit()
         return jsonify(success=True)
@@ -4077,6 +4112,8 @@ def api_event_mutation(event_id: int):
             end_dt = _parse_iso_to_naive_utc(end_val)
             if not end_dt:
                 return jsonify(success=False, error="Formato de data/hora inválido para 'end'."), 400
+            if end_dt <= ev.start:
+                end_dt = end_dt + timedelta(days=1)
             ev.end = end_dt
         else:
             ev.end = None
@@ -4097,8 +4134,10 @@ def api_event_mutation(event_id: int):
 
     db.session.commit()
 
-    if ev.send_reminders and should_schedule:
-        _schedule_event_reminders(u, ev)
+    if not ev.send_reminders:
+        _remove_event_reminders(event_id)
+    elif should_schedule:
+        _schedule_event_reminders(u, ev, include_created=False)
 
     return jsonify(success=True)
 
