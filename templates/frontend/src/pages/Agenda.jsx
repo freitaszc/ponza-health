@@ -114,6 +114,15 @@ const parseDateBR = (dateStr) => {
   return date
 }
 
+const formatDateInput = (value) => {
+  const digits = (value || '').replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  }
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
 const formatLocalISO = (date) => {
   if (!date) return null
   const pad = (value) => String(value).padStart(2, '0')
@@ -952,7 +961,9 @@ export default function Agenda() {
                     placeholder="dd/mm/aaaa"
                     inputMode="numeric"
                     value={addForm.date}
-                    onChange={(event) => setAddForm((prev) => ({ ...prev, date: event.target.value }))}
+                    onChange={(event) =>
+                      setAddForm((prev) => ({ ...prev, date: formatDateInput(event.target.value) }))
+                    }
                     required
                   />
                 </label>
@@ -1106,7 +1117,9 @@ export default function Agenda() {
                     placeholder="dd/mm/aaaa"
                     inputMode="numeric"
                     value={editForm.date}
-                    onChange={(event) => setEditForm((prev) => ({ ...prev, date: event.target.value }))}
+                    onChange={(event) =>
+                      setEditForm((prev) => ({ ...prev, date: formatDateInput(event.target.value) }))
+                    }
                     required
                   />
                 </label>
