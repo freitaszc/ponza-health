@@ -175,13 +175,13 @@ export default function QuoteRespond() {
                 <tbody>
                   {data.items.map((item, index) => (
                     <tr key={`${item}-${index}`}>
-                      <td>
+                      <td data-label="Item">
                         <div className="quote-public-item">
                           <span className="quote-public-index">{index + 1}</span>
                           <span className="quote-public-item-name">{item}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Preço unitário (R$)">
                         <div className="quote-input">
                           <span>R$</span>
                           <input
@@ -195,7 +195,7 @@ export default function QuoteRespond() {
                           />
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Prazo (dias)">
                         <div className="quote-input quote-input--compact">
                           <input
                             type="number"

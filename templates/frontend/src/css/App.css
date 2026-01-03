@@ -2940,6 +2940,7 @@ section[id],
   font-size: 15px;
   font-family: inherit;
   color: #e5e7eb;
+  -webkit-text-fill-color: #e5e7eb;
   outline: none;
 }
 
@@ -3007,6 +3008,53 @@ section[id],
 
   .quote-public-actions {
     justify-content: center;
+  }
+
+  .quote-public-table {
+    border: none;
+    margin-top: 16px;
+  }
+
+  .quote-public-table thead {
+    display: none;
+  }
+
+  .quote-public-table tbody,
+  .quote-public-table tr,
+  .quote-public-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .quote-public-table tr {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: rgba(15, 23, 42, 0.6);
+  }
+
+  .quote-public-table td {
+    border: none;
+    padding: 8px 0;
+  }
+
+  .quote-public-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #94a3b8;
+    margin-bottom: 6px;
+  }
+
+  .quote-input {
+    width: 100%;
+  }
+
+  .quote-input input {
+    font-size: 16px;
   }
 }
 
