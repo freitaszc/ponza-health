@@ -66,7 +66,6 @@ export default function Stock() {
   const [error, setError] = useState('')
   const [filters, setFilters] = useState(() => getInitialFilters())
   const [appliedFilters, setAppliedFilters] = useState(() => getInitialFilters())
-  const [isAdmin, setIsAdmin] = useState(false)
   const [notificationsUnread, setNotificationsUnread] = useState(0)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('dashboardSidebar') === '1')
   const [busyIds, setBusyIds] = useState({})
@@ -84,12 +83,7 @@ export default function Stock() {
   const [historyError, setHistoryError] = useState('')
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/products'
-  const sidebarNav = useMemo(() => {
-    if (isAdmin) {
-      return [...navItems, { label: 'Admin', href: withBackend('/admin_users'), icon: 'fa-shield' }]
-    }
-    return navItems
-  }, [isAdmin])
+  const sidebarNav = navItems
   const isActiveLink = (href) => {
     const resolved = resolvePath(href)
     if (resolved === '/quotes') {
@@ -120,7 +114,6 @@ export default function Stock() {
     const cached = readCache(cacheKey)
     if (cached && Array.isArray(cached.products)) {
       setProducts(cached.products)
-      setIsAdmin(Boolean(cached.is_admin))
       setNotificationsUnread(cached.notifications_unread || 0)
       setLoading(false)
     } else {
@@ -139,11 +132,9 @@ export default function Stock() {
       const data = await response.json()
       const nextProducts = Array.isArray(data.products) ? data.products : []
       setProducts(nextProducts)
-      setIsAdmin(Boolean(data.is_admin))
       setNotificationsUnread(data.notifications_unread || 0)
       writeCache(cacheKey, {
         products: nextProducts,
-        is_admin: Boolean(data.is_admin),
         notifications_unread: data.notifications_unread || 0,
       })
     } catch (err) {

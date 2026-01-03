@@ -68,7 +68,6 @@ export default function Login() {
       const nextProducts = Array.isArray(payload?.products) ? payload.products : []
       writeCache(stockCacheKey, {
         products: nextProducts,
-        is_admin: Boolean(payload?.is_admin),
         notifications_unread: payload?.notifications_unread || 0,
       })
     } catch (err) {

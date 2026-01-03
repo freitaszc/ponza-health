@@ -665,23 +665,6 @@ def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None)
         mimetype=sf.mime_type or "application/pdf",
     )
 
-# ----------------------------------------–-------------------------------------
-# Admin
-# ------------------------------------------------------------------------------
-@app.route("/admin/users", methods=["GET", "POST"])
-def admin_users():
-    abort(404)
-
-
-@app.route("/admin/users/delete/<int:user_id>", methods=["POST"])
-def delete_user(user_id):
-    abort(404)
-
-@app.route("/admin/users/extend", methods=["POST"])
-def admin_extend_subscription():
-    abort(404)
-
-
 # ------------------------------------------------------------------------------
 # Esqueci a senha
 # ------------------------------------------------------------------------------
@@ -909,11 +892,6 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
         if not u:
             return redirect(url_for('login'))
         g.user = u
-
-        # Admin bypass
-        uname = (getattr(u, "username", "") or "").lower()
-        if uname == "admin":
-            return f(*args, **kwargs)
 
         trial_expiration = _normalize_trial_expiration(getattr(u, "trial_expiration", None))
         plan_status = getattr(u, "plan_status", None)
@@ -1263,8 +1241,6 @@ def _login_with_credentials(login_input: str, pwd: str) -> tuple[bool, str]:
         user = User.query.filter(func.lower(User.email) == login_input.lower()).first()
     else:
         user = User.query.filter(User.username == login_input).first()
-        if not user and login_input.lower() == 'admin':
-            user = User.query.filter(User.username == 'admin').first()
 
     stored_hash = getattr(user, 'password_hash', None) if user else None
     if not user or not stored_hash or not check_password_hash(stored_hash, pwd):
@@ -1617,7 +1593,6 @@ def _build_dashboard_payload(u: User) -> dict[str, Any]:
 
     return {
         "username": getattr(u, "name", None) or getattr(u, "username", None) or "",
-        "is_admin": ((getattr(u, "username", "") or "").lower() == "admin"),
         "total_patients": total_patients,
         "total_consults": total_consults,
         "used": used,
@@ -1784,7 +1759,6 @@ def account_api():
             "remaining_days": int(remaining_days),
             "expires_at": trial_expiration.strftime("%Y-%m-%d") if trial_expiration else None,
         },
-        "is_admin": (getattr(u, "username", "").lower() == "admin"),
         "notifications_unread": 0,
         "messages": messages,
     })
@@ -5139,7 +5113,6 @@ def api_products():
                 "sale_price": float(p.sale_price or 0),
                 "status": (p.status or 'Inativo').strip() or 'Inativo',
             } for p in products],
-            "is_admin": ((getattr(u, "username", "") or "").lower() == "admin"),
             "notifications_unread": 0,
         })
 

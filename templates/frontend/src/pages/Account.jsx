@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const backendBase = import.meta.env.VITE_BACKEND_URL || ''
 const withBackend = (path) => (backendBase ? `${backendBase}${path}` : path)
@@ -45,7 +45,6 @@ const emptyAccount = {
     remaining_days: 0,
     expires_at: null,
   },
-  is_admin: false,
   notifications_unread: 0,
   messages: [],
 }
@@ -107,12 +106,7 @@ export default function Account() {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [showModal])
 
-  const sidebarNav = useMemo(() => {
-    if (data.is_admin) {
-      return [...navItems, { label: 'Admin', href: withBackend('/admin_users'), icon: 'fa-shield' }]
-    }
-    return navItems
-  }, [data.is_admin])
+  const sidebarNav = navItems
 
   const handleToggleSidebar = () => {
     const next = !collapsed

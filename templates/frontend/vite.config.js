@@ -43,7 +43,6 @@ export default defineConfig(({ mode }) => {
         '/subscribe_pay': 'http://localhost:5000',
         '/doctors': 'http://localhost:5000',
         '/doctor_view': 'http://localhost:5000',
-        '/admin_users': 'http://localhost:5000',
         '/logout': 'http://localhost:5000',
       },
     },

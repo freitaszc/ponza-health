@@ -45,36 +45,36 @@ const routes = [
   { path: '/privacy_policy', component: PrivacyPolicy, shell: 'marketing' },
   { path: '/termos', component: Terms, shell: 'marketing' },
   { path: '/trial_locked', component: TrialLocked, shell: 'plain' },
-  { path: '/index', component: Dashboard, shell: 'admin' },
-  { path: '/account', component: Account, shell: 'admin' },
-  { path: '/payments', component: Payments, shell: 'admin' },
-  { path: '/purchase', component: Payments, shell: 'admin' },
-  { path: '/products', component: Stock, shell: 'admin' },
-  { path: '/agenda', component: Agenda, shell: 'admin' },
-  { path: '/upload', component: Upload, shell: 'admin' },
-  { path: '/catalog', component: Patients, shell: 'admin' },
-  { path: '/catalog/register', component: PatientForm, shell: 'admin' },
-  { path: '/edit_patient/:patientId', component: PatientForm, shell: 'admin' },
-  { path: '/patient_info/:patientId', component: PatientForm, shell: 'admin' },
-  { path: '/quotes', component: Quotes, shell: 'admin' },
-  { path: '/quotes/create', component: QuoteCreate, shell: 'admin' },
-  { path: '/quotes/:quoteId/results', component: QuoteView, shell: 'admin' },
-  { path: '/quotes/:quoteId', component: QuoteView, shell: 'admin' },
-  { path: '/suppliers', component: Suppliers, shell: 'admin' },
-  { path: '/patient_result/:patientId', component: Result, shell: 'admin' },
-  { path: '/result/:patientId', component: Result, shell: 'admin' },
-  { path: '/lab_analysis/view', component: Result, shell: 'admin' },
+  { path: '/index', component: Dashboard, shell: 'app' },
+  { path: '/account', component: Account, shell: 'app' },
+  { path: '/payments', component: Payments, shell: 'app' },
+  { path: '/purchase', component: Payments, shell: 'app' },
+  { path: '/products', component: Stock, shell: 'app' },
+  { path: '/agenda', component: Agenda, shell: 'app' },
+  { path: '/upload', component: Upload, shell: 'app' },
+  { path: '/catalog', component: Patients, shell: 'app' },
+  { path: '/catalog/register', component: PatientForm, shell: 'app' },
+  { path: '/edit_patient/:patientId', component: PatientForm, shell: 'app' },
+  { path: '/patient_info/:patientId', component: PatientForm, shell: 'app' },
+  { path: '/quotes', component: Quotes, shell: 'app' },
+  { path: '/quotes/create', component: QuoteCreate, shell: 'app' },
+  { path: '/quotes/:quoteId/results', component: QuoteView, shell: 'app' },
+  { path: '/quotes/:quoteId', component: QuoteView, shell: 'app' },
+  { path: '/suppliers', component: Suppliers, shell: 'app' },
+  { path: '/patient_result/:patientId', component: Result, shell: 'app' },
+  { path: '/result/:patientId', component: Result, shell: 'app' },
+  { path: '/lab_analysis/view', component: Result, shell: 'app' },
 ]
 
 function AppShell() {
   const { route, path, navigate } = useRouter()
   const Page = route?.component || Home
   const shell = route?.shell || 'marketing'
-  const [trialGuard, setTrialGuard] = useState({ checked: shell !== 'admin', expired: false })
+  const [trialGuard, setTrialGuard] = useState({ checked: shell !== 'app', expired: false })
 
   useEffect(() => {
     let active = true
-    if (shell !== 'admin') {
+    if (shell !== 'app') {
       setTrialGuard({ checked: true, expired: false })
       return () => {
         active = false
@@ -108,23 +108,18 @@ function AppShell() {
   }, [shell])
 
   useEffect(() => {
-    if (shell !== 'admin') return
+    if (shell !== 'app') return
     if (!trialGuard.checked) return
     if (trialGuard.expired && path !== '/trial_locked') {
       navigate('/trial_locked')
     }
   }, [shell, trialGuard.checked, trialGuard.expired, path, navigate])
 
-  if (shell === 'admin') {
-    if (!trialGuard.checked) {
-      return <div className="app-loading">Carregando...</div>
-    }
-    if (trialGuard.expired) {
-      return <TrialLocked />
-    }
+  if (shell === 'app' && trialGuard.checked && trialGuard.expired) {
+    return <TrialLocked />
   }
 
-  if (shell === 'admin' || shell === 'plain') {
+  if (shell === 'app' || shell === 'plain') {
     return <Page />
   }
 

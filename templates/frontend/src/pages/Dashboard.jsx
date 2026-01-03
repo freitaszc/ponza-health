@@ -3,7 +3,6 @@ import { buildCacheKey, readCache, writeCache } from '../utils/cache'
 
 const emptyDashboard = {
   username: '',
-  is_admin: false,
   total_patients: 0,
   total_consults: 0,
   used: 0,
@@ -286,9 +285,7 @@ export default function Dashboard() {
     { label: 'Convênio', value: data.insurance_convenio_30, color: '#c4b5fd' },
   ]
 
-  const sidebarNav = data.is_admin
-    ? [...navItems, { label: 'Admin', href: withBackend('/admin_users'), icon: 'fa-shield' }]
-    : navItems
+  const sidebarNav = navItems
 
   const handleToggleSidebar = () => {
     const next = !collapsed
