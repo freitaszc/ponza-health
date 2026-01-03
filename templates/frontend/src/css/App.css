@@ -2898,6 +2898,46 @@ section[id],
   font-size: 13px;
 }
 
+.quote-public-response {
+  display: grid;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.quote-public-response-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.quote-public-response-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.quote-public-response-head p {
+  margin: 6px 0 0;
+  color: var(--muted-2);
+  font-size: 13px;
+}
+
+.quote-public-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #0b3f8f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
 .quote-public-status {
   padding: 10px 14px;
   border-radius: 12px;
@@ -3050,6 +3090,11 @@ section[id],
 
   .quote-public-header {
     grid-template-columns: 1fr;
+  }
+
+  .quote-public-response-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .quote-public-actions {
