@@ -126,6 +126,15 @@
   </section>
 
   <section>
+    <h2>Resumo clínico</h2>
+    {% if summary %}
+    <p style="white-space: pre-wrap; margin: 0;">{{ summary }}</p>
+    {% else %}
+    <p>Sem observações registradas.</p>
+    {% endif %}
+  </section>
+
+  <section>
     <h2>Prescrição</h2>
     {% if prescription %}
     <ul>
