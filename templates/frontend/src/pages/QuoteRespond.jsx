@@ -26,10 +26,13 @@ export default function QuoteRespond() {
       }
       setError('')
       try {
-        const res = await fetch(`/quotes/respond/${token}`, {
-          headers: { Accept: 'application/json' },
+        const res = await fetch(`/api/quotes/respond/${token}`, {
+          headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
         const payload = await res.json().catch(() => null)
+        if (!payload) {
+          throw new Error('Não foi possível carregar a cotação.')
+        }
         if (!res.ok && res.status !== 410) {
           throw new Error(payload?.error || 'Não foi possível carregar a cotação.')
         }
@@ -73,9 +76,13 @@ export default function QuoteRespond() {
     setSuccess('')
     setSubmitting(true)
     try {
-      const res = await fetch(`/quotes/respond/${token}`, {
+      const res = await fetch(`/api/quotes/respond/${token}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
         body: JSON.stringify({ answers }),
       })
       const payload = await res.json().catch(() => ({}))

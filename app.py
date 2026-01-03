@@ -5239,9 +5239,14 @@ def create_quote():
     return serve_react_index()
 
 
+@app.route('/api/quotes/respond/<token>', methods=['GET', 'POST'], endpoint='public_quote_response_api')
+def public_quote_response_api(token: str):
+    return public_quote_response(token, force_json=True)
+
+
 @app.route('/quotes/respond/<token>', methods=['GET', 'POST'], endpoint='public_quote_response')
-def public_quote_response(token: str):
-    wants_json = _request_wants_json()
+def public_quote_response(token: str, *, force_json: bool = False):
+    wants_json = force_json or _request_wants_json()
     if request.method == 'GET' and not wants_json:
         return serve_react_index()
 
