@@ -15,14 +15,14 @@ def generate_subscription_link(user_id, plan="monthly"):
     """Cria um link de checkout Stripe para o plano mensal ou anual (usando os price_id reais)."""
     try:
         if plan == "yearly":
-            price_id = os.getenv("STRIPE_PRICE_YEARLY")  # ex: price_1Q6JhTA2fghij789101kl
+            price_id = os.getenv("STRIPE_PRICE_YEARLY")
             plan_name = "Assinatura anual Ponza Health"
         else:
-            price_id = os.getenv("STRIPE_PRICE_MONTHLY")  # ex: price_1Q6JgHA2abcde123456xyz
+            price_id = os.getenv("STRIPE_PRICE_MONTHLY")  
             plan_name = "Assinatura mensal Ponza Health"
 
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
+            payment_method_types=["card", "pix"],
             mode="subscription",
             line_items=[{
                 "price": price_id,

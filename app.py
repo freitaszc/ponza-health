@@ -43,7 +43,7 @@ from exam_analyzer.ai import generate_ai_analysis
 from flask import (
     Flask, Blueprint, render_template, request, redirect, url_for,
     session, flash, jsonify, abort, send_file, send_from_directory, g, current_app,
-    get_flashed_messages
+    get_flashed_messages, stream_with_context
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -661,6 +661,14 @@ def _save_pdf_bytes_to_db(*, user_id: int, patient_id: Optional[int], consult_id
     db.session.add(pf)
     db.session.commit()
     return pf.id
+
+
+def _resolve_public_logo_url(filename: str) -> str:
+    public_base = current_app.config.get("PUBLIC_BASE_URL")
+    if public_base:
+        base = public_base.rstrip("/")
+        return f"{base}/static/images/{filename}"
+    return url_for("static", filename=f"images/{filename}", _external=True)
 
 
 def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None):
@@ -1679,7 +1687,7 @@ def purchase():
         try:
             session = stripe.checkout.Session.create(
                 mode='payment',
-                payment_method_types=['card'],
+                payment_method_types=['card', 'pix'],
                 line_items=[{'price': price_id, 'quantity': 1}],
                 success_url=f"{url_for('payments', _external=True)}?success=true",
                 cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
@@ -1878,7 +1886,8 @@ def subscribe_pay_anual():
     print("[Stripe] ✅ Sessão criada: plano anual")
     url = session.url or url_for("payments")
     return redirect(url, code=303)
-        
+
+
 @app.route("/purchase_package/<int:package>")
 @login_required
 def purchase_package(package):
@@ -1895,7 +1904,7 @@ def purchase_package(package):
 
     session = stripe.checkout.Session.create(
         mode="payment",
-        payment_method_types=["card"],
+        payment_method_types=["card", "pix"],
         line_items=[{"price": price_id, "quantity": 1}],
         success_url=f"{url_for('payments', _external=True)}?success=true",
         cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
@@ -2107,6 +2116,22 @@ def _project_references_json() -> str:
         "references.json not found. Place it in 'instance/' or the project root."
     )
 
+
+def _load_reference_table() -> dict:
+    path = _project_references_json()
+    with open(path, "r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid references payload — expected mapping with test definitions.")
+    return payload
+
+
+def _save_reference_table(payload: dict) -> None:
+    path = _project_references_json()
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
@@ -2136,6 +2161,52 @@ def upload():
     return _handle_pdf_upload(request, u, analyze_pdf, use_ai=use_ai)
 
 
+@app.route('/api/references', methods=['GET', 'PUT'])
+@login_required
+def api_references():
+    if request.method == 'GET':
+        try:
+            table = _load_reference_table()
+        except Exception as exc:
+            return jsonify({"success": False, "error": str(exc)}), 500
+        return jsonify({"success": True, "references": table})
+
+    payload = request.get_json(silent=True) or {}
+    updates = payload.get("updates") or []
+    if isinstance(updates, dict):
+        updates = [{"name": key, "ideal": value} for key, value in updates.items()]
+    if not isinstance(updates, list):
+        return jsonify({"success": False, "error": "Formato inválido para updates."}), 400
+
+    try:
+        table = _load_reference_table()
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+    updated = 0
+    for item in updates:
+        if not isinstance(item, dict):
+            continue
+        name = (item.get("name") or "").strip()
+        if not name or name not in table:
+            continue
+        ideal = item.get("ideal")
+        if ideal is None:
+            continue
+        ideal_text = str(ideal).strip()
+        if table[name].get("ideal") == ideal_text:
+            continue
+        table[name]["ideal"] = ideal_text
+        updated += 1
+
+    if updated:
+        try:
+            _save_reference_table(table)
+        except Exception as exc:
+            return jsonify({"success": False, "error": str(exc)}), 500
+    return jsonify({"success": True, "updated": updated})
+
+
 @app.route('/api/upload', methods=['POST'])
 @login_required
 def api_upload():
@@ -2143,6 +2214,9 @@ def api_upload():
 
     u = current_user()
     use_ai = str(request.form.get('use_ai') or '').lower() in {'1', 'true', 'on', 'yes'}
+    wants_stream = str(request.form.get('stream') or '').lower() in {'1', 'true', 'yes'}
+    if wants_stream:
+        return _stream_upload_response(request, u, analyze_pdf, use_ai=use_ai)
 
     if request.form.get('manual_entry') == '1':
         ok, payload = _process_manual_entry_payload(request.form, u, analyze_pdf, use_ai=use_ai)
@@ -2155,11 +2229,35 @@ def api_upload():
     return jsonify({"success": True, **payload})
 
 
+def _stream_upload_response(request, u, analyze_pdf, *, use_ai: bool):
+    def sse_event(name: str, data: dict[str, Any]) -> str:
+        payload = json.dumps(data, ensure_ascii=False)
+        return f"event: {name}\ndata: {payload}\n\n"
+
+    def generate():
+        yield sse_event("status", {"step": "upload", "message": "Upload recebido. Iniciando análise..."})
+        timings: dict[str, Any] = {}
+        if request.form.get('manual_entry') == '1':
+            ok, payload = _process_manual_entry_payload(request.form, u, analyze_pdf, use_ai=use_ai, timings=timings)
+        else:
+            ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai, timings=timings)
+        if not ok:
+            yield sse_event("error", {"error": payload.get("error") or "Falha ao processar o envio."})
+            return
+        payload["timings"] = payload.get("timings") or timings
+        yield sse_event("done", payload)
+
+    response = current_app.response_class(stream_with_context(generate()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 # =====================================================================
 # Helpers internos para manter a rota enxuta
 # =====================================================================
 
-def _process_manual_entry_payload(form, u, analyze_pdf, *, use_ai=False) -> tuple[bool, dict[str, Any]]:
+def _process_manual_entry_payload(form, u, analyze_pdf, *, use_ai=False, timings: dict[str, Any] | None = None) -> tuple[bool, dict[str, Any]]:
+    timings = timings or {}
     name = (form.get('name') or '').strip()
     age = (form.get('age') or '').strip()
     cpf = (form.get('cpf') or '').strip()
@@ -2184,6 +2282,7 @@ def _process_manual_entry_payload(form, u, analyze_pdf, *, use_ai=False) -> tupl
         }
 
     refs_path = _project_references_json()
+    analysis_start = time.perf_counter()
     dgn, rx, *_ = analyze_pdf(
         lab_results,
         references_path=refs_path,
@@ -2196,6 +2295,7 @@ def _process_manual_entry_payload(form, u, analyze_pdf, *, use_ai=False) -> tupl
         },
         use_ai=use_ai,
     )
+    timings["openai_ms"] = round((time.perf_counter() - analysis_start) * 1000)
 
     p = _get_or_create_patient(u, name=name, cpf=cpf, gender=gender, phone=phone)
     if doctor_name:
@@ -2223,15 +2323,29 @@ def _process_manual_entry_payload(form, u, analyze_pdf, *, use_ai=False) -> tupl
         )
 
     _consume_analysis_slot(pkg)
-    return True, {"redirect_url": url_for('result', patient_id=p.id), "patient_id": p.id}
+    try:
+        current_app.logger.info("[Ponza Lab] Timings manual entry: %s", timings)
+    except Exception:
+        pass
+    return True, {"redirect_url": url_for('result', patient_id=p.id), "patient_id": p.id, "timings": timings}
 
 
-def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tuple[bool, dict[str, Any]]:
+def _process_pdf_upload_payload(
+    request,
+    u,
+    analyze_pdf,
+    *,
+    use_ai: bool = False,
+    timings: dict[str, Any] | None = None,
+) -> tuple[bool, dict[str, Any]]:
+    timings = timings or {}
     file = request.files.get('pdf_file')
     if not file or not file.filename.lower().endswith('.pdf'):
         return False, {"error": "Nenhum PDF válido enviado."}
 
+    upload_start = time.perf_counter()
     content = file.read()
+    timings["upload_ms"] = round((time.perf_counter() - upload_start) * 1000)
     if not content:
         return False, {"error": "PDF vazio ou inválido."}
 
@@ -2241,6 +2355,7 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
             "error": "Seu pacote de análises acabou. Compre mais créditos para continuar usando o Ponza Lab."
         }
 
+    db_start = time.perf_counter()
     sf = SecureFile(
         user_id=u.id,
         kind="upload_pdf",
@@ -2260,6 +2375,7 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
     )
     db.session.add(pf)
     db.session.commit()
+    timings["db_file_save_ms"] = round((time.perf_counter() - db_start) * 1000)
 
     manual_name = (request.form.get('patient_manual_name') or '').strip()
     manual_age = (request.form.get('patient_manual_age') or '').strip()
@@ -2299,11 +2415,12 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
 
     if use_ai:
         try:
-            analysis = _perform_ai_lab_analysis(content, manual_overrides)
+            analysis = _perform_ai_lab_analysis(content, manual_overrides, timings=timings)
         except RuntimeError as exc:
             return False, {"error": str(exc)}
 
         patient_block = analysis.get("paciente") or {}
+        db_analysis_start = time.perf_counter()
         patient = _get_or_create_patient(
             u,
             name=patient_block.get("nome"),
@@ -2323,6 +2440,14 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
         pf.patient_id = patient.id
         db.session.add(pf)
         db.session.commit()
+        timings["db_save_ms"] = round((time.perf_counter() - db_analysis_start) * 1000)
+
+        context = _build_analysis_context(analysis, file_name=file.filename, doctor_name=doctor_display)
+        lab_pdf_bytes = generate_lab_analysis_pdf_bytes(
+            patient=patient,
+            context=context,
+            doctor_display_name=doctor_display,
+        )
 
         if send_doctor and doctor_phone:
             send_pdf_whatsapp_template(
@@ -2332,6 +2457,23 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
                 doctor_phone,
                 patient.id,
                 clinic_contact=clinic_contact,
+                link_kind="lab_analysis_pdf",
+            )
+            old_pdf_bytes = generate_result_pdf_bytes(
+                patient=patient,
+                diagnostic_text=diagnosis_text,
+                prescription_text=prescription_text,
+                doctor_display_name=doctor_display,
+            )
+            try_send_whatsapp_pdf(
+                doctor_phone,
+                lab_pdf_bytes,
+                f"Analise_{(patient.name or 'Paciente').replace(' ', '_')}.pdf",
+            )
+            try_send_whatsapp_pdf(
+                doctor_phone,
+                old_pdf_bytes,
+                f"Resultado_{(patient.name or 'Paciente').replace(' ', '_')}.pdf",
             )
 
         if send_patient and patient_phone:
@@ -2339,11 +2481,11 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
                 patient_name or patient.name,
                 patient_phone,
                 patient.id,
-                clinic_phone=u.clinic_phone
+                clinic_phone=u.clinic_phone,
+                link_kind="lab_analysis_pdf",
             )
 
         _consume_analysis_slot(pkg)
-        context = _build_analysis_context(analysis, file_name=file.filename, doctor_name=doctor_display)
         serializer = URLSafeSerializer(app.config['SECRET_KEY'], salt="lab-analysis-pdf")
         token_payload = {
             "patient": context.get("patient") or {},
@@ -2358,13 +2500,19 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
         }
         analysis_token = serializer.dumps(token_payload)
 
+        try:
+            current_app.logger.info("[Ponza Lab] Timings AI PDF: %s", timings)
+        except Exception:
+            pass
         return True, {
             "redirect_url": url_for('lab_analysis_view', token=analysis_token),
             "analysis_token": analysis_token,
             "patient_id": patient.id,
+            "timings": timings,
         }
 
     refs_path = _project_references_json()
+    analysis_start = time.perf_counter()
     dgn, rx, name_ai, gender_ai, age_ai, cpf_ai, phone_ai, doctor_ai, birth_ai = analyze_pdf(
         content,
         references_path=refs_path,
@@ -2377,6 +2525,7 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
         },
         use_ai=use_ai,
     )
+    timings["openai_ms"] = round((time.perf_counter() - analysis_start) * 1000)
 
     p = _get_or_create_patient(
         u,
@@ -2390,9 +2539,11 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
     if doctor_ai:
         _assign_doctor_to_patient(u, p, doctor_ai)
 
+    db_analysis_start = time.perf_counter()
     _attach_consult_and_notes(p, dgn, rx)
     pf.patient_id = p.id
     db.session.commit()
+    timings["db_save_ms"] = round((time.perf_counter() - db_analysis_start) * 1000)
 
     if send_doctor and doctor_phone:
         send_pdf_whatsapp_template(
@@ -2413,7 +2564,11 @@ def _process_pdf_upload_payload(request, u, analyze_pdf, *, use_ai=False) -> tup
         )
 
     _consume_analysis_slot(pkg)
-    return True, {"redirect_url": url_for('result', patient_id=p.id), "patient_id": p.id}
+    try:
+        current_app.logger.info("[Ponza Lab] Timings classic PDF: %s", timings)
+    except Exception:
+        pass
+    return True, {"redirect_url": url_for('result', patient_id=p.id), "patient_id": p.id, "timings": timings}
 
 
 def _handle_manual_entry(request, u, analyze_pdf, *, use_ai=False):
@@ -2511,11 +2666,18 @@ def _handle_pdf_upload_ai(
     return redirect(url_for('lab_analysis_view', token=analysis_token))
 
 
-def _perform_ai_lab_analysis(file_bytes: bytes, overrides: dict[str, str]) -> dict[str, Any]:
-    payload = extract_exam_payload(file_bytes, require_ocr=False)
-    ai_response = generate_ai_analysis(payload)
+def _perform_ai_lab_analysis(
+    file_bytes: bytes,
+    overrides: dict[str, str],
+    *,
+    timings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    timings = timings or {}
+    payload = extract_exam_payload(file_bytes, require_ocr=False, timings=timings)
+    ai_response = generate_ai_analysis(payload, timings=timings)
     if not ai_response.get("ok"):
         raise RuntimeError(ai_response.get("error") or "Falha ao analisar o PDF.")
+    post_start = time.perf_counter()
     analysis = ai_response.get("analysis") or {}
     patient_block = analysis.get("paciente") or {}
     for key, value in overrides.items():
@@ -2530,6 +2692,7 @@ def _perform_ai_lab_analysis(file_bytes: bytes, overrides: dict[str, str]) -> di
     abnormal_exams, prescription = _apply_reference_rules(analysis, reference_table)
     analysis["abnormal_exams"] = abnormal_exams
     analysis["prescricao"] = prescription
+    timings["postprocess_ms"] = round((time.perf_counter() - post_start) * 1000)
     return analysis
 
 
@@ -2572,9 +2735,14 @@ def _build_analysis_context(analysis: dict[str, Any], *, file_name: str, doctor_
             "reference_display": _format_reference_label(reference_field, patient_gender),
         })
     abnormal = analysis.get("abnormal_exams") or []
+    reference_table = {}
+    try:
+        reference_table = _load_reference_table()
+    except Exception:
+        reference_table = {}
+    _apply_reference_overrides_to_exams(exams, gender=patient_gender, reference_table=reference_table)
     if abnormal:
-        for entry in abnormal:
-            entry["reference_display"] = _format_reference_label(entry.get("referencia"), patient_gender)
+        _apply_reference_overrides_to_exams(abnormal, gender=patient_gender, reference_table=reference_table)
     context = {
         "patient": patient,
         "patient_details": _format_patient_details(patient),
@@ -2602,6 +2770,15 @@ def _parse_index_payload(raw_value: Optional[str]) -> set[int]:
         except ValueError:
             continue
     return indexes
+
+
+def _parse_json_payload(raw_value: Optional[str]) -> Any:
+    if not raw_value:
+        return None
+    try:
+        return json.loads(raw_value)
+    except Exception:
+        return None
 
 
 def _filter_excluded_items(items: list[Any], excluded_indexes: set[int]) -> list[Any]:
@@ -2671,10 +2848,18 @@ def _parse_reference_bounds(reference_value: Any, gender: Optional[str]) -> tupl
                     return bounds
         return (None, None)
 
+    if isinstance(reference_value, list):
+        for item in reference_value:
+            bounds = _parse_reference_bounds(item, gender)
+            if bounds != (None, None):
+                return bounds
+        return (None, None)
+
     if not isinstance(reference_value, str):
         return (None, None)
 
     text = reference_value.lower()
+    text = text.replace("≤", "<=").replace("≥", ">=").replace("≦", "<=").replace("≧", ">=")
     tokens = re.findall(r"[-+]?\d+(?:[.,]\d+)?", text)
     numbers = [_coerce_float(token) for token in tokens]
     numbers = [num for num in numbers if num is not None]
@@ -2682,10 +2867,12 @@ def _parse_reference_bounds(reference_value: Any, gender: Optional[str]) -> tupl
     if not numbers:
         return (None, None)
 
-    if any(keyword in text for keyword in ["menor", "inferior", "até", "ate"]):
+    if re.search(r"(<=|<|\bmenor\b|\binferior\b|\bate\b|\babaixo\b)", text):
         return (None, numbers[0])
-    if any(keyword in text for keyword in ["maior", "superior"]):
+    if re.search(r"(>=|>|\bmaior\b|\bsuperior\b|\bacima\b)", text):
         return (numbers[0], None)
+    if re.search(r"(=|\bigual\b)", text):
+        return (numbers[0], numbers[0])
     if "entre" in text or " a " in text or "-" in text:
         if len(numbers) >= 2:
             return (numbers[0], numbers[1])
@@ -2700,6 +2887,36 @@ def _classify_status(value: float, min_val: Optional[float], max_val: Optional[f
     if max_val is not None and value > max_val:
         return "alto"
     return None
+
+
+def _apply_reference_overrides_to_exams(
+    exams: list[dict[str, Any]],
+    *,
+    gender: Optional[str],
+    reference_table: dict,
+) -> None:
+    if not exams or not reference_table:
+        return
+    reference_index = _build_reference_index(reference_table)
+    for entry in exams:
+        name = entry.get("nome") or entry.get("name") or entry.get("test")
+        if not name:
+            continue
+        ref_entry = _match_reference_entry(name, reference_index)
+        reference_value = None
+        if ref_entry:
+            reference_value = ref_entry.get("ideal")
+        if not reference_value:
+            reference_value = entry.get("referencia") or entry.get("reference")
+        if reference_value:
+            entry["reference_display"] = _format_reference_label(reference_value, gender)
+        value = _coerce_float(entry.get("valor") or entry.get("value"))
+        if value is None or reference_value is None:
+            continue
+        min_val, max_val = _parse_reference_bounds(reference_value, gender)
+        if min_val is None and max_val is None:
+            continue
+        entry["status"] = _classify_status(value, min_val, max_val) or "normal"
 
 
 def _apply_reference_rules(analysis: dict[str, Any], reference_table: dict) -> tuple[list[dict[str, Any]], list[str]]:
@@ -2768,6 +2985,8 @@ def _format_reference_label(reference_value: Any, gender: Optional[str]) -> str:
                 if key in reference_value:
                     return reference_value[key]
         return "; ".join(f"{k}: {v}" for k, v in reference_value.items())
+    if isinstance(reference_value, list):
+        return " / ".join(str(item) for item in reference_value if item)
     return ""
 def _parse_birthdate(value: Optional[str]) -> Optional[date]:
     if not value:
@@ -3127,7 +3346,27 @@ def lab_analysis_pdf():
     exams = payload.get("abnormal_exams") or payload.get("exams") or []
     prescription_raw = payload.get("prescription") or []
     orientations_raw = payload.get("orientations") or []
+    summary_text = payload.get("summary") or ""
     doctor_name = payload.get("doctor_name") or (getattr(current_user(), "name", None) or current_user().username)
+
+    patient_override = _parse_json_payload(request.form.get("patient_override"))
+    if isinstance(patient_override, dict):
+        for key in ("nome", "data_nascimento", "cpf", "sexo", "telefone"):
+            value = patient_override.get(key)
+            if value:
+                patient[key] = value
+
+    summary_override = request.form.get("summary_override")
+    if summary_override is not None:
+        summary_text = summary_override
+
+    prescription_override = _parse_json_payload(request.form.get("prescription_override"))
+    if isinstance(prescription_override, list):
+        prescription_raw = [str(item).strip() for item in prescription_override if str(item).strip()]
+
+    orientations_override = _parse_json_payload(request.form.get("orientations_override"))
+    if isinstance(orientations_override, list):
+        orientations_raw = [str(item).strip() for item in orientations_override if str(item).strip()]
 
     excluded_prescription_indexes = _parse_index_payload(request.form.get("excluded_prescriptions"))
     excluded_orientation_indexes = _parse_index_payload(request.form.get("excluded_orientations"))
@@ -3151,12 +3390,7 @@ def lab_analysis_pdf():
     lines.append(f"Médico responsável: {doctor_name}")
     patient_info = "\n".join(lines)
 
-    public_base = current_app.config.get("PUBLIC_BASE_URL")
-    if public_base:
-        base = public_base.rstrip("/")
-        logo_url = f"{base}/static/images/1.png"
-    else:
-        logo_url = url_for("static", filename="images/1.png", _external=True)
+    logo_url = _resolve_public_logo_url("15.svg")
 
     pdf_html = render_template(
         "lab_analysis_pdf.html",
@@ -3164,6 +3398,7 @@ def lab_analysis_pdf():
         exams=abnormal,
         prescription=prescription,
         orientations=orientations,
+        summary=summary_text,
         generated_at=datetime.utcnow(),
         logo_url=logo_url,
     )
@@ -3184,6 +3419,11 @@ def lab_analysis_pdf():
 @app.route('/lab_analysis/view')
 @login_required
 def lab_analysis_view():
+    return serve_react_index()
+
+@app.route('/lab_analysis/loading')
+@login_required
+def lab_analysis_loading():
     return serve_react_index()
 
 
@@ -3219,6 +3459,7 @@ def api_lab_analysis_view():
     ]
     return jsonify({
         "mode": "ai",
+        "patient": context.get("patient") or {},
         "patient_details": patient_details,
         "summary": context.get("summary") or "",
         "exams": context.get("exams") or [],
@@ -3236,11 +3477,24 @@ def public_download():
         abort(400)
     try:
         s = URLSafeSerializer(app.config['SECRET_KEY'])
-        patient_id = s.loads(token)
+        payload = s.loads(token)
     except Exception:
         abort(403)
 
-    pdf = PdfFile.query.filter_by(patient_id=patient_id).order_by(PdfFile.id.desc()).first()
+    if isinstance(payload, dict):
+        patient_id = payload.get("patient_id") or payload.get("pid")
+        kind = payload.get("kind")
+    else:
+        patient_id = payload
+        kind = None
+
+    if not patient_id:
+        abort(403)
+
+    query = PdfFile.query.filter_by(patient_id=patient_id)
+    if kind:
+        query = query.join(SecureFile).filter(SecureFile.kind == kind)
+    pdf = query.order_by(PdfFile.id.desc()).first()
     if not pdf or not pdf.secure_file:
         abort(404)
 
@@ -5830,6 +6084,70 @@ def generate_result_pdf_bytes(*, patient: Patient, diagnostic_text: str, prescri
     except Exception as e:
         db.session.rollback()
         print("[PDF/gen] erro ao salvar cópia do PDF no DB:", e)
+
+    return pdf_io.getvalue()
+
+
+def generate_lab_analysis_pdf_bytes(
+    *,
+    patient: Patient,
+    context: dict[str, Any],
+    doctor_display_name: str,
+) -> bytes:
+    """
+    Gera o PDF do Ponza Lab (com prescrições e observações) e salva no banco.
+    """
+    from weasyprint import HTML
+    u = current_user()
+
+    patient_data = context.get("patient") or {}
+    lines = []
+    name = patient_data.get("nome") or patient.name
+    if name:
+        lines.append(f"Nome: {name}")
+    birthdate = patient_data.get("data_nascimento") or (
+        patient.birthdate.strftime("%d/%m/%Y") if patient.birthdate else None
+    )
+    if birthdate:
+        lines.append(f"Data de nascimento: {birthdate}")
+    cpf = patient_data.get("cpf") or (patient.cpf or "")
+    if cpf:
+        lines.append(f"CPF: {cpf}")
+    lines.append(f"Médico responsável: {doctor_display_name}")
+    patient_info = "\n".join(lines)
+
+    exams = context.get("abnormal_exams") or context.get("exams") or []
+    pdf_html = render_template(
+        "lab_analysis_pdf.html",
+        patient_info=patient_info,
+        exams=exams,
+        prescription=context.get("prescription") or [],
+        orientations=context.get("orientations") or [],
+        summary=context.get("summary") or "",
+        generated_at=datetime.utcnow(),
+        logo_url=_resolve_public_logo_url("15.svg"),
+    )
+
+    pdf_io = BytesIO()
+    HTML(string=pdf_html, base_url=current_app.root_path).write_pdf(pdf_io)
+    pdf_io.seek(0)
+
+    try:
+        pdf_bytes = pdf_io.getvalue()
+        consult = Consult.query.filter_by(patient_id=patient.id).order_by(Consult.date.desc()).first()
+        consult_id = consult.id if consult else None
+        display_name = f"Analise_{(patient.name or 'Paciente').replace(' ', '_')}.pdf"
+        _save_pdf_bytes_to_db(
+            user_id=u.id,
+            patient_id=patient.id,
+            consult_id=consult_id,
+            original_name=display_name,
+            data=pdf_bytes,
+            kind="lab_analysis_pdf",
+        )
+    except Exception as e:
+        db.session.rollback()
+        print("[PDF/gen] erro ao salvar PDF de analise no DB:", e)
 
     return pdf_io.getvalue()
 

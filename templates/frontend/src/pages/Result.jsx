@@ -48,6 +48,13 @@ export default function Result() {
   const [loading, setLoading] = useState(true)
   const [prescriptionChecks, setPrescriptionChecks] = useState([])
   const [orientationChecks, setOrientationChecks] = useState([])
+  const [prescriptionItems, setPrescriptionItems] = useState([])
+  const [orientationItems, setOrientationItems] = useState([])
+  const [newPrescription, setNewPrescription] = useState('')
+  const [newOrientation, setNewOrientation] = useState('')
+  const [patientDraft, setPatientDraft] = useState(null)
+  const [summaryDraft, setSummaryDraft] = useState('')
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const sidebarNav = useMemo(() => navItems, [])
 
@@ -96,23 +103,80 @@ export default function Result() {
 
   useEffect(() => {
     if (!data || data.mode !== 'ai') return
-    setPrescriptionChecks((data.prescription || []).map(() => true))
-    setOrientationChecks((data.orientations || []).map(() => true))
+    const prescriptions = Array.isArray(data.prescription) ? data.prescription : []
+    const orientations = Array.isArray(data.orientations) ? data.orientations : []
+    setPrescriptionItems(prescriptions)
+    setOrientationItems(orientations)
+    setPrescriptionChecks(prescriptions.map(() => true))
+    setOrientationChecks(orientations.map(() => true))
+    setPatientDraft(data.patient || {})
+    setSummaryDraft(data.summary || '')
   }, [data])
 
   const toggleCheck = (setter, index) => {
     setter((prev) => prev.map((value, i) => (i === index ? !value : value)))
   }
 
+  const handleAddPrescription = () => {
+    const value = newPrescription.trim()
+    if (!value) return
+    setPrescriptionItems((prev) => [...prev, value])
+    setPrescriptionChecks((prev) => [...prev, true])
+    setNewPrescription('')
+  }
+
+  const handleAddOrientation = () => {
+    const value = newOrientation.trim()
+    if (!value) return
+    setOrientationItems((prev) => [...prev, value])
+    setOrientationChecks((prev) => [...prev, true])
+    setNewOrientation('')
+  }
+
+  const updatePatientField = (key, value) => {
+    setPatientDraft((prev) => ({ ...(prev || {}), [key]: value }))
+  }
+
+  const handleCancelEdit = () => {
+    if (data?.mode === 'ai') {
+      setPatientDraft(data.patient || {})
+      setSummaryDraft(data.summary || '')
+    }
+    setEditModalOpen(false)
+  }
+
+  const handleSaveEdit = () => {
+    setEditModalOpen(false)
+  }
+
   const renderPatientDetails = () => {
-    if (!data?.patient_details?.length) {
+    const patient = patientDraft || data?.patient || {}
+    const details = [
+      ['Nome', patient.nome],
+      ['Data de nascimento', patient.data_nascimento],
+      ['Sexo', patient.sexo],
+      ['CPF', patient.cpf],
+      ['Telefone', patient.telefone],
+    ].filter(([, value]) => value)
+    if (!details.length && data?.patient_details?.length) {
+      return (
+        <div className="result-grid">
+          {data.patient_details.map((item, index) => (
+            <div key={`${item.label}-${index}`}>
+              <strong>{item.label}:</strong> {item.value}
+            </div>
+          ))}
+        </div>
+      )
+    }
+    if (!details.length) {
       return <div className="result-muted">Dados não informados.</div>
     }
     return (
       <div className="result-grid">
-        {data.patient_details.map((item, index) => (
-          <div key={`${item.label}-${index}`}>
-            <strong>{item.label}:</strong> {item.value}
+        {details.map(([label, value]) => (
+          <div key={label}>
+            <strong>{label}:</strong> {value}
           </div>
         ))}
       </div>
@@ -144,19 +208,24 @@ export default function Result() {
 
   const renderAiResults = () => {
     const exams = data?.exams || []
-    const prescription = data?.prescription || []
-    const orientations = data?.orientations || []
+    const prescription = prescriptionItems
+    const orientations = orientationItems
 
     return (
       <>
         <div className="result-section">
-          <h3>Paciente</h3>
+          <div className="result-section__header">
+            <h3>Paciente</h3>
+            <button type="button" className="result-edit" onClick={() => setEditModalOpen(true)}>
+              Editar dados
+            </button>
+          </div>
           {renderPatientDetails()}
         </div>
 
         <div className="result-section">
           <h3>Resumo clínico</h3>
-          <div className="result-textbox">{data.summary || 'Sem observações registradas.'}</div>
+          <div className="result-textbox">{summaryDraft || 'Sem observações registradas.'}</div>
         </div>
 
         <div className="result-section">
@@ -199,6 +268,18 @@ export default function Result() {
 
         <div className="result-section">
           <h3>Prescrição</h3>
+          <div className="result-add">
+            <input
+              type="text"
+              className="lab-input"
+              placeholder="Adicionar recomendação manual"
+              value={newPrescription}
+              onChange={(event) => setNewPrescription(event.target.value)}
+            />
+            <button type="button" className="lab-secondary" onClick={handleAddPrescription}>
+              Adicionar
+            </button>
+          </div>
           {prescription.length ? (
             <div className="result-table">
               <table>
@@ -236,6 +317,18 @@ export default function Result() {
 
         <div className="result-section">
           <h3>Orientações</h3>
+          <div className="result-add">
+            <input
+              type="text"
+              className="lab-input"
+              placeholder="Adicionar orientação manual"
+              value={newOrientation}
+              onChange={(event) => setNewOrientation(event.target.value)}
+            />
+            <button type="button" className="lab-secondary" onClick={handleAddOrientation}>
+              Adicionar
+            </button>
+          </div>
           {orientations.length ? (
             <div className="result-orientations">
               {orientations.map((item, index) => (
@@ -291,6 +384,9 @@ export default function Result() {
 
   const excludedPrescriptionsValue = buildExcludedValue(prescriptionChecks)
   const excludedOrientationsValue = buildExcludedValue(orientationChecks)
+  const patientOverrideValue = patientDraft ? JSON.stringify(patientDraft) : ''
+  const prescriptionOverrideValue = JSON.stringify(prescriptionItems || [])
+  const orientationsOverrideValue = JSON.stringify(orientationItems || [])
 
   return (
     <div className={`dashboard-shell ${collapsed ? 'is-collapsed' : ''}`}>
@@ -349,6 +445,10 @@ export default function Result() {
                   <>
                     <form method="post" action={withBackend('/lab_analysis/pdf')} target="_blank">
                       <input type="hidden" name="token" value={data.pdf_token} />
+                      <input type="hidden" name="patient_override" value={patientOverrideValue} />
+                      <input type="hidden" name="summary_override" value={summaryDraft || ''} />
+                      <input type="hidden" name="prescription_override" value={prescriptionOverrideValue} />
+                      <input type="hidden" name="orientations_override" value={orientationsOverrideValue} />
                       <input type="hidden" name="excluded_prescriptions" value={excludedPrescriptionsValue} />
                       <input type="hidden" name="excluded_orientations" value={excludedOrientationsValue} />
                       <button type="submit" className="lab-primary">
@@ -374,6 +474,82 @@ export default function Result() {
           )}
         </div>
       </main>
+
+      {editModalOpen ? (
+        <div className="lab-modal" role="dialog" aria-modal="true">
+          <div className="lab-modal__card lab-modal__card--wide">
+            <div className="lab-modal__badge">
+              <i className="fa fa-pencil" aria-hidden="true" />
+              <span>Editar resultado</span>
+            </div>
+            <h2>Atualize os dados do paciente</h2>
+            <div className="result-edit-grid">
+              <label className="lab-field">
+                <span>Nome</span>
+                <input
+                  type="text"
+                  className="lab-input"
+                  value={patientDraft?.nome || ''}
+                  onChange={(event) => updatePatientField('nome', event.target.value)}
+                />
+              </label>
+              <label className="lab-field">
+                <span>Data de nascimento</span>
+                <input
+                  type="text"
+                  className="lab-input"
+                  value={patientDraft?.data_nascimento || ''}
+                  onChange={(event) => updatePatientField('data_nascimento', event.target.value)}
+                />
+              </label>
+              <label className="lab-field">
+                <span>Sexo</span>
+                <input
+                  type="text"
+                  className="lab-input"
+                  value={patientDraft?.sexo || ''}
+                  onChange={(event) => updatePatientField('sexo', event.target.value)}
+                />
+              </label>
+              <label className="lab-field">
+                <span>CPF</span>
+                <input
+                  type="text"
+                  className="lab-input"
+                  value={patientDraft?.cpf || ''}
+                  onChange={(event) => updatePatientField('cpf', event.target.value)}
+                />
+              </label>
+              <label className="lab-field">
+                <span>Telefone</span>
+                <input
+                  type="text"
+                  className="lab-input"
+                  value={patientDraft?.telefone || ''}
+                  onChange={(event) => updatePatientField('telefone', event.target.value)}
+                />
+              </label>
+              <label className="lab-field lab-field--full">
+                <span>Resumo clínico</span>
+                <textarea
+                  rows={4}
+                  className="lab-textarea"
+                  value={summaryDraft}
+                  onChange={(event) => setSummaryDraft(event.target.value)}
+                />
+              </label>
+            </div>
+            <div className="lab-modal__actions">
+              <button type="button" className="btn-outline" onClick={handleCancelEdit}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-primary" onClick={handleSaveEdit}>
+                Salvar alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

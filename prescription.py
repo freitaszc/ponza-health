@@ -1676,12 +1676,12 @@ def normalize_phone(msisdn: str) -> str:
     if digits.startswith("1") and len(digits) in (11, 12):
         return digits
 
-    # Se recebeu um número local dos EUA (10 dígitos), prefixa código do país
-    if len(digits) == 10:
-        return f"1{digits}"
-
     # Se recebeu um número brasileiro sem DDI (11 dígitos), adiciona 55
     if len(digits) == 11 and not digits.startswith("55"):
+        return f"55{digits}"
+
+    # Se recebeu um número brasileiro sem DDI (10 dígitos - fixo), adiciona 55
+    if len(digits) == 10 and not digits.startswith("55"):
         return f"55{digits}"
 
     return digits
@@ -1690,10 +1690,11 @@ def normalize_phone(msisdn: str) -> str:
 # =============== ENVIO DE RELATÓRIOS ==================
 # ======================================================
 
-def _build_public_pdf_link(patient_id: int) -> str:
+def _build_public_pdf_link(patient_id: int, *, kind: Optional[str] = None) -> str:
     """Create a stable public link to the latest PDF for the given patient."""
     s = URLSafeSerializer(current_app.config["SECRET_KEY"])
-    token = s.dumps(patient_id)
+    token_payload = patient_id if not kind else {"patient_id": patient_id, "kind": kind}
+    token = s.dumps(token_payload)
     relative_url = url_for("public_download", token=token, _external=False)
     base_url = (
         current_app.config.get("PUBLIC_BASE_URL")
@@ -1708,11 +1709,20 @@ def _build_public_pdf_link(patient_id: int) -> str:
     return url_for("public_download", token=token, _external=True)
 
 
-def send_pdf_whatsapp_template(template_name, doctor_name, patient_name, phone, patient_id, *, clinic_contact: Optional[str] = None):
+def send_pdf_whatsapp_template(
+    template_name,
+    doctor_name,
+    patient_name,
+    phone,
+    patient_id,
+    *,
+    clinic_contact: Optional[str] = None,
+    link_kind: Optional[str] = None,
+):
     if not phone:
         return "Nenhum telefone informado."
 
-    analyzed_link = _build_public_pdf_link(patient_id)
+    analyzed_link = _build_public_pdf_link(patient_id, kind=link_kind)
     contact_text = (clinic_contact or "").strip() or "-"
 
     parameters = [
@@ -1737,10 +1747,17 @@ def send_pdf_whatsapp_template(template_name, doctor_name, patient_name, phone, 
         print(f"[WA] Erro ao enviar relatório para o médico {doctor_name or ''}: {err}")
     return err
 
-def send_pdf_whatsapp_patient(patient_name, patient_phone, patient_id, clinic_phone=None):
+def send_pdf_whatsapp_patient(
+    patient_name,
+    patient_phone,
+    patient_id,
+    clinic_phone=None,
+    *,
+    link_kind: Optional[str] = None,
+):
     if not patient_phone:
         return "Nenhum telefone informado."
-    analyzed_link = _build_public_pdf_link(patient_id)
+    analyzed_link = _build_public_pdf_link(patient_id, kind=link_kind)
     payload = {
         "messaging_product": "whatsapp",
         "to": normalize_phone(patient_phone),
@@ -1772,12 +1789,15 @@ def send_quote_whatsapp(supplier_name, phone, quote_title, quote_items, response
         return f"Fornecedor '{supplier_name}' sem telefone."
     to = normalize_phone(phone)
     items_text = " | ".join(f"• {it}" for it in (quote_items or [])[:10]).strip() or "-"
+    if len(items_text) > 480:
+        items_text = items_text[:477] + "..."
+    template_name = os.getenv("WHATSAPP_TEMPLATE_QUOTE", "ponzahealth_cotacao")
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
         "type": "template",
         "template": {
-            "name": "ponzahealth_cotação",
+            "name": template_name,
             "language": {"code": "pt_BR"},
             "components": [{
                 "type": "body",

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from '../components/Router'
 
 const backendBase = import.meta.env.VITE_BACKEND_URL || ''
@@ -41,10 +41,93 @@ export default function Upload() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sendDoctor, setSendDoctor] = useState(false)
   const [sendPatient, setSendPatient] = useState(false)
+  const [analysisModal, setAnalysisModal] = useState({ open: false, message: '', error: '' })
+  const [referenceModalOpen, setReferenceModalOpen] = useState(false)
+  const [referenceQuery, setReferenceQuery] = useState('')
+  const [referenceItems, setReferenceItems] = useState([])
+  const [referenceMap, setReferenceMap] = useState({})
+  const [referenceDrafts, setReferenceDrafts] = useState({})
+  const [referenceLoading, setReferenceLoading] = useState(false)
+  const [referenceSaving, setReferenceSaving] = useState(false)
+  const [referenceError, setReferenceError] = useState('')
+  const [referenceSaved, setReferenceSaved] = useState('')
 
   const fileInputRef = useRef(null)
+  const analysisTabRef = useRef(null)
+  const pendingPayloadRef = useRef(null)
 
   const sidebarNav = useMemo(() => navItems, [])
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (typeof window === 'undefined') return
+      if (event.origin !== window.location.origin) return
+      const { type, payload, error: message } = event.data || {}
+      if (type === 'ponza_lab_ready') {
+        if (analysisTabRef.current && pendingPayloadRef.current) {
+          analysisTabRef.current.postMessage(
+            { type: 'ponza_lab_start', payload: pendingPayloadRef.current },
+            window.location.origin,
+          )
+          setAnalysisModal({
+            open: true,
+            message: 'Análise iniciada em outra aba. Você pode continuar usando o sistema.',
+            error: '',
+          })
+        }
+      }
+      if (type === 'ponza_lab_done') {
+        setIsSubmitting(false)
+        setAnalysisModal({
+          open: true,
+          message: 'Análise concluída. Acompanhe na aba aberta.',
+          error: '',
+        })
+      }
+      if (type === 'ponza_lab_error') {
+        setIsSubmitting(false)
+        setAnalysisModal({
+          open: true,
+          message: '',
+          error: message || 'Não foi possível concluir a análise.',
+        })
+      }
+      if (type === 'ponza_lab_start' && payload) {
+        pendingPayloadRef.current = payload
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
+  useEffect(() => {
+    if (!referenceModalOpen || referenceItems.length) return
+    const fetchReferences = async () => {
+      setReferenceLoading(true)
+      setReferenceError('')
+      try {
+        const response = await fetch('/api/references', { credentials: 'include' })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || payload.success === false) {
+          throw new Error(payload.error || 'Não foi possível carregar as referências.')
+        }
+        const list = Object.entries(payload.references || {}).map(([name, entry]) => ({
+          name,
+          ideal: entry?.ideal || '',
+        }))
+        list.sort((a, b) => a.name.localeCompare(b.name))
+        const nextMap = Object.fromEntries(list.map((item) => [item.name, item.ideal]))
+        setReferenceItems(list)
+        setReferenceMap(nextMap)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar referências.'
+        setReferenceError(message)
+      } finally {
+        setReferenceLoading(false)
+      }
+    }
+    fetchReferences()
+  }, [referenceModalOpen, referenceItems.length])
 
   const handleToggleSidebar = () => {
     const next = !collapsed
@@ -87,6 +170,66 @@ export default function Upload() {
     updateFileName(file)
   }
 
+  const filteredReferences = useMemo(() => {
+    const query = referenceQuery.trim().toLowerCase()
+    if (!query) return []
+    return referenceItems
+      .filter((item) => item.name.toLowerCase().includes(query))
+      .slice(0, 20)
+  }, [referenceItems, referenceQuery])
+
+  const handleReferenceChange = (name, value) => {
+    setReferenceDrafts((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSaveReferences = async () => {
+    const updates = Object.entries(referenceDrafts)
+      .map(([name, value]) => ({
+        name,
+        ideal: value.trim(),
+      }))
+      .filter((entry) => entry.ideal && entry.ideal !== (referenceMap[entry.name] || ''))
+
+    if (!updates.length) {
+      setReferenceSaved('Nenhuma alteração para salvar.')
+      return
+    }
+
+    setReferenceSaving(true)
+    setReferenceError('')
+    setReferenceSaved('')
+    try {
+      const response = await fetch('/api/references', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ updates }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || 'Não foi possível salvar as referências.')
+      }
+      const nextItems = referenceItems.map((item) => {
+        const match = updates.find((entry) => entry.name === item.name)
+        if (!match) return item
+        return { ...item, ideal: match.ideal }
+      })
+      const nextMap = { ...referenceMap }
+      updates.forEach((entry) => {
+        nextMap[entry.name] = entry.ideal
+      })
+      setReferenceItems(nextItems)
+      setReferenceMap(nextMap)
+      setReferenceDrafts({})
+      setReferenceSaved('Referências atualizadas com sucesso.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao salvar referências.'
+      setReferenceError(message)
+    } finally {
+      setReferenceSaving(false)
+    }
+  }
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
@@ -97,9 +240,27 @@ export default function Upload() {
     }
 
     const formData = new FormData(event.currentTarget)
-    setIsSubmitting(true)
+    const payloadEntries = Array.from(formData.entries())
+    const analysisTab = window.open('/lab_analysis/loading', '_blank')
+    if (analysisTab) {
+      analysisTabRef.current = analysisTab
+      pendingPayloadRef.current = payloadEntries
+      setIsSubmitting(true)
+      setAnalysisModal({
+        open: true,
+        message: 'Abrindo a aba de acompanhamento da análise...',
+        error: '',
+      })
+      return
+    }
 
     try {
+      setIsSubmitting(true)
+      setAnalysisModal({
+        open: true,
+        message: 'Análise em andamento. Você pode continuar usando o sistema.',
+        error: '',
+      })
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
@@ -116,7 +277,9 @@ export default function Upload() {
       }
       setError('Resposta inválida do servidor.')
     } catch (err) {
-      setError('Não foi possível conectar ao servidor. Tente novamente.')
+      const message = 'Não foi possível conectar ao servidor. Tente novamente.'
+      setError(message)
+      setAnalysisModal({ open: true, message: '', error: message })
     } finally {
       setIsSubmitting(false)
     }
@@ -162,6 +325,11 @@ export default function Upload() {
             <p className="lab-subtitle">
               Envie um PDF de exames para análise automática ou insira os dados manualmente.
             </p>
+            <div className="lab-hero__actions">
+              <button type="button" className="lab-secondary" onClick={() => setReferenceModalOpen(true)}>
+                Ajustar referências
+              </button>
+            </div>
           </header>
 
           <div className="lab-toggle">
@@ -314,6 +482,110 @@ export default function Upload() {
           )}
         </div>
       </main>
+
+      {analysisModal.open ? (
+        <div className="lab-modal" role="dialog" aria-modal="true" aria-live="polite">
+          <div className="lab-modal__card">
+            <div className="lab-modal__badge">
+              <i className="fa fa-flask" aria-hidden="true" />
+              <span>Análise em andamento</span>
+            </div>
+            <h2>Seu exame está sendo analisado</h2>
+            <p>{analysisModal.error || analysisModal.message}</p>
+            {!analysisModal.error ? (
+              <div className="loading-dots" aria-label="Carregando">
+                <span />
+                <span />
+                <span />
+              </div>
+            ) : null}
+            <div className="lab-modal__actions">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => {
+                  analysisTabRef.current?.focus()
+                }}
+              >
+                Ir para a aba da análise
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setAnalysisModal({ open: false, message: '', error: '' })
+                  setIsSubmitting(false)
+                }}
+              >
+                Continuar aqui
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {referenceModalOpen ? (
+        <div className="lab-modal" role="dialog" aria-modal="true">
+          <div className="lab-modal__card lab-modal__card--wide">
+            <div className="lab-modal__badge">
+              <i className="fa fa-sliders" aria-hidden="true" />
+              <span>Referências laboratoriais</span>
+            </div>
+            <h2>Editar valores de referência</h2>
+            <p>Busque pelo exame e ajuste o valor ideal usado nas análises.</p>
+            <div className="reference-search">
+              <input
+                type="text"
+                className="lab-input"
+                placeholder="Ex.: Vitamina D"
+                value={referenceQuery}
+                onChange={(event) => setReferenceQuery(event.target.value)}
+              />
+            </div>
+            {referenceError ? <div className="lab-alert">{referenceError}</div> : null}
+            {referenceSaved ? <div className="reference-success">{referenceSaved}</div> : null}
+            {referenceLoading ? (
+              <div className="result-muted">Carregando referências...</div>
+            ) : (
+              <div className="reference-list">
+                {filteredReferences.length ? (
+                  filteredReferences.map((item) => (
+                    <div key={item.name} className="reference-row">
+                      <div className="reference-name">{item.name}</div>
+                      <input
+                        type="text"
+                        className="lab-input"
+                        value={referenceDrafts[item.name] ?? item.ideal}
+                        onChange={(event) => handleReferenceChange(item.name, event.target.value)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="result-muted">Digite para buscar um exame.</div>
+                )}
+              </div>
+            )}
+            <div className="lab-modal__actions">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => {
+                  setReferenceModalOpen(false)
+                  setReferenceQuery('')
+                  setReferenceError('')
+                  setReferenceSaved('')
+                  setReferenceDrafts({})
+                }}
+              >
+                Fechar
+              </button>
+              <button type="button" className="btn-primary" onClick={handleSaveReferences} disabled={referenceSaving}>
+                {referenceSaving ? 'Salvando...' : 'Salvar referências'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

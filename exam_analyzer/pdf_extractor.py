@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
+import time
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -60,20 +62,169 @@ def _extract_full_text(file_bytes: bytes) -> str:
         return ""
 
 
-def extract_exam_payload(file_bytes: bytes, *, require_ocr: bool = False) -> Dict[str, Any]:
-    """Return the raw PDF text so the AI can interpret it directly."""
+PATIENT_KEYWORDS = (
+    "paciente",
+    "nome",
+    "cpf",
+    "sexo",
+    "nascimento",
+    "idade",
+    "data nasc",
+    "data de nascimento",
+)
+
+RESULT_HINTS = ("ref", "refer", "valor", "resultado", "vr")
+
+RESULT_LINE_RE = re.compile(
+    r"^(?P<name>[A-Za-z0-9 /().%-]{2,}?)\s*[:\-–]\s*"
+    r"(?P<value>[-+]?\d[\d.,]*)\s*"
+    r"(?P<unit>[A-Za-z/%\^0-9]+)?"
+    r"(?:\s*(?:\(|\[)?(?:ref|vr|refer(?:encia)?|valor(?:es)? de ref)[:\s]*"
+    r"(?P<ref>[^\)\]]+))?",
+    re.IGNORECASE,
+)
+
+
+def _clean_lines(raw_text: str) -> List[str]:
+    lines = []
+    for line in raw_text.splitlines():
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        if len(cleaned) > 180:
+            cleaned = cleaned[:180] + "..."
+        lines.append(cleaned)
+    return lines
+
+
+def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
+    lines = _clean_lines(raw_text)
+    patient_lines: List[str] = []
+    result_lines: List[str] = []
+    for line in lines:
+        lower = line.lower()
+        if any(keyword in lower for keyword in PATIENT_KEYWORDS):
+            patient_lines.append(line)
+            continue
+        if any(char.isdigit() for char in line):
+            if any(hint in lower for hint in RESULT_HINTS) or ":" in line or "-" in line:
+                result_lines.append(line)
+    return {"patient_lines": patient_lines, "result_lines": result_lines}
+
+
+def _parse_patient_info(lines: List[str]) -> Dict[str, Any]:
+    patient: Dict[str, Any] = {}
+    for line in lines:
+        lower = line.lower()
+        if "cpf" in lower and "cpf" not in patient:
+            parts = line.split(":")
+            if len(parts) > 1:
+                patient["cpf"] = parts[-1].strip()
+        if ("nome" in lower or "paciente" in lower) and "nome" not in patient:
+            parts = line.split(":")
+            if len(parts) > 1:
+                patient["nome"] = parts[-1].strip()
+        if ("sexo" in lower) and "sexo" not in patient:
+            parts = line.split(":")
+            if len(parts) > 1:
+                patient["sexo"] = parts[-1].strip()
+        if ("nascimento" in lower or "data nasc" in lower) and "data_nascimento" not in patient:
+            parts = line.split(":")
+            if len(parts) > 1:
+                patient["data_nascimento"] = parts[-1].strip()
+    return patient
+
+
+def _parse_result_lines(lines: List[str]) -> List[Dict[str, Any]]:
+    results: List[Dict[str, Any]] = []
+    for line in lines:
+        match = RESULT_LINE_RE.match(line)
+        if match:
+            data = match.groupdict()
+            results.append({
+                "nome": (data.get("name") or "").strip(),
+                "valor": (data.get("value") or "").strip(),
+                "unidade": (data.get("unit") or "").strip(),
+                "referencia": (data.get("ref") or "").strip(),
+                "raw_line": line,
+            })
+            continue
+        tokens = line.split()
+        for idx, token in enumerate(tokens):
+            if re.match(r"^[-+]?\d[\d.,]*$", token):
+                name = " ".join(tokens[:idx]).strip()
+                unit = tokens[idx + 1] if idx + 1 < len(tokens) else ""
+                reference = " ".join(tokens[idx + 2 :]) if idx + 2 < len(tokens) else ""
+                if name:
+                    results.append({
+                        "nome": name,
+                        "valor": token,
+                        "unidade": unit,
+                        "referencia": reference,
+                        "raw_line": line,
+                    })
+                break
+    return results
+
+
+def extract_exam_payload(
+    file_bytes: bytes,
+    *,
+    require_ocr: bool = False,
+    timings: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """Return structured excerpts for the AI (avoid raw full text)."""
     if not file_bytes:
         raise ValueError("PDF vazio ou corrompido.")
     references_path = _locate_references()
+    timings = timings or {}
+    extract_start = time.perf_counter()
     raw_text = _extract_full_text(file_bytes)
+    timings["pdf_extract_ms"] = round((time.perf_counter() - extract_start) * 1000)
+
+    key_lines = _extract_key_lines(raw_text)
+    patient = _parse_patient_info(key_lines.get("patient_lines") or [])
+    lab_results = _parse_result_lines(key_lines.get("result_lines") or [])
+    max_results = int(os.getenv("EXAM_ANALYSIS_MAX_RESULTS", "120"))
+    if len(lab_results) > max_results:
+        lab_results = lab_results[:max_results]
+
+    ocr_ms = 0
+    ocr_pages = 0
+    if require_ocr or len(raw_text) < int(os.getenv("EXAM_ANALYSIS_OCR_MIN_CHARS", "200")):
+        try:
+            from pdf_pipeline.structured_extractor import run_pipeline
+
+            ocr_start = time.perf_counter()
+            pipeline = run_pipeline(file_bytes, references_path, require_ocr=True)
+            ocr_ms = round((time.perf_counter() - ocr_start) * 1000)
+            raw_text = pipeline.raw_text or raw_text
+            patient = pipeline.patient_data or patient
+            lab_results = pipeline.lab_results or lab_results
+            ocr_pages = pipeline.artifacts.ocr_pages
+        except Exception:
+            ocr_ms = 0
+    if ocr_ms:
+        timings["ocr_ms"] = ocr_ms
+
     references_raw = _load_reference_payload(references_path)
+    merged_lines = (key_lines.get("patient_lines") or []) + (key_lines.get("result_lines") or [])
+    max_lines = int(os.getenv("EXAM_ANALYSIS_MAX_LINES", "200"))
+    max_excerpt = int(os.getenv("EXAM_ANALYSIS_MAX_EXCERPT_CHARS", "6000"))
     return {
-        "patient": {},
-        "lab_results": [],
+        "patient": patient,
+        "lab_results": lab_results,
         "suggestions": [],
-        "raw_text": raw_text,
+        "key_lines": merged_lines[:max_lines],
+        "raw_excerpt": raw_text[:max_excerpt],
         "reference_table": references_raw,
         "references_path": references_path,
-        "artifacts": {"ocr": 0, "ocr_pages": 0, "blocks": 0},
+        "artifacts": {
+            "ocr": 1 if ocr_ms else 0,
+            "ocr_pages": ocr_pages,
+            "blocks": 0,
+            "ocr_ms": ocr_ms,
+        },
         "gender_hint": None,
+        "timings": timings,
     }

@@ -8,6 +8,7 @@ import Agenda from './pages/Agenda'
 import Account from './pages/Account'
 import Cadastro from './pages/Cadastro'
 import Dashboard from './pages/Dashboard'
+import LabAnalysisLoading from './pages/LabAnalysisLoading'
 import QuoteRespond from './pages/QuoteRespond'
 import ForgotPassword from './pages/ForgotPassword'
 import Home from './pages/Home'
@@ -45,6 +46,7 @@ const routes = [
   { path: '/privacy_policy', component: PrivacyPolicy, shell: 'marketing' },
   { path: '/termos', component: Terms, shell: 'marketing' },
   { path: '/trial_locked', component: TrialLocked, shell: 'plain' },
+  { path: '/lab_analysis/loading', component: LabAnalysisLoading, shell: 'plain' },
   { path: '/index', component: Dashboard, shell: 'app' },
   { path: '/account', component: Account, shell: 'app' },
   { path: '/payments', component: Payments, shell: 'app' },
