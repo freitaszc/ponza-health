@@ -671,6 +671,23 @@ def _resolve_public_logo_url(filename: str) -> str:
     return url_for("static", filename=f"images/{filename}", _external=True)
 
 
+def _public_base_url() -> Optional[str]:
+    return (
+        current_app.config.get("PUBLIC_BASE_URL")
+        or current_app.config.get("APP_BASE_URL")
+        or os.getenv("PUBLIC_APP_URL")
+        or os.getenv("APP_BASE_URL")
+    )
+
+
+def _external_endpoint_url(endpoint: str, **values: Any) -> str:
+    relative = url_for(endpoint, _external=False, **values)
+    base_url = _public_base_url()
+    if base_url:
+        return urljoin(base_url.rstrip("/") + "/", relative.lstrip("/"))
+    return url_for(endpoint, _external=True, **values)
+
+
 def _serve_pdf_from_db(pdf_file_id: int, *, download_name: Optional[str] = None):
     """
     Envia um PDF armazenado no banco (verifica o owner antes).
@@ -1149,7 +1166,7 @@ def verify_email(token):
     if normalized_plan in ['monthly', 'yearly']:
         stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-        base_url = request.host_url.rstrip('/')
+        base_url = (_public_base_url() or request.host_url).rstrip('/')
         price_amount = 838.80 if normalized_plan == 'yearly' else 79.90
         interval = 'year' if normalized_plan == 'yearly' else 'month'
         plan_name = f"Plano {'Anual' if normalized_plan == 'yearly' else 'Mensal'} Ponza Health"
@@ -1678,27 +1695,23 @@ def purchase():
             '150': STRIPE_PRICE_PACKAGE_150,
             '500': STRIPE_PRICE_PACKAGE_500,
         }
-        price_id = price_map.get(pacote)
-
-        if not price_id:
+        if pacote not in price_map:
             flash('Selecione um pacote válido.', 'warning')
             return redirect(url_for('payments'))
+        price_id = price_map.get(pacote) or ""
 
         try:
-            session = stripe.checkout.Session.create(
-                mode='payment',
-                payment_method_types=['card', 'pix'],
-                line_items=[{'price': price_id, 'quantity': 1}],
-                success_url=f"{url_for('payments', _external=True)}?success=true",
-                cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+            session = _create_package_checkout_session(
+                user=current_user(),
+                package=int(pacote),
+                price_id=price_id,
             )
             print(f"[Stripe] ✅ Sessão criada para pacote {pacote}")
             return redirect(session.url or url_for('payments'), code=303)
 
         except Exception as e:
             print("[Stripe] ❌ Erro ao criar sessão:", e)
-            flash("Erro ao iniciar pagamento. Tente novamente mais tarde.", "danger")
-            return redirect(url_for('payments'))
+            return _stripe_checkout_error_redirect(current_user(), "checkout_error")
 
     # Se for GET, entrega a aplicação React
     return serve_react_index()
@@ -1833,11 +1846,99 @@ STRIPE_PRICE_YEARLY = os.getenv("STRIPE_PRICE_YEARLY", "")
 STRIPE_PRICE_PACKAGE_50 = os.getenv("STRIPE_PRICE_PACKAGE_50", "")
 STRIPE_PRICE_PACKAGE_150 = os.getenv("STRIPE_PRICE_PACKAGE_150", "")
 STRIPE_PRICE_PACKAGE_500 = os.getenv("STRIPE_PRICE_PACKAGE_500", "")
+PACKAGE_PRICE_CENTS = {
+    50: 12000,
+    150: 30000,
+    500: 80000,
+}
 
 def _stripe_checkout_error_redirect(user: User, code: str):
     status = _build_trial_status(user)
     target = "trial_locked" if status.get("trial_expired") else "payments"
     return redirect(url_for(target, error=code))
+
+def _package_amount_cents(package: int) -> Optional[int]:
+    return PACKAGE_PRICE_CENTS.get(package)
+
+def _create_package_checkout_session(*, user: User, package: int, price_id: str):
+    amount_cents = _package_amount_cents(package)
+    if amount_cents is None:
+        raise ValueError("Pacote invalido.")
+
+    def _create(line_items):
+        return stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card", "boleto"],
+            line_items=line_items,
+            success_url=f"{_external_endpoint_url('payments')}?success=true",
+            cancel_url=f"{_external_endpoint_url('payments')}?canceled=true",
+        )
+
+    if price_id:
+        try:
+            return _create([{"price": price_id, "quantity": 1}])
+        except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
+            param = (getattr(exc, "param", "") or "").lower()
+            message = str(exc).lower()
+            if "price" not in param and "price" not in message:
+                raise
+            current_app.logger.warning(
+                "[Stripe] Price ID invalido para pacote %s (%s): %s",
+                package,
+                price_id,
+                exc,
+            )
+
+    return _create([{
+        "price_data": {
+            "currency": "brl",
+            "unit_amount": int(amount_cents),
+            "product_data": {"name": f"Pacote {package} analises"},
+        },
+        "quantity": 1,
+    }])
+
+def _create_subscription_checkout_session(
+    *,
+    user: User,
+    plan: str,
+    price_id: str,
+    amount_cents: int,
+    interval: str,
+    plan_name: str,
+):
+    def _create(line_items):
+        return stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=line_items,
+            metadata={"user_id": str(user.id), "plan": plan},
+            success_url=f"{_external_endpoint_url('subscription_success')}?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{_external_endpoint_url('payments')}?canceled=true",
+        )
+
+    if price_id:
+        try:
+            return _create([{"price": price_id, "quantity": 1}])
+        except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
+            current_app.logger.warning(
+                "[Stripe] Price ID invalido para %s (%s): %s",
+                plan,
+                price_id,
+                exc,
+            )
+        except Exception:
+            raise
+
+    return _create([{
+        "price_data": {
+            "currency": "brl",
+            "unit_amount": int(amount_cents),
+            "product_data": {"name": plan_name},
+            "recurring": {"interval": interval},
+        },
+        "quantity": 1,
+    }])
 
 @app.route("/subscribe_pay_mensal")
 @login_required
@@ -1846,15 +1947,16 @@ def subscribe_pay_mensal():
     user = current_user()
     if not stripe.api_key or not STRIPE_PRICE_MONTHLY:
         current_app.logger.error("[Stripe] Configuracao incompleta para plano mensal.")
-        return _stripe_checkout_error_redirect(user, "checkout_unavailable")
+        if not stripe.api_key:
+            return _stripe_checkout_error_redirect(user, "checkout_unavailable")
     try:
-        session = stripe.checkout.Session.create(
-            mode="subscription",
-            payment_method_types=["card"],
-            line_items=[{"price": STRIPE_PRICE_MONTHLY, "quantity": 1}],
-            metadata={"user_id": str(user.id), "plan": "monthly"},
-            success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+        session = _create_subscription_checkout_session(
+            user=user,
+            plan="monthly",
+            price_id=STRIPE_PRICE_MONTHLY,
+            amount_cents=7990,
+            interval="month",
+            plan_name="Plano Mensal Ponza Health",
         )
     except Exception:
         current_app.logger.exception("[Stripe] Falha ao criar sessao de checkout mensal.")
@@ -1870,15 +1972,16 @@ def subscribe_pay_anual():
     user = current_user()
     if not stripe.api_key or not STRIPE_PRICE_YEARLY:
         current_app.logger.error("[Stripe] Configuracao incompleta para plano anual.")
-        return _stripe_checkout_error_redirect(user, "checkout_unavailable")
+        if not stripe.api_key:
+            return _stripe_checkout_error_redirect(user, "checkout_unavailable")
     try:
-        session = stripe.checkout.Session.create(
-            mode="subscription",
-            payment_method_types=["card"],
-            line_items=[{"price": STRIPE_PRICE_YEARLY, "quantity": 1}],
-            metadata={"user_id": str(user.id), "plan": "yearly"},
-            success_url=f"{url_for('subscription_success', _external=True)}?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
+        session = _create_subscription_checkout_session(
+            user=user,
+            plan="yearly",
+            price_id=STRIPE_PRICE_YEARLY,
+            amount_cents=83880,
+            interval="year",
+            plan_name="Plano Anual Ponza Health",
         )
     except Exception:
         current_app.logger.exception("[Stripe] Falha ao criar sessao de checkout anual.")
@@ -1897,18 +2000,19 @@ def purchase_package(package):
         150: STRIPE_PRICE_PACKAGE_150,
         500: STRIPE_PRICE_PACKAGE_500,
     }
-    price_id = price_map.get(package)
-    if not price_id:
+    if package not in price_map:
         flash("Pacote inválido.", "danger")
         return redirect(url_for("payments"))
-
-    session = stripe.checkout.Session.create(
-        mode="payment",
-        payment_method_types=["card", "pix"],
-        line_items=[{"price": price_id, "quantity": 1}],
-        success_url=f"{url_for('payments', _external=True)}?success=true",
-        cancel_url=f"{url_for('payments', _external=True)}?canceled=true",
-    )
+    price_id = price_map.get(package) or ""
+    try:
+        session = _create_package_checkout_session(
+            user=current_user(),
+            package=package,
+            price_id=price_id,
+        )
+    except Exception:
+        current_app.logger.exception("[Stripe] Falha ao criar sessao de checkout do pacote.")
+        return _stripe_checkout_error_redirect(current_user(), "checkout_error")
     print(f"[Stripe] ✅ Sessão criada: pacote {package}")
     url = session.url or url_for("payments")
     return redirect(url, code=303)

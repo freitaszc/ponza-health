@@ -6,6 +6,11 @@ load_dotenv()
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 BASE_URL = os.getenv("APP_BASE_URL", "https://ponzahealth.com.br")
+PACKAGE_PRICE_CENTS = {
+    50: 12000,
+    150: 30000,
+    500: 80000,
+}
 
 # -------------------------------------------------------------------
 # ASSINATURAS (Mensal e Anual)
@@ -22,7 +27,7 @@ def generate_subscription_link(user_id, plan="monthly"):
             plan_name = "Assinatura mensal Ponza Health"
 
         session = stripe.checkout.Session.create(
-            payment_method_types=["card", "pix"],
+            payment_method_types=["card"],
             mode="subscription",
             line_items=[{
                 "price": price_id,
@@ -55,20 +60,40 @@ def generate_package_link(package):
             500: os.getenv("STRIPE_PRICE_PACKAGE_500"),
         }
 
-        price_id = price_ids.get(package)
-        if not price_id:
-            raise ValueError(f"Nenhum price_id configurado para o pacote {package}")
+        if package not in price_ids:
+            raise ValueError(f"Pacote invalido: {package}")
+        price_id = price_ids.get(package) or ""
 
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            mode="payment",
-            line_items=[{
+        def _create(line_items):
+            return stripe.checkout.Session.create(
+                payment_method_types=["card", "boleto"],
+                mode="payment",
+                line_items=line_items,
+                success_url=f"{BASE_URL}/payments/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{BASE_URL}/payments/cancel",
+            )
+
+        try:
+            session = _create([{
                 "price": price_id,
                 "quantity": 1,
-            }],
-            success_url=f"{BASE_URL}/payments/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{BASE_URL}/payments/cancel",
-        )
+            }])
+        except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
+            param = (getattr(exc, "param", "") or "").lower()
+            message = str(exc).lower()
+            if "price" not in param and "price" not in message:
+                raise
+            amount_cents = PACKAGE_PRICE_CENTS.get(package)
+            if not amount_cents:
+                raise
+            session = _create([{
+                "price_data": {
+                    "currency": "brl",
+                    "unit_amount": int(amount_cents),
+                    "product_data": {"name": f"Pacote {package} analises"},
+                },
+                "quantity": 1,
+            }])
 
         print(f"[Stripe] ✅ Created payment link for {package} analyses package")
         return session.url
