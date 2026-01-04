@@ -14,6 +14,7 @@ const resolvePath = (href) => {
   }
   return href
 }
+const normalizeReferenceName = (value) => value.trim().toLowerCase()
 
 const navItems = [
   { label: 'Início', href: '/index', icon: 'fa-home' },
@@ -50,6 +51,8 @@ export default function Upload() {
   const [referenceSaving, setReferenceSaving] = useState(false)
   const [referenceError, setReferenceError] = useState('')
   const [referenceSaved, setReferenceSaved] = useState('')
+  const [newReferenceName, setNewReferenceName] = useState('')
+  const [newReferenceIdeal, setNewReferenceIdeal] = useState('')
 
   const fileInputRef = useRef(null)
   const analysisTabRef = useRef(null)
@@ -165,6 +168,47 @@ export default function Upload() {
 
   const handleReferenceChange = (name, value) => {
     setReferenceDrafts((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleAddReference = () => {
+    const name = newReferenceName.trim()
+    const ideal = newReferenceIdeal.trim()
+    setReferenceError('')
+    setReferenceSaved('')
+
+    if (referenceLoading) {
+      setReferenceError('Aguarde o carregamento das referências.')
+      return
+    }
+    if (!name) {
+      setReferenceError('Informe o nome do exame.')
+      return
+    }
+    if (!ideal) {
+      setReferenceError('Informe o valor ideal do exame.')
+      return
+    }
+
+    const normalizedName = normalizeReferenceName(name)
+    const exists = referenceItems.some(
+      (item) => normalizeReferenceName(item.name) === normalizedName,
+    )
+    if (exists) {
+      setReferenceError('Este exame já existe. Ajuste o valor na lista abaixo.')
+      setReferenceQuery(name)
+      return
+    }
+
+    setReferenceItems((prev) => {
+      const next = [...prev, { name, ideal: '' }]
+      next.sort((a, b) => a.name.localeCompare(b.name))
+      return next
+    })
+    setReferenceDrafts((prev) => ({ ...prev, [name]: ideal }))
+    setReferenceQuery(name)
+    setReferenceSaved('Exame adicionado à lista. Clique em "Salvar referências" para aplicar.')
+    setNewReferenceName('')
+    setNewReferenceIdeal('')
   }
 
   const handleSaveReferences = async () => {
@@ -475,6 +519,36 @@ export default function Upload() {
                 onChange={(event) => setReferenceQuery(event.target.value)}
               />
             </div>
+            <div className="reference-add">
+              <div className="reference-add__title">Adicionar novo exame</div>
+              <div className="reference-add__row">
+                <input
+                  type="text"
+                  className="lab-input"
+                  placeholder="Nome do exame"
+                  value={newReferenceName}
+                  onChange={(event) => setNewReferenceName(event.target.value)}
+                />
+                <input
+                  type="text"
+                  className="lab-input"
+                  placeholder="Valor ideal (ex.: 30-60 ng/mL)"
+                  value={newReferenceIdeal}
+                  onChange={(event) => setNewReferenceIdeal(event.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-outline reference-add__button"
+                  onClick={handleAddReference}
+                  disabled={referenceSaving || referenceLoading}
+                >
+                  Adicionar
+                </button>
+              </div>
+              <p className="reference-add__hint">
+                Novos exames entram nas próximas análises após salvar as referências.
+              </p>
+            </div>
             {referenceError ? <div className="lab-alert">{referenceError}</div> : null}
             {referenceSaved ? <div className="reference-success">{referenceSaved}</div> : null}
             {referenceLoading ? (
@@ -508,6 +582,8 @@ export default function Upload() {
                   setReferenceError('')
                   setReferenceSaved('')
                   setReferenceDrafts({})
+                  setNewReferenceName('')
+                  setNewReferenceIdeal('')
                 }}
               >
                 Fechar

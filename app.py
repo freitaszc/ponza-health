@@ -2288,27 +2288,48 @@ def api_references():
         return jsonify({"success": False, "error": str(exc)}), 500
 
     updated = 0
+    created = 0
+
+    def find_existing_key(raw_name: str) -> str | None:
+        lowered = raw_name.lower()
+        for key in table.keys():
+            if key.lower() == lowered:
+                return key
+        return None
+
     for item in updates:
         if not isinstance(item, dict):
             continue
         name = (item.get("name") or "").strip()
-        if not name or name not in table:
+        if not name:
             continue
         ideal = item.get("ideal")
         if ideal is None:
             continue
         ideal_text = str(ideal).strip()
-        if table[name].get("ideal") == ideal_text:
+        if not ideal_text:
             continue
-        table[name]["ideal"] = ideal_text
-        updated += 1
+        existing_key = find_existing_key(name)
+        if existing_key:
+            entry = table.get(existing_key)
+            if not isinstance(entry, dict):
+                entry = {}
+                table[existing_key] = entry
+            if entry.get("ideal") == ideal_text:
+                continue
+            entry["ideal"] = ideal_text
+            updated += 1
+            continue
 
-    if updated:
+        table[name] = {"ideal": ideal_text, "medications": {"low": "", "high": ""}}
+        created += 1
+
+    if updated or created:
         try:
             _save_reference_table(table)
         except Exception as exc:
             return jsonify({"success": False, "error": str(exc)}), 500
-    return jsonify({"success": True, "updated": updated})
+    return jsonify({"success": True, "updated": updated, "created": created})
 
 
 @app.route('/api/upload', methods=['POST'])
