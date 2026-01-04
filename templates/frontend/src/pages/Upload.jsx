@@ -41,7 +41,6 @@ export default function Upload() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sendDoctor, setSendDoctor] = useState(false)
   const [sendPatient, setSendPatient] = useState(false)
-  const [analysisModal, setAnalysisModal] = useState({ open: false, message: '', error: '' })
   const [referenceModalOpen, setReferenceModalOpen] = useState(false)
   const [referenceQuery, setReferenceQuery] = useState('')
   const [referenceItems, setReferenceItems] = useState([])
@@ -69,28 +68,14 @@ export default function Upload() {
             { type: 'ponza_lab_start', payload: pendingPayloadRef.current },
             window.location.origin,
           )
-          setAnalysisModal({
-            open: true,
-            message: 'Análise iniciada em outra aba. Você pode continuar usando o sistema.',
-            error: '',
-          })
         }
       }
       if (type === 'ponza_lab_done') {
         setIsSubmitting(false)
-        setAnalysisModal({
-          open: true,
-          message: 'Análise concluída. Acompanhe na aba aberta.',
-          error: '',
-        })
       }
       if (type === 'ponza_lab_error') {
         setIsSubmitting(false)
-        setAnalysisModal({
-          open: true,
-          message: '',
-          error: message || 'Não foi possível concluir a análise.',
-        })
+        setError(message || 'Não foi possível concluir a análise.')
       }
       if (type === 'ponza_lab_start' && payload) {
         pendingPayloadRef.current = payload
@@ -246,21 +231,11 @@ export default function Upload() {
       analysisTabRef.current = analysisTab
       pendingPayloadRef.current = payloadEntries
       setIsSubmitting(true)
-      setAnalysisModal({
-        open: true,
-        message: 'Abrindo a aba de acompanhamento da análise...',
-        error: '',
-      })
       return
     }
 
     try {
       setIsSubmitting(true)
-      setAnalysisModal({
-        open: true,
-        message: 'Análise em andamento. Você pode continuar usando o sistema.',
-        error: '',
-      })
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
@@ -279,7 +254,6 @@ export default function Upload() {
     } catch (err) {
       const message = 'Não foi possível conectar ao servidor. Tente novamente.'
       setError(message)
-      setAnalysisModal({ open: true, message: '', error: message })
     } finally {
       setIsSubmitting(false)
     }
@@ -482,47 +456,6 @@ export default function Upload() {
           )}
         </div>
       </main>
-
-      {analysisModal.open ? (
-        <div className="lab-modal" role="dialog" aria-modal="true" aria-live="polite">
-          <div className="lab-modal__card">
-            <div className="lab-modal__badge">
-              <i className="fa fa-flask" aria-hidden="true" />
-              <span>Análise em andamento</span>
-            </div>
-            <h2>Seu exame está sendo analisado</h2>
-            <p>{analysisModal.error || analysisModal.message}</p>
-            {!analysisModal.error ? (
-              <div className="loading-dots" aria-label="Carregando">
-                <span />
-                <span />
-                <span />
-              </div>
-            ) : null}
-            <div className="lab-modal__actions">
-              <button
-                type="button"
-                className="btn-outline"
-                onClick={() => {
-                  analysisTabRef.current?.focus()
-                }}
-              >
-                Ir para a aba da análise
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  setAnalysisModal({ open: false, message: '', error: '' })
-                  setIsSubmitting(false)
-                }}
-              >
-                Continuar aqui
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {referenceModalOpen ? (
         <div className="lab-modal" role="dialog" aria-modal="true">

@@ -86,7 +86,7 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         "lab_results": lab_results,
         "key_lines": key_lines,
     }
-    if payload.get("include_raw_excerpt") and raw_excerpt:
+    if raw_excerpt:
         input_payload["raw_excerpt"] = raw_excerpt[:MAX_TEXT]
     schema = json.dumps(OUTPUT_SPEC, ensure_ascii=False, indent=2)
     input_json = json.dumps(input_payload, ensure_ascii=False, indent=2)

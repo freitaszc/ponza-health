@@ -62,92 +62,6 @@ def _extract_full_text(file_bytes: bytes) -> str:
         return ""
 
 
-def _merge_patient_payload(base: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
-    if not incoming:
-        return base
-    mapping = {
-        "nome": ("nome", "name"),
-        "sexo": ("sexo", "gender"),
-        "data_nascimento": ("data_nascimento", "birth_date"),
-        "telefone": ("telefone", "phone"),
-        "cpf": ("cpf", "cpf"),
-    }
-    merged = dict(base)
-    for target_key, candidates in mapping.items():
-        if merged.get(target_key):
-            continue
-        for key in candidates:
-            value = incoming.get(key)
-            if value:
-                merged[target_key] = value
-                break
-    return merged
-
-
-def _normalize_lab_results(raw_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    normalized: List[Dict[str, Any]] = []
-    for item in raw_results:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("nome") or item.get("name") or item.get("test")
-        if not name:
-            continue
-        normalized.append({
-            "nome": name,
-            "valor": item.get("valor") if "valor" in item else item.get("value"),
-            "unidade": item.get("unidade") if "unidade" in item else item.get("unit"),
-            "referencia": item.get("referencia") if "referencia" in item else item.get("reference"),
-            "raw_line": item.get("raw_line") or item.get("source") or item.get("raw"),
-        })
-    return normalized
-
-
-def _merge_lab_results(primary: List[Dict[str, Any]], secondary: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    if not primary:
-        return list(secondary)
-    if not secondary:
-        return list(primary)
-    merged = [dict(item) for item in primary]
-    index: Dict[str, int] = {}
-
-    def _name_key(item: Dict[str, Any]) -> str:
-        raw = item.get("nome") or item.get("name") or item.get("test") or ""
-        return " ".join(str(raw).strip().lower().split())
-
-    for idx, item in enumerate(merged):
-        name_key = _name_key(item)
-        if name_key:
-            index[name_key] = idx
-
-    for item in secondary:
-        if not isinstance(item, dict):
-            continue
-        name_key = _name_key(item)
-        if not name_key:
-            continue
-        if name_key not in index:
-            merged.append(dict(item))
-            index[name_key] = len(merged) - 1
-            continue
-        target = merged[index[name_key]]
-        for key in ("valor", "value", "unidade", "unit", "referencia", "reference", "raw_line"):
-            if not target.get(key) and item.get(key):
-                target[key] = item.get(key)
-        if not target.get("nome") and item.get("nome"):
-            target["nome"] = item.get("nome")
-
-    return merged
-
-
-def _should_enrich_extraction(patient: Dict[str, Any], lab_results: List[Dict[str, Any]]) -> bool:
-    min_results = int(os.getenv("EXAM_ANALYSIS_MIN_RESULTS", "4"))
-    if len(lab_results) < min_results:
-        return True
-    if any(patient.get(key) for key in ("nome", "cpf", "data_nascimento", "sexo", "telefone")):
-        return False
-    return True
-
-
 PATIENT_KEYWORDS = (
     "paciente",
     "nome",
@@ -263,7 +177,7 @@ def extract_exam_payload(
     require_ocr: bool = False,
     timings: Dict[str, Any] | None = None,
 ) -> Dict[str, Any]:
-    """Return structured excerpts for the AI (avoid raw full text)."""
+    """Return structured excerpts for the AI using plain PDF text + OCR when needed."""
     if not file_bytes:
         raise ValueError("PDF vazio ou corrompido.")
     references_path = _locate_references()
@@ -272,36 +186,12 @@ def extract_exam_payload(
     raw_text = _extract_full_text(file_bytes)
     timings["pdf_extract_ms"] = round((time.perf_counter() - extract_start) * 1000)
 
-    key_lines = _extract_key_lines(raw_text)
-    patient = _parse_patient_info(key_lines.get("patient_lines") or [])
-    lab_results = _parse_result_lines(key_lines.get("result_lines") or [])
     max_results = int(os.getenv("EXAM_ANALYSIS_MAX_RESULTS", "120"))
-    min_results = int(os.getenv("EXAM_ANALYSIS_MIN_RESULTS", "4"))
-    if len(lab_results) > max_results:
-        lab_results = lab_results[:max_results]
-
-    structured_ms = 0
     ocr_ms = 0
     ocr_pages = 0
-    should_enrich = _should_enrich_extraction(patient, lab_results)
-    if should_enrich:
-        try:
-            from pdf_pipeline.structured_extractor import run_pipeline
-
-            structured_start = time.perf_counter()
-            pipeline = run_pipeline(file_bytes, references_path, require_ocr=False)
-            structured_ms = round((time.perf_counter() - structured_start) * 1000)
-            raw_text = pipeline.raw_text or raw_text
-            patient = _merge_patient_payload(patient, pipeline.patient_data or {})
-            pipeline_results = _normalize_lab_results(pipeline.lab_results or [])
-            if pipeline_results:
-                lab_results = _merge_lab_results(lab_results, pipeline_results)
-        except Exception:
-            structured_ms = 0
 
     min_chars = int(os.getenv("EXAM_ANALYSIS_OCR_MIN_CHARS", "200"))
-    needs_ocr = require_ocr or (len(raw_text) < min_chars and len(lab_results) < min_results)
-    ocr_used = False
+    needs_ocr = require_ocr or len(raw_text) < min_chars
     if needs_ocr:
         try:
             from pdf_pipeline.structured_extractor import run_pipeline
@@ -309,23 +199,18 @@ def extract_exam_payload(
             ocr_start = time.perf_counter()
             pipeline = run_pipeline(file_bytes, references_path, require_ocr=True)
             ocr_ms = round((time.perf_counter() - ocr_start) * 1000)
-            ocr_used = True
-            if pipeline.raw_text and len(raw_text) < min_chars:
+            if pipeline.raw_text:
                 raw_text = pipeline.raw_text
-            patient = _merge_patient_payload(patient, pipeline.patient_data or {})
-            pipeline_results = _normalize_lab_results(pipeline.lab_results or [])
-            if pipeline_results:
-                lab_results = _merge_lab_results(lab_results, pipeline_results)
-            ocr_pages = pipeline.artifacts.ocr_pages
+            ocr_pages = getattr(pipeline.artifacts, "ocr_pages", 0)
         except Exception:
             ocr_ms = 0
 
-    if structured_ms:
-        timings["structured_extract_ms"] = structured_ms
     if ocr_ms:
         timings["ocr_ms"] = ocr_ms
 
     key_lines = _extract_key_lines(raw_text)
+    patient = _parse_patient_info(key_lines.get("patient_lines") or [])
+    lab_results = _parse_result_lines(key_lines.get("result_lines") or [])
     if len(lab_results) > max_results:
         lab_results = lab_results[:max_results]
 
@@ -333,14 +218,12 @@ def extract_exam_payload(
     merged_lines = (key_lines.get("patient_lines") or []) + (key_lines.get("result_lines") or [])
     max_lines = int(os.getenv("EXAM_ANALYSIS_MAX_LINES", "200"))
     max_excerpt = int(os.getenv("EXAM_ANALYSIS_MAX_EXCERPT_CHARS", "6000"))
-    include_raw_excerpt = (not ocr_used) and len(lab_results) < min_results
     return {
         "patient": patient,
         "lab_results": lab_results,
         "suggestions": [],
         "key_lines": merged_lines[:max_lines],
         "raw_excerpt": raw_text[:max_excerpt],
-        "include_raw_excerpt": include_raw_excerpt,
         "reference_table": references_raw,
         "references_path": references_path,
         "artifacts": {
