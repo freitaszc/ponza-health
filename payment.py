@@ -26,17 +26,31 @@ def generate_subscription_link(user_id, plan="monthly"):
             price_id = os.getenv("STRIPE_PRICE_MONTHLY")  
             plan_name = "Assinatura mensal Ponza Health"
 
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            mode="subscription",
-            line_items=[{
-                "price": price_id,
-                "quantity": 1,
-            }],
-            metadata={"user_id": str(user_id), "plan": plan},
-            success_url=f"{BASE_URL}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{BASE_URL}/subscription/cancel",
-        )
+        payment_methods = ["card", "boleto"]
+
+        def _create_checkout(methods):
+            return stripe.checkout.Session.create(
+                payment_method_types=methods,
+                mode="subscription",
+                line_items=[{
+                    "price": price_id,
+                    "quantity": 1,
+                }],
+                metadata={"user_id": str(user_id), "plan": plan},
+                success_url=f"{BASE_URL}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{BASE_URL}/subscription/cancel",
+            )
+
+        try:
+            session = _create_checkout(payment_methods)
+        except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
+            param = (getattr(exc, "param", "") or "").lower()
+            message = str(exc).lower()
+            if "payment_method_types" in param or "payment_method_types" in message or "boleto" in message:
+                print("[Stripe] Boleto indisponivel para assinatura. Usando cartao.", exc)
+                session = _create_checkout(["card"])
+            else:
+                raise
 
         print(f"[Stripe] ✅ Created subscription link for {plan_name} (user_id={user_id})")
         return session.url

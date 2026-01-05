@@ -1171,9 +1171,11 @@ def verify_email(token):
         interval = 'year' if normalized_plan == 'yearly' else 'month'
         plan_name = f"Plano {'Anual' if normalized_plan == 'yearly' else 'Mensal'} Ponza Health"
 
-        try:
-            session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
+        payment_methods = ['card', 'boleto']
+
+        def _create_checkout(methods):
+            return stripe.checkout.Session.create(
+                payment_method_types=methods,
                 mode='subscription',
                 line_items=[{
                     'price_data': {
@@ -1188,6 +1190,21 @@ def verify_email(token):
                 success_url=f"{base_url}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=f"{base_url}/planos"
             )
+
+        try:
+            try:
+                session = _create_checkout(payment_methods)
+            except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
+                param = (getattr(exc, "param", "") or "").lower()
+                message = str(exc).lower()
+                if "payment_method_types" in param or "payment_method_types" in message or "boleto" in message:
+                    current_app.logger.warning(
+                        "[Stripe] Boleto indisponivel para assinatura. Usando cartao. (%s)",
+                        exc,
+                    )
+                    session = _create_checkout(['card'])
+                else:
+                    raise
             # Redireciona para o checkout Stripe (nova aba / link)
             url = session.url or url_for("payments")
             return redirect(url, code=303)
@@ -1907,19 +1924,43 @@ def _create_subscription_checkout_session(
     interval: str,
     plan_name: str,
 ):
+    payment_methods = ["card", "boleto"]
+
     def _create(line_items):
         return stripe.checkout.Session.create(
             mode="subscription",
-            payment_method_types=["card"],
+            payment_method_types=payment_methods,
             line_items=line_items,
             metadata={"user_id": str(user.id), "plan": plan},
             success_url=f"{_external_endpoint_url('subscription_success')}?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{_external_endpoint_url('payments')}?canceled=true",
         )
 
+    def _create_with_fallback(line_items):
+        try:
+            return _create(line_items)
+        except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
+            param = (getattr(exc, "param", "") or "").lower()
+            message = str(exc).lower()
+            if "payment_method_types" in param or "payment_method_types" in message or "boleto" in message:
+                if "boleto" in payment_methods:
+                    current_app.logger.warning(
+                        "[Stripe] Boleto indisponivel para assinatura. Usando cartao. (%s)",
+                        exc,
+                    )
+                    return stripe.checkout.Session.create(
+                        mode="subscription",
+                        payment_method_types=["card"],
+                        line_items=line_items,
+                        metadata={"user_id": str(user.id), "plan": plan},
+                        success_url=f"{_external_endpoint_url('subscription_success')}?session_id={{CHECKOUT_SESSION_ID}}",
+                        cancel_url=f"{_external_endpoint_url('payments')}?canceled=true",
+                    )
+            raise
+
     if price_id:
         try:
-            return _create([{"price": price_id, "quantity": 1}])
+            return _create_with_fallback([{"price": price_id, "quantity": 1}])
         except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
             current_app.logger.warning(
                 "[Stripe] Price ID invalido para %s (%s): %s",
@@ -1930,7 +1971,7 @@ def _create_subscription_checkout_session(
         except Exception:
             raise
 
-    return _create([{
+    return _create_with_fallback([{
         "price_data": {
             "currency": "brl",
             "unit_amount": int(amount_cents),
