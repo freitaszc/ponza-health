@@ -1035,13 +1035,6 @@ export default function Agenda() {
               </label>
               {addError ? <div className="dashboard-form__error">{addError}</div> : null}
               <div className="dashboard-form__actions dashboard-form__actions--centered">
-                <button
-                  className="btn-outline btn-small modal-action-btn"
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                >
-                  Cancelar
-                </button>
                 <button className="btn-primary btn-small modal-action-btn" type="submit" disabled={addSubmitting}>
                   {addSubmitting ? 'Salvando...' : 'Agendar'}
                 </button>

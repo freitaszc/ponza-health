@@ -57,7 +57,7 @@ from models import (
     db, User, Patient, Doctor, Consult, PackageUsage,
     Supplier, Product, AgendaEvent, Quote, QuoteResponse,
     SecureFile, PdfFile, WaitlistItem, ScheduledEmail,
-    StockMovement,
+    StockMovement, quote_suppliers,
 )
 
 # ------------------------------------------------------------------------------
@@ -153,6 +153,14 @@ def _is_admin_user(user: User) -> bool:
     username = (getattr(user, "username", "") or "").strip().lower()
     return username == "admin"
 
+def _admin_guard_response() -> Optional[Any]:
+    user = current_user()
+    if _is_admin_user(user):
+        return None
+    if _request_wants_json():
+        return jsonify({"success": False, "error": "forbidden"}), 403
+    return redirect(url_for('index'))
+
 
 def _build_trial_status(user: User) -> dict[str, Any]:
     if _is_admin_user(user):
@@ -187,6 +195,114 @@ def _build_trial_status(user: User) -> dict[str, Any]:
             "yearly": url_for("subscribe_pay_anual"),
         },
     }
+
+def _serialize_admin_user(user: User) -> dict[str, Any]:
+    def _iso(value: Any) -> Optional[str]:
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        return None
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "plan": (user.plan or "").strip().lower(),
+        "plan_status": user.plan_status or "",
+        "plan_expires": _iso(user.plan_expiration),
+        "trial_expires": _iso(user.trial_expiration),
+        "created_at": _iso(user.created_at),
+    }
+
+def _extend_user_subscription(user: User, plan: str) -> None:
+    normalized = (plan or "").strip().lower()
+    if normalized not in {"monthly", "yearly"}:
+        raise ValueError("Plano invalido.")
+
+    previous_plan = (user.plan or "").strip().lower()
+    now = datetime.utcnow()
+    base_expiration = user.plan_expiration
+    if isinstance(base_expiration, date) and not isinstance(base_expiration, datetime):
+        base_expiration = datetime.combine(base_expiration, datetime.min.time())
+    if not base_expiration or base_expiration < now:
+        base_expiration = now
+
+    delta = timedelta(days=365 if normalized == "yearly" else 30)
+    user.plan = normalized
+    user.plan_status = "paid"
+    user.trial_expiration = None
+    user.plan_expiration = base_expiration + delta
+
+    if _apply_plan_allowance(user, normalized, previous_plan=previous_plan):
+        db.session.add(user)
+
+def _delete_user_account(user: User) -> None:
+    user_id = user.id
+
+    patient_ids = [row[0] for row in db.session.query(Patient.id).filter(Patient.user_id == user_id).all()]
+    consult_ids = []
+    if patient_ids:
+        consult_ids = [
+            row[0]
+            for row in db.session.query(Consult.id).filter(Consult.patient_id.in_(patient_ids)).all()
+        ]
+
+    pdf_filters = []
+    if patient_ids:
+        pdf_filters.append(PdfFile.patient_id.in_(patient_ids))
+    if consult_ids:
+        pdf_filters.append(PdfFile.consult_id.in_(consult_ids))
+    if pdf_filters:
+        db.session.query(PdfFile).filter(or_(*pdf_filters)).delete(synchronize_session=False)
+
+    quote_ids = [row[0] for row in db.session.query(Quote.id).filter(Quote.user_id == user_id).all()]
+    if quote_ids:
+        db.session.execute(quote_suppliers.delete().where(quote_suppliers.c.quote_id.in_(quote_ids)))
+        db.session.query(QuoteResponse).filter(QuoteResponse.quote_id.in_(quote_ids)).delete(
+            synchronize_session=False
+        )
+        db.session.query(Quote).filter(Quote.id.in_(quote_ids)).delete(synchronize_session=False)
+
+    supplier_ids = [row[0] for row in db.session.query(Supplier.id).filter(Supplier.user_id == user_id).all()]
+    if supplier_ids:
+        db.session.execute(quote_suppliers.delete().where(quote_suppliers.c.supplier_id.in_(supplier_ids)))
+        db.session.query(QuoteResponse).filter(QuoteResponse.supplier_id.in_(supplier_ids)).delete(
+            synchronize_session=False
+        )
+        db.session.query(Supplier).filter(Supplier.id.in_(supplier_ids)).delete(synchronize_session=False)
+
+    product_ids = [row[0] for row in db.session.query(Product.id).filter(Product.user_id == user_id).all()]
+    if product_ids:
+        db.session.query(StockMovement).filter(StockMovement.product_id.in_(product_ids)).delete(
+            synchronize_session=False
+        )
+        db.session.query(Product).filter(Product.id.in_(product_ids)).delete(synchronize_session=False)
+
+    db.session.query(AgendaEvent).filter(AgendaEvent.user_id == user_id).delete(synchronize_session=False)
+    db.session.query(PackageUsage).filter(PackageUsage.user_id == user_id).delete(synchronize_session=False)
+    db.session.query(WaitlistItem).filter(WaitlistItem.user_id == user_id).delete(synchronize_session=False)
+    db.session.query(ScheduledEmail).filter(ScheduledEmail.user_id == user_id).delete(synchronize_session=False)
+
+    doctor_ids = [row[0] for row in db.session.query(Doctor.id).filter(Doctor.user_id == user_id).all()]
+    if doctor_ids:
+        db.session.query(Doctor).filter(Doctor.id.in_(doctor_ids)).delete(synchronize_session=False)
+
+    if consult_ids:
+        db.session.query(Consult).filter(Consult.id.in_(consult_ids)).delete(synchronize_session=False)
+    if patient_ids:
+        db.session.query(Patient).filter(Patient.id.in_(patient_ids)).delete(synchronize_session=False)
+
+    secure_file_ids = [
+        row[0] for row in db.session.query(SecureFile.id).filter(SecureFile.user_id == user_id).all()
+    ]
+    if secure_file_ids:
+        db.session.query(PdfFile).filter(PdfFile.secure_file_id.in_(secure_file_ids)).delete(
+            synchronize_session=False
+        )
+        db.session.query(SecureFile).filter(SecureFile.id.in_(secure_file_ids)).delete(
+            synchronize_session=False
+        )
+
+    db.session.delete(user)
 
 DEFAULT_FREE_ANALYSIS_ALLOWANCE = 25
 ANNUAL_PLAN_BONUS_ANALYSES = 30
@@ -1695,6 +1811,76 @@ def index():
     return serve_react_index()
 
 # ------------------------------------------------------------------------------
+# Admin
+# ------------------------------------------------------------------------------
+@app.route('/admin')
+@login_required
+def admin_page():
+    guard = _admin_guard_response()
+    if guard:
+        return guard
+    return serve_react_index()
+
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+def admin_users_api():
+    guard = _admin_guard_response()
+    if guard:
+        return guard
+
+    users = User.query.order_by(User.created_at.desc()).all()
+    return jsonify({"success": True, "users": [_serialize_admin_user(user) for user in users]})
+
+@app.route('/api/admin/users/<int:user_id>/subscription', methods=['POST'])
+@login_required
+def admin_extend_subscription(user_id: int):
+    guard = _admin_guard_response()
+    if guard:
+        return guard
+
+    payload = request.get_json(silent=True) or {}
+    period = (payload.get("period") or payload.get("plan") or "").strip().lower()
+    if period in {"month", "monthly"}:
+        plan = "monthly"
+    elif period in {"year", "yearly"}:
+        plan = "yearly"
+    else:
+        return jsonify({"success": False, "error": "Periodo invalido."}), 400
+
+    user = User.query.get_or_404(user_id)
+    if _is_admin_user(user) and user.id != current_user().id:
+        return jsonify({"success": False, "error": "Nao e possivel alterar o admin."}), 400
+
+    try:
+        _extend_user_subscription(user, plan)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(exc)}), 400
+
+    return jsonify({"success": True, "user": _serialize_admin_user(user)})
+
+@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def admin_delete_user(user_id: int):
+    guard = _admin_guard_response()
+    if guard:
+        return guard
+
+    user = User.query.get_or_404(user_id)
+    if _is_admin_user(user):
+        return jsonify({"success": False, "error": "Nao e possivel remover o admin."}), 400
+
+    try:
+        _delete_user_account(user)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "Nao foi possivel remover o usuario."}), 500
+
+    return jsonify({"success": True})
+
+# ------------------------------------------------------------------------------
 # Compra de Pacotes
 # ------------------------------------------------------------------------------
 @app.route('/purchase', methods=['GET', 'POST'])
@@ -3030,6 +3216,13 @@ def _parse_reference_bounds(reference_value: Any, gender: Optional[str]) -> tupl
 
     text = reference_value.lower()
     text = text.replace("≤", "<=").replace("≥", ">=").replace("≦", "<=").replace("≧", ">=")
+    range_match = re.search(r"(\d+(?:[.,]\d+)?)\s*[-–—]\s*(\d+(?:[.,]\d+)?)", text)
+    if range_match:
+        low = _coerce_float(range_match.group(1))
+        high = _coerce_float(range_match.group(2))
+        if low is not None and high is not None:
+            return (low, high)
+
     tokens = re.findall(r"[-+]?\d+(?:[.,]\d+)?", text)
     numbers = [_coerce_float(token) for token in tokens]
     numbers = [num for num in numbers if num is not None]

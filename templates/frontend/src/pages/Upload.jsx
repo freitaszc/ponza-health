@@ -211,6 +211,16 @@ export default function Upload() {
     setNewReferenceIdeal('')
   }
 
+  const closeReferenceModal = () => {
+    setReferenceModalOpen(false)
+    setReferenceQuery('')
+    setReferenceError('')
+    setReferenceSaved('')
+    setReferenceDrafts({})
+    setNewReferenceName('')
+    setNewReferenceIdeal('')
+  }
+
   const handleSaveReferences = async () => {
     const updates = Object.entries(referenceDrafts)
       .map(([name, value]) => ({
@@ -502,8 +512,20 @@ export default function Upload() {
       </main>
 
       {referenceModalOpen ? (
-        <div className="lab-modal" role="dialog" aria-modal="true">
+        <div
+          className="lab-modal"
+          role="dialog"
+          aria-modal="true"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeReferenceModal()
+            }
+          }}
+        >
           <div className="lab-modal__card lab-modal__card--wide">
+            <button className="lab-modal__close icon-button" type="button" onClick={closeReferenceModal} aria-label="Fechar">
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
             <div className="lab-modal__badge">
               <i className="fa fa-sliders" aria-hidden="true" />
               <span>Referências laboratoriais</span>
@@ -573,21 +595,6 @@ export default function Upload() {
               </div>
             )}
             <div className="lab-modal__actions">
-              <button
-                type="button"
-                className="btn-outline"
-                onClick={() => {
-                  setReferenceModalOpen(false)
-                  setReferenceQuery('')
-                  setReferenceError('')
-                  setReferenceSaved('')
-                  setReferenceDrafts({})
-                  setNewReferenceName('')
-                  setNewReferenceIdeal('')
-                }}
-              >
-                Fechar
-              </button>
               <button type="button" className="btn-primary" onClick={handleSaveReferences} disabled={referenceSaving}>
                 {referenceSaving ? 'Salvando...' : 'Salvar referências'}
               </button>

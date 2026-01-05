@@ -198,6 +198,13 @@ function AreaChart({ data }) {
           />
         ))}
       </svg>
+      <div className="area-chart__numbers">
+        {data.map((item) => (
+          <span key={`${item.d}-value`} title={`${item.d}: ${formatNumber(item.count)} PDFs`}>
+            {formatNumber(item.count)}
+          </span>
+        ))}
+      </div>
       <div className="area-chart__labels">
         {data.map((item) => (
           <span key={item.d}>{item.d}</span>
@@ -214,6 +221,7 @@ export default function Dashboard() {
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('dashboardSidebar') === '1')
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/index'
   const dashboardCacheKey = useMemo(() => buildCacheKey('dashboard', ['summary']), [])
+  const [showLoadingModal, setShowLoadingModal] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -250,6 +258,15 @@ export default function Dashboard() {
       active = false
     }
   }, [dashboardCacheKey])
+
+  useEffect(() => {
+    if (!loading) {
+      setShowLoadingModal(false)
+      return
+    }
+    const timer = setTimeout(() => setShowLoadingModal(true), 400)
+    return () => clearTimeout(timer)
+  }, [loading])
 
   const consultationSeries = useMemo(() => {
     if (data.consults_week_series?.length) {
@@ -540,6 +557,20 @@ export default function Dashboard() {
 
         {loading ? <div className="dashboard-loading">Atualizando métricas…</div> : null}
       </main>
+
+      {showLoadingModal ? (
+        <div className="dashboard-modal dashboard-loading-modal" role="dialog" aria-modal="true">
+          <div className="dashboard-modal__card dashboard-loading-card">
+            <div className="dashboard-loading-content">
+              <span className="result-spinner" aria-hidden="true" />
+              <div>
+                <h3>Carregando dashboard</h3>
+                <p>Estamos atualizando as metricas para voce.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

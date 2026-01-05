@@ -6,6 +6,7 @@ import { SiteHeader } from './components/SiteHeader'
 import Ajuda from './pages/Ajuda'
 import Agenda from './pages/Agenda'
 import Account from './pages/Account'
+import Admin from './pages/Admin'
 import Cadastro from './pages/Cadastro'
 import Dashboard from './pages/Dashboard'
 import LabAnalysisLoading from './pages/LabAnalysisLoading'
@@ -48,6 +49,7 @@ const routes = [
   { path: '/trial_locked', component: TrialLocked, shell: 'plain' },
   { path: '/lab_analysis/loading', component: LabAnalysisLoading, shell: 'plain' },
   { path: '/index', component: Dashboard, shell: 'app' },
+  { path: '/admin', component: Admin, shell: 'app' },
   { path: '/account', component: Account, shell: 'app' },
   { path: '/payments', component: Payments, shell: 'app' },
   { path: '/purchase', component: Payments, shell: 'app' },

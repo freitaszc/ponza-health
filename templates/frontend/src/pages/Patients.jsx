@@ -525,9 +525,6 @@ export default function Patients() {
             </div>
 
             <div className="dashboard-modal__actions">
-              <button type="button" className="btn-outline" onClick={closeConsultationModal} disabled={modalSubmitting}>
-                Cancelar
-              </button>
               <button type="button" className="btn-primary" onClick={handleSubmitConsultation} disabled={modalSubmitting}>
                 {modalSubmitting ? 'Salvando...' : 'Salvar consulta'}
               </button>

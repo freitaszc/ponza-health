@@ -414,9 +414,6 @@ export default function Suppliers() {
                 />
               </label>
               <div className="dashboard-modal__actions">
-                <button type="button" className="btn-outline" onClick={closeModal} disabled={modalSubmitting}>
-                  Cancelar
-                </button>
                 <button type="submit" className="btn-primary" disabled={modalSubmitting}>
                   {modalSubmitting ? 'Salvando...' : 'Salvar fornecedor'}
                 </button>

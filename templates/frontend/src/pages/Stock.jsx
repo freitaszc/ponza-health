@@ -624,10 +624,7 @@ export default function Stock() {
                 />
               </label>
               {addError ? <div className="dashboard-form__error">{addError}</div> : null}
-              <div className="dashboard-form__actions">
-                <button className="btn-outline" type="button" onClick={() => setShowAddModal(false)}>
-                  Cancelar
-                </button>
+              <div className="dashboard-form__actions dashboard-form__actions--centered">
                 <button className="btn-primary" type="submit" disabled={addSubmitting}>
                   {addSubmitting ? 'Salvando...' : 'Salvar'}
                 </button>
@@ -677,9 +674,6 @@ export default function Stock() {
               </label>
               {movementError ? <div className="dashboard-form__error">{movementError}</div> : null}
               <div className="dashboard-form__actions">
-                <button className="btn-outline" type="button" onClick={() => setShowMovementModal(false)}>
-                  Cancelar
-                </button>
                 <button className="btn-primary" type="submit" disabled={movementSubmitting}>
                   {movementSubmitting ? 'Salvando...' : 'Salvar'}
                 </button>

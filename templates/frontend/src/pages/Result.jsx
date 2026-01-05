@@ -478,6 +478,9 @@ export default function Result() {
       {editModalOpen ? (
         <div className="lab-modal" role="dialog" aria-modal="true">
           <div className="lab-modal__card lab-modal__card--wide">
+            <button className="lab-modal__close icon-button" type="button" onClick={handleCancelEdit} aria-label="Fechar">
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
             <div className="lab-modal__badge">
               <i className="fa fa-pencil" aria-hidden="true" />
               <span>Editar resultado</span>
@@ -540,9 +543,6 @@ export default function Result() {
               </label>
             </div>
             <div className="lab-modal__actions">
-              <button type="button" className="btn-outline" onClick={handleCancelEdit}>
-                Cancelar
-              </button>
               <button type="button" className="btn-primary" onClick={handleSaveEdit}>
                 Salvar alterações
               </button>

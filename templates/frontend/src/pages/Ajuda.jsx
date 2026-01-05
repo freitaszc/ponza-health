@@ -326,9 +326,6 @@ export default function Ajuda() {
                 <button className="btn-primary" type="submit">
                   Enviar chamado
                 </button>
-                <button className="btn-ghost" type="button" onClick={handleCloseTicket}>
-                  Cancelar
-                </button>
               </div>
             </form>
           </div>
