@@ -31,6 +31,17 @@ const buildExcludedValue = (values) =>
     .filter((item) => item !== null)
     .join(',')
 
+const hasReference = (exam) => {
+  const reference = exam?.reference_display || exam?.referencia || exam?.reference
+  const referenceText = reference == null ? '' : String(reference).trim()
+  return referenceText !== '' && referenceText !== '-'
+}
+
+const isUndefinedStatus = (exam) => {
+  const status = (exam?.status || exam?.estado || '').toString().trim().toLowerCase()
+  return !status || status === 'indefinido' || status === 'n/d'
+}
+
 export default function Result() {
   const { params } = useRouter()
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/result'
@@ -208,6 +219,7 @@ export default function Result() {
 
   const renderAiResults = () => {
     const exams = data?.exams || []
+    const visibleExams = exams.filter((exam) => hasReference(exam) && !isUndefinedStatus(exam))
     const prescription = prescriptionItems
     const orientations = orientationItems
 
@@ -230,7 +242,7 @@ export default function Result() {
 
         <div className="result-section">
           <h3>Resultados laboratoriais</h3>
-          {exams.length ? (
+          {visibleExams.length ? (
             <div className="result-table">
               <table>
                 <thead>
@@ -242,7 +254,7 @@ export default function Result() {
                   </tr>
                 </thead>
                 <tbody>
-                  {exams.map((exam, index) => {
+                  {visibleExams.map((exam, index) => {
                     const status = (exam.status || exam.estado || 'n/d').toString()
                     const statusKey = status.toLowerCase().replace(/[^a-z0-9]+/g, '-')
                     const label = exam.nome || exam.name || exam.test || '-'
