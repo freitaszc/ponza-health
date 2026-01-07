@@ -191,19 +191,18 @@ function AppShell() {
     })
   }, [shell])
 
-  const fallback = <div className="dashboard-loading">Carregando...</div>
   const guardedPage =
     shell === 'app' && trialGuard.checked && trialGuard.expired ? <TrialLocked /> : <Page />
 
   if (shell === 'app' || shell === 'plain') {
-    return <Suspense fallback={fallback}>{guardedPage}</Suspense>
+    return <Suspense fallback={null}>{guardedPage}</Suspense>
   }
 
   return (
     <div className="page-shell">
       <SiteHeader />
       <main className="page-content">
-        <Suspense fallback={fallback}>{guardedPage}</Suspense>
+        <Suspense fallback={null}>{guardedPage}</Suspense>
       </main>
       <SiteFooter />
     </div>

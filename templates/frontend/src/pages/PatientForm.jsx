@@ -38,6 +38,7 @@ const emptyForm = {
   profession: '',
   monthly_income: '',
   special_needs: '',
+  chronic_conditions: '',
   emergency_contact_name: '',
   emergency_contact_phone: '',
   has_health_plan: false,
@@ -514,7 +515,7 @@ export default function PatientForm() {
 
             <section className="dashboard-card dashboard-card--panel" id="sec-complementares">
               <div className="card-title">Informações complementares</div>
-              <div className="form-grid">
+              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
                 <label className="dashboard-field">
                   <span>Escolaridade</span>
                   <select
@@ -570,6 +571,17 @@ export default function PatientForm() {
                 </label>
               </div>
               <div className="form-grid">
+                <label className="dashboard-field" style={{ gridColumn: '1 / -1' }}>
+                  <span>Doenças ou problemas crônicos</span>
+                  <textarea
+                    className="dashboard-textarea"
+                    rows="2"
+                    value={form.chronic_conditions}
+                    onChange={(event) => handleChange('chronic_conditions', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="form-grid">
                 <label className="dashboard-field">
                   <span>Nome contato de emergência</span>
                   <input
@@ -616,7 +628,7 @@ export default function PatientForm() {
               </label>
             </section>
 
-            <div className="form-actions">
+            <div className="form-actions" style={{ justifyContent: 'center' }}>
               <a className="btn-outline" href="/catalog">
                 Cancelar
               </a>

@@ -4458,6 +4458,7 @@ def _serialize_patient_detail(patient: Patient) -> dict:
         "profession": patient.profession or "",
         "monthly_income": patient.monthly_income or "",
         "special_needs": patient.special_needs or "",
+        "chronic_conditions": patient.chronic_conditions or "",
         "emergency_contact_name": patient.emergency_contact_name or "",
         "emergency_contact_phone": patient.emergency_contact_phone or "",
         "has_health_plan": bool(patient.has_health_plan),
@@ -4509,6 +4510,7 @@ def api_patients():
     profession = (data.get('profession') or '').strip()
     monthly_income = (data.get('monthly_income') or '').strip()
     special_needs = (data.get('special_needs') or '').strip()
+    chronic_conditions = (data.get('chronic_conditions') or '').strip()
     emergency_contact_name = (data.get('emergency_contact_name') or '').strip()
     emergency_contact_phone = (data.get('emergency_contact_phone') or '').strip()
     has_health_plan = _coerce_to_bool(data.get('has_health_plan'))
@@ -4567,6 +4569,7 @@ def api_patients():
         profession=profession or None,
         monthly_income=monthly_income or None,
         special_needs=special_needs or None,
+        chronic_conditions=chronic_conditions or None,
         emergency_contact_name=emergency_contact_name or None,
         emergency_contact_phone=emergency_contact_phone or None,
         has_health_plan=has_health_plan,
@@ -4615,6 +4618,7 @@ def api_patient_detail(patient_id: int):
     profession = (data.get('profession') or '').strip()
     monthly_income = (data.get('monthly_income') or '').strip()
     special_needs = (data.get('special_needs') or '').strip()
+    chronic_conditions = (data.get('chronic_conditions') or '').strip()
     emergency_contact_name = (data.get('emergency_contact_name') or '').strip()
     emergency_contact_phone = (data.get('emergency_contact_phone') or '').strip()
     has_health_plan = _coerce_to_bool(data.get('has_health_plan'))
@@ -4678,6 +4682,7 @@ def api_patient_detail(patient_id: int):
     patient.profession = profession or None
     patient.monthly_income = monthly_income or None
     patient.special_needs = special_needs or None
+    patient.chronic_conditions = chronic_conditions or None
     patient.emergency_contact_name = emergency_contact_name or None
     patient.emergency_contact_phone = emergency_contact_phone or None
     patient.has_health_plan = has_health_plan
@@ -4748,6 +4753,7 @@ def register_patient():
         profession = (request.form.get('profession') or '').strip()
         monthly_income = (request.form.get('monthly_income') or '').strip()
         special_needs = (request.form.get('special_needs') or '').strip()
+        chronic_conditions = (request.form.get('chronic_conditions') or '').strip()
         emergency_contact_name = (request.form.get('emergency_contact_name') or '').strip()
         emergency_contact_phone = (request.form.get('emergency_contact_phone') or '').strip()
         has_health_plan = _coerce_to_bool(request.form.get('has_health_plan'))
@@ -4823,6 +4829,7 @@ def register_patient():
             profession=profession or None,
             monthly_income=monthly_income or None,
             special_needs=special_needs or None,
+            chronic_conditions=chronic_conditions or None,
             emergency_contact_name=emergency_contact_name or None,
             emergency_contact_phone=emergency_contact_phone or None,
             has_health_plan=has_health_plan,
@@ -4903,6 +4910,7 @@ def edit_patient(patient_id):
         profession = (request.form.get('profession') or '').strip()
         monthly_income = (request.form.get('monthly_income') or '').strip()
         special_needs = (request.form.get('special_needs') or '').strip()
+        chronic_conditions = (request.form.get('chronic_conditions') or '').strip()
         emergency_contact_name = (request.form.get('emergency_contact_name') or '').strip()
         emergency_contact_phone = (request.form.get('emergency_contact_phone') or '').strip()
         has_health_plan = _coerce_to_bool(request.form.get('has_health_plan'))
@@ -4980,6 +4988,7 @@ def edit_patient(patient_id):
         patient.profession         = profession or None
         patient.monthly_income     = monthly_income or None
         patient.special_needs      = special_needs or None
+        patient.chronic_conditions = chronic_conditions or None
         patient.emergency_contact_name = emergency_contact_name or None
         patient.emergency_contact_phone = emergency_contact_phone or None
         patient.has_health_plan    = has_health_plan

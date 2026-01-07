@@ -180,6 +180,7 @@ class Patient(db.Model, BaseModel):
     profession     = db.Column(db.String(120))
     monthly_income = db.Column(db.String(40))
     special_needs  = db.Column(db.String(120))
+    chronic_conditions = db.Column(db.Text)
     emergency_contact_name = db.Column(db.String(120))
     emergency_contact_phone = db.Column(db.String(20))
     has_health_plan = db.Column(db.Boolean, default=False)
