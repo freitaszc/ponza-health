@@ -16,7 +16,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("patients", sa.Column("rg", sa.String(length=20), nullable=True))
     op.add_column("patients", sa.Column("marital_status", sa.String(length=40), nullable=True))
     op.add_column("patients", sa.Column("father_name", sa.String(length=120), nullable=True))
     op.add_column("patients", sa.Column("mother_name", sa.String(length=120), nullable=True))
@@ -49,4 +48,3 @@ def downgrade() -> None:
     op.drop_column("patients", "mother_name")
     op.drop_column("patients", "father_name")
     op.drop_column("patients", "marital_status")
-    op.drop_column("patients", "rg")

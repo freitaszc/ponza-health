@@ -16,16 +16,21 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "agenda_events",
-        sa.Column(
-            "send_reminders",
-            sa.Boolean(),
-            nullable=False,
-            server_default=sa.text("false"),
-        ),
-    )
-    op.alter_column("agenda_events", "send_reminders", server_default=None)
+    # Idempotente: só cria se não existir (evita DuplicateColumn em bases já ajustadas)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    cols = {c["name"] for c in inspector.get_columns("agenda_events")}
+    if "send_reminders" not in cols:
+        op.add_column(
+            "agenda_events",
+            sa.Column(
+                "send_reminders",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.text("false"),
+            ),
+        )
+        op.alter_column("agenda_events", "send_reminders", server_default=None)
 
 
 def downgrade() -> None:

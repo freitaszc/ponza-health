@@ -4449,7 +4449,6 @@ def _serialize_patient_detail(patient: Patient) -> dict:
         "sex": patient.sex or "",
         "email": patient.email or "",
         "cpf": patient.cpf or "",
-        "rg": patient.rg or "",
         "marital_status": patient.marital_status or "",
         "father_name": patient.father_name or "",
         "mother_name": patient.mother_name or "",
@@ -4503,7 +4502,6 @@ def api_patients():
     sex = (data.get('sex') or '').strip()
     email = (data.get('email') or '').strip().lower()
     cpf = (data.get('cpf') or data.get('document') or '').strip().replace('.', '').replace('-', '')
-    rg = (data.get('rg') or '').strip()
     marital_status = (data.get('marital_status') or '').strip()
     father_name = (data.get('father_name') or '').strip()
     mother_name = (data.get('mother_name') or '').strip()
@@ -4562,7 +4560,6 @@ def api_patients():
         sex=sex or None,
         email=email or None,
         cpf=cpf or None,
-        rg=rg or None,
         marital_status=marital_status or None,
         father_name=father_name or None,
         mother_name=mother_name or None,
@@ -4611,7 +4608,6 @@ def api_patient_detail(patient_id: int):
     sex = (data.get('sex') or '').strip()
     email = (data.get('email') or '').strip().lower()
     cpf = (data.get('cpf') or data.get('document') or '').strip().replace('.', '').replace('-', '')
-    rg = (data.get('rg') or '').strip()
     marital_status = (data.get('marital_status') or '').strip()
     father_name = (data.get('father_name') or '').strip()
     mother_name = (data.get('mother_name') or '').strip()
@@ -4675,7 +4671,6 @@ def api_patient_detail(patient_id: int):
     patient.sex = sex or None
     patient.email = email or None
     patient.cpf = cpf or None
-    patient.rg = rg or None
     patient.marital_status = marital_status or None
     patient.father_name = father_name or None
     patient.mother_name = mother_name or None
@@ -4746,7 +4741,6 @@ def register_patient():
         email = (request.form.get('email') or '').strip().lower()
         cpf   = (request.form.get('cpf') or request.form.get('document') or '').strip()
         cpf   = cpf.replace('.', '').replace('-', '')
-        rg = (request.form.get('rg') or '').strip()
         marital_status = (request.form.get('marital_status') or '').strip()
         father_name = (request.form.get('father_name') or '').strip()
         mother_name = (request.form.get('mother_name') or '').strip()
@@ -4822,7 +4816,6 @@ def register_patient():
             sex=sex or None,
             email=email or None,
             cpf=cpf or None,
-            rg=rg or None,
             marital_status=marital_status or None,
             father_name=father_name or None,
             mother_name=mother_name or None,
@@ -4903,7 +4896,6 @@ def edit_patient(patient_id):
         sex       = (request.form.get('sex') or (patient.sex or '')).strip()
         email     = (request.form.get('email') or '').strip().lower()
         cpf       = (request.form.get('cpf') or request.form.get('document') or '').strip().replace('.', '').replace('-', '')
-        rg        = (request.form.get('rg') or '').strip()
         marital_status = (request.form.get('marital_status') or '').strip()
         father_name = (request.form.get('father_name') or '').strip()
         mother_name = (request.form.get('mother_name') or '').strip()
@@ -4981,7 +4973,6 @@ def edit_patient(patient_id):
         patient.sex                = sex or None
         patient.email              = email or None
         patient.cpf                = cpf or None
-        patient.rg                 = rg or None
         patient.marital_status     = marital_status or None
         patient.father_name        = father_name or None
         patient.mother_name        = mother_name or None

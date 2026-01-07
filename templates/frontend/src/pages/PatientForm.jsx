@@ -31,7 +31,6 @@ const emptyForm = {
   sex: '',
   email: '',
   cpf: '',
-  rg: '',
   marital_status: '',
   father_name: '',
   mother_name: '',
@@ -389,14 +388,6 @@ export default function PatientForm() {
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="dashboard-field">
-                  <span>RG</span>
-                  <input
-                    className="dashboard-input"
-                    value={form.rg}
-                    onChange={(event) => handleChange('rg', event.target.value)}
-                  />
                 </label>
                 <label className="dashboard-field">
                   <span>CPF</span>
