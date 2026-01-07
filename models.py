@@ -173,7 +173,6 @@ class Patient(db.Model, BaseModel):
     sex            = db.Column(db.String(20))
     email          = db.Column(db.String(120))
     cpf            = db.Column(db.String(20))
-    rg             = db.Column(db.String(20))
     marital_status = db.Column(db.String(40))
     father_name    = db.Column(db.String(120))
     mother_name    = db.Column(db.String(120))

@@ -214,6 +214,7 @@ export default function PatientForm() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
     setSaving(true)
     setError('')
     setNotice('')
@@ -295,7 +296,7 @@ export default function PatientForm() {
         {loading ? <div className="dashboard-loading">Carregando...</div> : null}
 
         {!loading ? (
-          <form className="form-stack" onSubmit={handleSubmit}>
+          <form className="form-stack" onSubmit={handleSubmit} aria-busy={saving}>
             <div className="form-section-nav" aria-label="Seções do cadastro">
               <div className="form-section-nav__label">Seções</div>
               <div className="form-section-nav__buttons" role="navigation" aria-label="Atalhos das seções">
@@ -635,6 +636,20 @@ export default function PatientForm() {
           </form>
         ) : null}
       </main>
+
+      {saving ? (
+        <div className="dashboard-modal dashboard-loading-modal" role="dialog" aria-modal="true">
+          <div className="dashboard-modal__card dashboard-loading-card">
+            <div className="dashboard-loading-content">
+              <span className="result-spinner" aria-hidden="true" />
+              <div>
+                <h3>Salvando paciente</h3>
+                <p>Atualizando o cadastro, aguarde.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

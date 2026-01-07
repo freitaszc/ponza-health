@@ -197,6 +197,7 @@ export default function Agenda() {
   const [waitlistForm, setWaitlistForm] = useState(emptyWaitlistForm)
   const [waitlistError, setWaitlistError] = useState('')
   const [waitlistLoading, setWaitlistLoading] = useState(false)
+  const [waitlistSubmitting, setWaitlistSubmitting] = useState(false)
 
   const calendarRef = useRef(null)
   const calendarInstanceRef = useRef(null)
@@ -676,11 +677,13 @@ export default function Agenda() {
   }
 
   const handleAddWaitlist = async () => {
+    if (waitlistSubmitting) return
     setWaitlistError('')
     if (!waitlistForm.name.trim()) {
       setWaitlistError('Informe o nome do paciente.')
       return
     }
+    setWaitlistSubmitting(true)
     try {
       const response = await fetch('/api/waitlist', {
         method: 'POST',
@@ -706,6 +709,8 @@ export default function Agenda() {
       await refreshSnapshot()
     } catch (error) {
       setWaitlistError(error.message || 'Não foi possível adicionar.')
+    } finally {
+      setWaitlistSubmitting(false)
     }
   }
 
@@ -1413,10 +1418,29 @@ export default function Agenda() {
                     />
                   </label>
                   {waitlistError ? <div className="dashboard-form__error">{waitlistError}</div> : null}
-                  <button className="btn-primary btn-block modal-action-btn" type="button" onClick={handleAddWaitlist}>
-                    Adicionar paciente
+                  <button
+                    className="btn-primary btn-block modal-action-btn"
+                    type="button"
+                    onClick={handleAddWaitlist}
+                    disabled={waitlistSubmitting}
+                  >
+                    {waitlistSubmitting ? 'Adicionando...' : 'Adicionar paciente'}
                   </button>
                 </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {waitlistSubmitting ? (
+        <div className="dashboard-modal dashboard-loading-modal" role="dialog" aria-modal="true">
+          <div className="dashboard-modal__card dashboard-loading-card">
+            <div className="dashboard-loading-content">
+              <span className="result-spinner" aria-hidden="true" />
+              <div>
+                <h3>Adicionando paciente</h3>
+                <p>Estamos salvando na lista de espera.</p>
               </div>
             </div>
           </div>
