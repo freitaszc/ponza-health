@@ -8,6 +8,7 @@ import secrets
 import stripe
 import multiprocessing
 import time
+import hashlib
 from flask_migrate import Migrate
 from io import BytesIO
 from functools import wraps
@@ -1802,7 +1803,7 @@ def _build_dashboard_payload(u: User) -> dict[str, Any]:
 @login_required
 def dashboard_api():
     u = current_user()
-    return jsonify(_build_dashboard_payload(u))
+    return _jsonify_with_cache(_build_dashboard_payload(u), max_age=60, stale_while_revalidate=120)
 
 
 @app.route('/index')
@@ -3984,7 +3985,7 @@ def agenda_view():
 @login_required
 def api_agenda_snapshot():
     snapshot = build_agenda_snapshot(current_user())
-    return jsonify(snapshot)
+    return _jsonify_with_cache(snapshot, max_age=60, stale_while_revalidate=120)
 
 # ------------------------------------------------------------------------------
 # Agenda (API)  ✅ corrigida p/ ISO com 'Z' e DELETE
@@ -4019,6 +4020,33 @@ def _coerce_to_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "on", "yes", "sim"}
     return bool(value)
+
+
+def _apply_private_cache_headers(response, *, max_age: int = 60, stale_while_revalidate: int = 120):
+    response.headers["Cache-Control"] = (
+        f"private, max-age={max_age}, stale-while-revalidate={stale_while_revalidate}"
+    )
+    response.headers["Vary"] = "Cookie"
+    return response
+
+
+def _jsonify_with_cache(payload, *, max_age: int = 60, stale_while_revalidate: int = 120):
+    response = jsonify(payload)
+    etag = hashlib.sha256(response.get_data()).hexdigest()
+    if request.if_none_match and etag in request.if_none_match:
+        not_modified = current_app.response_class(status=304)
+        not_modified.set_etag(etag)
+        return _apply_private_cache_headers(
+            not_modified,
+            max_age=max_age,
+            stale_while_revalidate=stale_while_revalidate,
+        )
+    response.set_etag(etag)
+    return _apply_private_cache_headers(
+        response,
+        max_age=max_age,
+        stale_while_revalidate=stale_while_revalidate,
+    )
 
 
 @app.route('/api/events', methods=['GET'])
@@ -4460,10 +4488,11 @@ def api_patients():
         if status:
             patients = [p for p in patients if (p.status or '') == status]
 
-        return jsonify({
+        payload = {
             "patients": [_serialize_patient_summary(p) for p in patients],
             "total": len(patients),
-        })
+        }
+        return _jsonify_with_cache(payload, max_age=60, stale_while_revalidate=120)
 
     data = request.form if not request.is_json else (request.get_json(silent=True) or {})
     default_image_url = url_for('static', filename='images/user-icon.png')

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { buildCacheKey, readCache, writeCache } from '../utils/cache'
 
 const backendBase = import.meta.env.VITE_BACKEND_URL || ''
 const withBackend = (path) => (backendBase ? `${backendBase}${path}` : path)
@@ -202,6 +203,7 @@ export default function Agenda() {
   const filterRef = useRef({ types: activeTypes, search: '' })
   const addReminderRef = useRef(true)
   const editReminderRef = useRef(true)
+  const triedSnapshotCacheRef = useRef(false)
 
   const typeCounts = useMemo(() => {
     const counts = {}
@@ -219,6 +221,7 @@ export default function Agenda() {
 
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/agenda'
   const sidebarNav = useMemo(() => navItems, [])
+  const snapshotCacheKey = useMemo(() => buildCacheKey('agenda', ['snapshot']), [])
 
   const handleToggleSidebar = () => {
     const next = !collapsed
@@ -228,20 +231,34 @@ export default function Agenda() {
   }
 
   const refreshSnapshot = useCallback(async () => {
+    if (!triedSnapshotCacheRef.current) {
+      triedSnapshotCacheRef.current = true
+      const cached = readCache(snapshotCacheKey)
+      if (cached) {
+        setSnapshot({
+          summary: cached.summary || emptySummary,
+          upcomingEvents: cached.upcomingEvents || [],
+          typeSummary: cached.typeSummary || [],
+          waitlistCount: cached.waitlistCount ?? 0,
+        })
+      }
+    }
     try {
       const response = await fetch('/api/agenda_snapshot', { credentials: 'same-origin' })
       if (!response.ok) return
       const data = await response.json()
-      setSnapshot({
+      const nextSnapshot = {
         summary: data.summary || emptySummary,
         upcomingEvents: data.upcoming_events || [],
         typeSummary: data.type_summary || [],
         waitlistCount: data.waitlist_count ?? 0,
-      })
+      }
+      setSnapshot(nextSnapshot)
+      writeCache(snapshotCacheKey, nextSnapshot)
     } catch (error) {
       // silencioso
     }
-  }, [])
+  }, [snapshotCacheKey])
 
   const openAddModal = useCallback((prefill = {}) => {
     setAddForm({ ...emptyEventForm, ...prefill })
