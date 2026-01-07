@@ -354,7 +354,8 @@ export default function Upload() {
               Envie um PDF de exames para análise automática ou insira os dados manualmente.
             </p>
             <div className="lab-hero__actions">
-              <button type="button" className="lab-secondary" onClick={() => setReferenceModalOpen(true)}>
+              <button type="button" className="lab-hero__reference-btn" onClick={() => setReferenceModalOpen(true)}>
+                <i className="fa fa-sliders" aria-hidden="true" />
                 Ajustar referências
               </button>
             </div>

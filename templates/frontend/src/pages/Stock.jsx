@@ -464,9 +464,11 @@ export default function Stock() {
             </div>
             <div className="data-table__aside">
               <button className="btn-primary" type="button" onClick={handleOpenAddModal}>
+                <i className="fa fa-cube" aria-hidden="true" />
                 Cadastrar produto
               </button>
               <button className="btn-outline" type="button" onClick={() => setShowHistoryModal(true)}>
+                <i className="fa fa-exchange" aria-hidden="true" />
                 Movimentações (últimos 30 dias)
               </button>
             </div>

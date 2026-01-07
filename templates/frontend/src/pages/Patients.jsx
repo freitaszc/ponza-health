@@ -377,6 +377,7 @@ export default function Patients() {
               </div>
               <div className="data-table__aside">
                 <a className="btn-primary" href="/catalog/register">
+                  <i className="fa fa-user-plus" aria-hidden="true" />
                   Cadastrar paciente
                 </a>
               </div>
@@ -403,7 +404,18 @@ export default function Patients() {
                             className="patient-avatar"
                           />
                           <div className="patient-info">
-                            <span className="patient-name">{patient.name}</span>
+                            <button
+                              type="button"
+                              className="patient-name patient-name-btn"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setOpenMenuId(openMenuId === patient.id ? null : patient.id)
+                              }}
+                              aria-haspopup="menu"
+                              aria-expanded={openMenuId === patient.id}
+                            >
+                              {patient.name}
+                            </button>
                           </div>
                         </div>
                       </td>
@@ -435,7 +447,7 @@ export default function Patients() {
                             </button>
                             {openMenuId === patient.id ? (
                               <div className="dropdown-menu" role="menu">
-                                <a href={`/patient_result/${patient.id}`}>Ver diagnostico</a>
+                                <a href={`/patient_result/${patient.id}`}>Ver diagnóstico</a>
                                 <a href={`/edit_patient/${patient.id}`}>Editar informações</a>
                                 <button type="button" onClick={() => openConsultationModal(patient.id)}>
                                   Adicionar consulta

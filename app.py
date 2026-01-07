@@ -4421,8 +4421,19 @@ def _serialize_patient_detail(patient: Patient) -> dict:
         "sex": patient.sex or "",
         "email": patient.email or "",
         "cpf": patient.cpf or "",
+        "rg": patient.rg or "",
+        "marital_status": patient.marital_status or "",
+        "father_name": patient.father_name or "",
+        "mother_name": patient.mother_name or "",
         "phone_primary": patient.phone_primary or "",
         "phone_secondary": patient.phone_secondary or "",
+        "education_level": patient.education_level or "",
+        "profession": patient.profession or "",
+        "monthly_income": patient.monthly_income or "",
+        "special_needs": patient.special_needs or "",
+        "emergency_contact_name": patient.emergency_contact_name or "",
+        "emergency_contact_phone": patient.emergency_contact_phone or "",
+        "has_health_plan": bool(patient.has_health_plan),
         "notes": patient.notes or "",
         "cep": patient.address_cep or "",
         "street": patient.address_street or "",
@@ -4463,6 +4474,17 @@ def api_patients():
     sex = (data.get('sex') or '').strip()
     email = (data.get('email') or '').strip().lower()
     cpf = (data.get('cpf') or data.get('document') or '').strip().replace('.', '').replace('-', '')
+    rg = (data.get('rg') or '').strip()
+    marital_status = (data.get('marital_status') or '').strip()
+    father_name = (data.get('father_name') or '').strip()
+    mother_name = (data.get('mother_name') or '').strip()
+    education_level = (data.get('education_level') or '').strip()
+    profession = (data.get('profession') or '').strip()
+    monthly_income = (data.get('monthly_income') or '').strip()
+    special_needs = (data.get('special_needs') or '').strip()
+    emergency_contact_name = (data.get('emergency_contact_name') or '').strip()
+    emergency_contact_phone = (data.get('emergency_contact_phone') or '').strip()
+    has_health_plan = _coerce_to_bool(data.get('has_health_plan'))
     notes = (data.get('notes') or '').strip()
     phone_pri = (data.get('phone_primary') or data.get('phone') or '').strip()
     phone_sec = (data.get('phone_secondary') or '').strip()
@@ -4511,6 +4533,17 @@ def api_patients():
         sex=sex or None,
         email=email or None,
         cpf=cpf or None,
+        rg=rg or None,
+        marital_status=marital_status or None,
+        father_name=father_name or None,
+        mother_name=mother_name or None,
+        education_level=education_level or None,
+        profession=profession or None,
+        monthly_income=monthly_income or None,
+        special_needs=special_needs or None,
+        emergency_contact_name=emergency_contact_name or None,
+        emergency_contact_phone=emergency_contact_phone or None,
+        has_health_plan=has_health_plan,
         notes=notes or None,
         profile_image=profile_rel or default_image_url,
         phone_primary=phone_pri,
@@ -4549,6 +4582,17 @@ def api_patient_detail(patient_id: int):
     sex = (data.get('sex') or '').strip()
     email = (data.get('email') or '').strip().lower()
     cpf = (data.get('cpf') or data.get('document') or '').strip().replace('.', '').replace('-', '')
+    rg = (data.get('rg') or '').strip()
+    marital_status = (data.get('marital_status') or '').strip()
+    father_name = (data.get('father_name') or '').strip()
+    mother_name = (data.get('mother_name') or '').strip()
+    education_level = (data.get('education_level') or '').strip()
+    profession = (data.get('profession') or '').strip()
+    monthly_income = (data.get('monthly_income') or '').strip()
+    special_needs = (data.get('special_needs') or '').strip()
+    emergency_contact_name = (data.get('emergency_contact_name') or '').strip()
+    emergency_contact_phone = (data.get('emergency_contact_phone') or '').strip()
+    has_health_plan = _coerce_to_bool(data.get('has_health_plan'))
     notes = (data.get('notes') or '').strip()
     phone_pri = (data.get('phone_primary') or data.get('phone') or '').strip()
     phone_sec = (data.get('phone_secondary') or '').strip()
@@ -4602,6 +4646,17 @@ def api_patient_detail(patient_id: int):
     patient.sex = sex or None
     patient.email = email or None
     patient.cpf = cpf or None
+    patient.rg = rg or None
+    patient.marital_status = marital_status or None
+    patient.father_name = father_name or None
+    patient.mother_name = mother_name or None
+    patient.education_level = education_level or None
+    patient.profession = profession or None
+    patient.monthly_income = monthly_income or None
+    patient.special_needs = special_needs or None
+    patient.emergency_contact_name = emergency_contact_name or None
+    patient.emergency_contact_phone = emergency_contact_phone or None
+    patient.has_health_plan = has_health_plan
     patient.notes = notes or None
     patient.phone_primary = phone_pri
     patient.phone_secondary = phone_sec or None
@@ -4662,6 +4717,17 @@ def register_patient():
         email = (request.form.get('email') or '').strip().lower()
         cpf   = (request.form.get('cpf') or request.form.get('document') or '').strip()
         cpf   = cpf.replace('.', '').replace('-', '')
+        rg = (request.form.get('rg') or '').strip()
+        marital_status = (request.form.get('marital_status') or '').strip()
+        father_name = (request.form.get('father_name') or '').strip()
+        mother_name = (request.form.get('mother_name') or '').strip()
+        education_level = (request.form.get('education_level') or '').strip()
+        profession = (request.form.get('profession') or '').strip()
+        monthly_income = (request.form.get('monthly_income') or '').strip()
+        special_needs = (request.form.get('special_needs') or '').strip()
+        emergency_contact_name = (request.form.get('emergency_contact_name') or '').strip()
+        emergency_contact_phone = (request.form.get('emergency_contact_phone') or '').strip()
+        has_health_plan = _coerce_to_bool(request.form.get('has_health_plan'))
         notes = (request.form.get('notes') or '').strip()
 
         phone_pri = (request.form.get('phone_primary') or request.form.get('phone') or '').strip()
@@ -4727,6 +4793,17 @@ def register_patient():
             sex=sex or None,
             email=email or None,
             cpf=cpf or None,
+            rg=rg or None,
+            marital_status=marital_status or None,
+            father_name=father_name or None,
+            mother_name=mother_name or None,
+            education_level=education_level or None,
+            profession=profession or None,
+            monthly_income=monthly_income or None,
+            special_needs=special_needs or None,
+            emergency_contact_name=emergency_contact_name or None,
+            emergency_contact_phone=emergency_contact_phone or None,
+            has_health_plan=has_health_plan,
             notes=notes or None,
             profile_image=profile_rel or default_image_url,
             phone_primary=phone_pri,
@@ -4797,6 +4874,17 @@ def edit_patient(patient_id):
         sex       = (request.form.get('sex') or (patient.sex or '')).strip()
         email     = (request.form.get('email') or '').strip().lower()
         cpf       = (request.form.get('cpf') or request.form.get('document') or '').strip().replace('.', '').replace('-', '')
+        rg        = (request.form.get('rg') or '').strip()
+        marital_status = (request.form.get('marital_status') or '').strip()
+        father_name = (request.form.get('father_name') or '').strip()
+        mother_name = (request.form.get('mother_name') or '').strip()
+        education_level = (request.form.get('education_level') or '').strip()
+        profession = (request.form.get('profession') or '').strip()
+        monthly_income = (request.form.get('monthly_income') or '').strip()
+        special_needs = (request.form.get('special_needs') or '').strip()
+        emergency_contact_name = (request.form.get('emergency_contact_name') or '').strip()
+        emergency_contact_phone = (request.form.get('emergency_contact_phone') or '').strip()
+        has_health_plan = _coerce_to_bool(request.form.get('has_health_plan'))
         notes     = (request.form.get('notes') or '').strip()
         phone_pri = (request.form.get('phone_primary') or request.form.get('phone') or '').strip()
         phone_sec = (request.form.get('phone_secondary') or '').strip()
@@ -4864,6 +4952,17 @@ def edit_patient(patient_id):
         patient.sex                = sex or None
         patient.email              = email or None
         patient.cpf                = cpf or None
+        patient.rg                 = rg or None
+        patient.marital_status     = marital_status or None
+        patient.father_name        = father_name or None
+        patient.mother_name        = mother_name or None
+        patient.education_level    = education_level or None
+        patient.profession         = profession or None
+        patient.monthly_income     = monthly_income or None
+        patient.special_needs      = special_needs or None
+        patient.emergency_contact_name = emergency_contact_name or None
+        patient.emergency_contact_phone = emergency_contact_phone or None
+        patient.has_health_plan    = has_health_plan
         patient.notes              = notes or None
         patient.phone_primary      = phone_pri
         patient.phone_secondary    = phone_sec or None

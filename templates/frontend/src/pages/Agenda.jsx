@@ -31,6 +31,13 @@ const TYPE_OPTIONS = [
   { value: 'bloqueio', label: 'Bloqueios' },
 ]
 
+const TYPE_ICONS = {
+  consulta: 'fa-user-md',
+  retorno: 'fa-refresh',
+  procedimento: 'fa-medkit',
+  bloqueio: 'fa-ban',
+}
+
 const TYPE_LABELS = {
   consulta: 'Consulta',
   retorno: 'Retorno',
@@ -760,12 +767,15 @@ export default function Agenda() {
           </div>
           <div className="agenda-actions-bar__buttons">
             <button className="btn-primary" type="button" onClick={() => openAddModal()}>
+              <i className="fa fa-calendar-plus-o" aria-hidden="true" />
               Novo agendamento
             </button>
             <button className="btn-outline" type="button" onClick={() => setShowUpcomingModal(true)}>
+              <i className="fa fa-calendar-o" aria-hidden="true" />
               Próximos 7 dias
             </button>
             <button className="btn-outline" type="button" onClick={() => setShowWaitlistModal(true)}>
+              <i className="fa fa-clock-o" aria-hidden="true" />
               Lista de espera
             </button>
           </div>
@@ -879,6 +889,7 @@ export default function Agenda() {
                     type="button"
                     onClick={() => handleToggleType(item.value)}
                   >
+                    <i className={`fa ${TYPE_ICONS[item.value]}`} aria-hidden="true" />
                     {item.label}
                     <span className="filter-chip__count">{typeCounts.counts[item.value] || 0}</span>
                   </button>

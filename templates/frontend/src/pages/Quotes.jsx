@@ -247,8 +247,14 @@ export default function Quotes() {
                 </div>
               </div>
               <div className="data-table__aside">
-                <Link className="btn-primary" to="/quotes/create">Nova cotação</Link>
-                <Link className="btn-outline" to="/suppliers">Gerenciar fornecedores</Link>
+                <Link className="btn-primary" to="/quotes/create">
+                  <i className="fa fa-plus" aria-hidden="true" />
+                  Nova cotação
+                </Link>
+                <Link className="btn-outline" to="/suppliers">
+                  <i className="fa fa-truck" aria-hidden="true" />
+                  Gerenciar fornecedores
+                </Link>
               </div>
             </div>
             <table className="quotes-table">

@@ -565,7 +565,7 @@ export default function Dashboard() {
               <span className="result-spinner" aria-hidden="true" />
               <div>
                 <h3>Carregando dashboard</h3>
-                <p>Estamos atualizando as metricas para voce.</p>
+                <p>Estamos atualizando as métricas para você.</p>
               </div>
             </div>
           </div>

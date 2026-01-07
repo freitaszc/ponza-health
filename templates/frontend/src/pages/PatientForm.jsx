@@ -31,6 +31,17 @@ const emptyForm = {
   sex: '',
   email: '',
   cpf: '',
+  rg: '',
+  marital_status: '',
+  father_name: '',
+  mother_name: '',
+  education_level: '',
+  profession: '',
+  monthly_income: '',
+  special_needs: '',
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
+  has_health_plan: false,
   phone_primary: '',
   phone_secondary: '',
   notes: '',
@@ -42,6 +53,56 @@ const emptyForm = {
   city: '',
   state: '',
 }
+
+const formSections = [
+  { id: 'sec-foto', label: 'Foto' },
+  { id: 'sec-pessoais', label: 'Pessoais' },
+  { id: 'sec-endereco', label: 'Endereço' },
+  { id: 'sec-complementares', label: 'Complementares' },
+  { id: 'sec-observacoes', label: 'Observações' },
+]
+
+const maritalStatusOptions = [
+  'Solteiro(a)',
+  'Casado(a)',
+  'Separado(a)',
+  'Divorciado(a)',
+  'Viúvo(a)',
+  'União estável',
+  'Prefiro não informar',
+]
+
+const educationOptions = [
+  'Fundamental incompleto',
+  'Fundamental completo',
+  'Médio incompleto',
+  'Médio completo',
+  'Superior incompleto',
+  'Superior completo',
+  'Pós-graduação',
+  'Mestrado',
+  'Doutorado',
+  'Prefiro não informar',
+]
+
+const incomeOptions = [
+  'Até 1 salário mínimo',
+  '1 a 2 salários mínimos',
+  '2 a 5 salários mínimos',
+  '5 a 10 salários mínimos',
+  'Acima de 10 salários mínimos',
+  'Prefiro não informar',
+]
+
+const specialNeedsOptions = [
+  'Não',
+  'Física',
+  'Auditiva',
+  'Visual',
+  'Intelectual',
+  'Outra',
+  'Prefiro não informar',
+]
 
 const maskDate = (value) => {
   const digits = (value || '').replace(/\D/g, '').slice(0, 8)
@@ -235,18 +296,29 @@ export default function PatientForm() {
 
         {!loading ? (
           <form className="form-stack" onSubmit={handleSubmit}>
-            <section className="dashboard-card dashboard-card--panel">
+            <div className="form-section-nav" aria-label="Seções do cadastro">
+              <div className="form-section-nav__label">Seções</div>
+              <div className="form-section-nav__buttons" role="navigation" aria-label="Atalhos das seções">
+                {formSections.map((section) => (
+                  <a key={section.id} className="form-section-nav__btn" href={`#${section.id}`}>
+                    {section.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            <section className="profile-section" id="sec-foto">
               <div className="card-title">Foto do paciente</div>
               <div className="profile-card">
                 <div className="profile-avatar">
                   <img src={profileImage} alt="Foto do paciente" />
                 </div>
                 <div className="profile-actions">
-                  <label className="btn-primary" htmlFor="profile_image">
+                  <label className="form-section-nav__btn" htmlFor="profile_image">
                     Alterar foto
                   </label>
                   {isEdit ? (
-                    <button type="button" className="btn-outline" onClick={handleRemovePhoto}>
+                    <button type="button" className="form-section-nav__btn" onClick={handleRemovePhoto}>
                       Remover foto
                     </button>
                   ) : null}
@@ -262,7 +334,7 @@ export default function PatientForm() {
               </div>
             </section>
 
-            <section className="dashboard-card dashboard-card--panel">
+            <section className="dashboard-card dashboard-card--panel" id="sec-pessoais">
               <div className="card-title">Informações pessoais</div>
               <div className="form-grid form-grid--2">
                 <label className="dashboard-field">
@@ -303,12 +375,26 @@ export default function PatientForm() {
                   </select>
                 </label>
                 <label className="dashboard-field">
-                  <span>Email</span>
+                  <span>Estado civil</span>
+                  <select
+                    className="dashboard-select"
+                    value={form.marital_status}
+                    onChange={(event) => handleChange('marital_status', event.target.value)}
+                  >
+                    <option value="">Selecione</option>
+                    {maritalStatusOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dashboard-field">
+                  <span>RG</span>
                   <input
                     className="dashboard-input"
-                    type="email"
-                    value={form.email}
-                    onChange={(event) => handleChange('email', event.target.value)}
+                    value={form.rg}
+                    onChange={(event) => handleChange('rg', event.target.value)}
                   />
                 </label>
                 <label className="dashboard-field">
@@ -322,6 +408,15 @@ export default function PatientForm() {
               </div>
 
               <div className="form-grid">
+                <label className="dashboard-field">
+                  <span>Email</span>
+                  <input
+                    className="dashboard-input"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => handleChange('email', event.target.value)}
+                  />
+                </label>
                 <label className="dashboard-field">
                   <span>Celular *</span>
                   <input
@@ -340,9 +435,28 @@ export default function PatientForm() {
                   />
                 </label>
               </div>
+
+              <div className="form-grid form-grid--2">
+                <label className="dashboard-field">
+                  <span>Nome do pai</span>
+                  <input
+                    className="dashboard-input"
+                    value={form.father_name}
+                    onChange={(event) => handleChange('father_name', event.target.value)}
+                  />
+                </label>
+                <label className="dashboard-field">
+                  <span>Nome da mãe</span>
+                  <input
+                    className="dashboard-input"
+                    value={form.mother_name}
+                    onChange={(event) => handleChange('mother_name', event.target.value)}
+                  />
+                </label>
+              </div>
             </section>
 
-            <section className="dashboard-card dashboard-card--panel">
+            <section className="dashboard-card dashboard-card--panel" id="sec-endereco">
               <div className="card-title">Endereço</div>
               <div className="form-grid">
                 <label className="dashboard-field">
@@ -406,7 +520,98 @@ export default function PatientForm() {
               </div>
             </section>
 
-            <section className="dashboard-card dashboard-card--panel">
+            <section className="dashboard-card dashboard-card--panel" id="sec-complementares">
+              <div className="card-title">Informações complementares</div>
+              <div className="form-grid">
+                <label className="dashboard-field">
+                  <span>Escolaridade</span>
+                  <select
+                    className="dashboard-select"
+                    value={form.education_level}
+                    onChange={(event) => handleChange('education_level', event.target.value)}
+                  >
+                    <option value="">Selecione</option>
+                    {educationOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dashboard-field">
+                  <span>Profissão</span>
+                  <input
+                    className="dashboard-input"
+                    value={form.profession}
+                    onChange={(event) => handleChange('profession', event.target.value)}
+                  />
+                </label>
+                <label className="dashboard-field">
+                  <span>Renda mensal</span>
+                  <select
+                    className="dashboard-select"
+                    value={form.monthly_income}
+                    onChange={(event) => handleChange('monthly_income', event.target.value)}
+                  >
+                    <option value="">Selecione</option>
+                    {incomeOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dashboard-field">
+                  <span>Necessidades especiais</span>
+                  <select
+                    className="dashboard-select"
+                    value={form.special_needs}
+                    onChange={(event) => handleChange('special_needs', event.target.value)}
+                  >
+                    <option value="">Selecione</option>
+                    {specialNeedsOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="form-grid">
+                <label className="dashboard-field">
+                  <span>Nome contato de emergência</span>
+                  <input
+                    className="dashboard-input"
+                    value={form.emergency_contact_name}
+                    onChange={(event) => handleChange('emergency_contact_name', event.target.value)}
+                  />
+                </label>
+                <label className="dashboard-field">
+                  <span>Contato de emergência</span>
+                  <input
+                    className="dashboard-input"
+                    type="tel"
+                    value={form.emergency_contact_phone}
+                    onChange={(event) => handleChange('emergency_contact_phone', event.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="toggle-center">
+                <label className="toggle-control">
+                  <span className="toggle-label">Plano de saúde</span>
+                  <input
+                    type="checkbox"
+                    checked={form.has_health_plan}
+                    onChange={(event) => handleChange('has_health_plan', event.target.checked)}
+                  />
+                  <span className="toggle-track">
+                    <span className="toggle-thumb" />
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            <section className="dashboard-card dashboard-card--panel" id="sec-observacoes">
               <div className="card-title">Observações</div>
               <label className="dashboard-field">
                 <span>Notas clínicas</span>
