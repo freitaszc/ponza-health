@@ -47,7 +47,8 @@ SYSTEM_PROMPT = (
     "Voce e Ponza RX, uma medica especialista em exames laboratoriais. "
     "Use os dados estruturados para interpretar os exames e gerar um resumo clinico. "
     "Classifique cada resultado como 'baixo', 'alto', 'normal' ou 'indefinido' quando aplicavel. "
-    "Sempre responda com JSON valido (sem texto adicional)."
+    "IMPORTANTE: Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele. "
+    "Se nao conseguir processar, retorne JSON minimo valido com os campos vazios."
 )
 
 OUTPUT_SPEC = {
@@ -92,55 +93,105 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
     input_json = json.dumps(input_payload, ensure_ascii=False, indent=2)
     return (
         "Dados extraidos do laudo (nao enviar texto bruto completo):\n"
-        f"{input_json}\n"
-        "Instrucoes:\n"
-        "- Use os dados estruturados acima; se algo estiver faltando, consulte key_lines.\n"
-        "- Se lab_results estiver incompleto, use raw_excerpt como apoio.\n"
-        "- Para cada exame, capture valor, unidade e referencia indicados.\n"
-        "- Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
-        "- Use apenas os valores fornecidos; nao invente. Se nao encontrar, deixe campo vazio.\n"
-        "- Classifique status comparando com a referencia escrita.\n"
-        "- Seja conciso: resumo clinico com no maximo 6 linhas e prescricoes objetivas.\n"
-        "- Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo, sem texto fora do JSON:\n"
-        f"{schema}\n"
+        f"{input_json}\n\n"
+        "INSTRUCOES:\n"
+        "1. Use os dados estruturados acima; se algo estiver faltando, consulte key_lines.\n"
+        "2. Se lab_results estiver incompleto, use raw_excerpt como apoio.\n"
+        "3. Para cada exame, capture valor, unidade e referencia indicados.\n"
+        "4. Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
+        "5. Use apenas os valores fornecidos; nao invente dados.\n"
+        "6. Classifique status comparando com a referencia escrita.\n"
+        "7. Resumo clinico: maximo 6 linhas. Prescricoes: objetivas e praticas.\n"
+        "8. CRITICO: Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo.\n"
+        "9. Nao adicione texto fora do JSON. Se algo falhar, retorne JSON valido com campos vazios.\n"
+        f"\nSCHEMA OBRIGATORIO:\n{schema}\n"
+        "\nRESPONDA APENAS COM JSON:"
     )
 
 
 def _extract_json(content: str) -> Optional[Dict[str, Any]]:
+    """Extract JSON from various formats, tolerating common AI response variations."""
     text = content.strip()
+    
+    # Remove markdown code blocks
     if text.startswith("```"):
-        text = text.strip("`")
-        if "\n" in text:
-            text = text.split("\n", 1)[1]
+        text = text.strip("`").strip()
+        # Remove language identifier (e.g., "json")
+        if text.startswith(("json", "JSON", "Json")):
+            text = text.split("\n", 1)[1] if "\n" in text else text[4:]
+    
     text = text.strip()
-    if text.startswith("json"):
-        text = text[4:].strip()
+    
+    # Try direct JSON parsing first
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        try:
-            start = text.index("{")
-            end = text.rindex("}") + 1
-            return json.loads(text[start:end])
-        except Exception:
-            return None
+        pass
+    
+    # Try extracting JSON object from surrounding text
+    try:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            json_str = text[start:end]
+            return json.loads(json_str)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    
+    # Try extracting JSON array if it starts with [
+    try:
+        start = text.find("[")
+        end = text.rfind("]") + 1
+        if start >= 0 and end > start:
+            json_str = text[start:end]
+            # Wrap in object if needed
+            parsed = json.loads(json_str)
+            if isinstance(parsed, list):
+                return {"exames": parsed}
+            return parsed
+    except (json.JSONDecodeError, ValueError):
+        pass
+    
+    # Last resort: try to fix common JSON issues
+    try:
+        # Remove trailing commas
+        fixed = text.replace(",\n}", "\n}").replace(",\n]", "\n]")
+        # Try again
+        start = fixed.find("{")
+        end = fixed.rfind("}") + 1
+        if start >= 0 and end > start:
+            json_str = fixed[start:end]
+            return json.loads(json_str)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    
+    return None
 
 
 def _analysis_needs_fallback(data: Dict[str, Any] | None, payload: Dict[str, Any]) -> bool:
+    """Check if analysis result is incomplete and needs fallback."""
     if not data:
         return True
+    
+    # Check if we have exames field
     exams = data.get("exames") or []
     if not exams:
         return True
+    
+    # If original payload has results, check if we got reasonable coverage
     payload_results = payload.get("lab_results") or []
-    if payload_results and len(exams) < MIN_EXAMS_FOR_CONFIDENCE:
-        return True
-    if payload_results and len(exams) < max(1, len(payload_results) // 3):
-        return True
-    patient_name = (payload.get("patient") or {}).get("nome")
-    parsed_name = (data.get("paciente") or {}).get("nome")
-    if patient_name and not parsed_name:
-        return True
+    if payload_results:
+        # Need at least 1/3 of original results or minimum 2
+        min_expected = max(2, len(payload_results) // 3)
+        if len(exams) < min_expected:
+            return True
+    
+    # Check if we have basic patient info (at least data extraction worked)
+    patient_data = data.get("paciente") or {}
+    if not any(patient_data.values()):
+        # If no patient data but we have exams, it's still acceptable
+        return len(exams) < (MIN_EXAMS_FOR_CONFIDENCE or 1)
+    
     return False
 
 
@@ -182,7 +233,9 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                 content = completion.choices[0].message.content if completion.choices else ""
                 data = _extract_json(content or "")
                 if not data:
-                    raise ValueError("Não foi possivel interpretar o JSON retornado.")
+                    # Log the problematic content for debugging
+                    error_detail = (content or "")[:500]
+                    raise ValueError(f"Não foi possivel interpretar o JSON. Resposta: {error_detail}")
                 return {
                     "ok": True,
                     "content": content or "",
@@ -223,11 +276,13 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
             )
             parsed = _extract_json(content)
             if not parsed:
+                # Try to provide more debugging info
+                debug_info = content[:1000] if content else "(vazio)"
                 return {
                     "ok": False,
                     "content": content,
                     "error": "Falha ao interpretar o JSON retornado pela IA.",
-                    "details": content[:2000],
+                    "details": f"Resposta recebida: {debug_info}",
                 }
             return {
                 "ok": True,
