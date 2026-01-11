@@ -52,14 +52,21 @@ class ReferenceData:
         if not name:
             return None
         key_norm = _normalize(name)
+        
+        # Exact match first
         mapped = self.normalized_keys.get(key_norm)
         if mapped:
             return self.entries.get(mapped)
-        matches = get_close_matches(key_norm, self.normalized_keys.keys(), n=1, cutoff=0.75)
-        if matches:
-            mapped = self.normalized_keys.get(matches[0])
-            if mapped:
-                return self.entries.get(mapped)
+        
+        # Try fuzzy matching with more lenient cutoff
+        # Start with strict matching, then relax
+        for cutoff in [0.85, 0.80, 0.75, 0.70]:
+            matches = get_close_matches(key_norm, self.normalized_keys.keys(), n=1, cutoff=cutoff)
+            if matches:
+                mapped = self.normalized_keys.get(matches[0])
+                if mapped:
+                    return self.entries.get(mapped)
+        
         return None
 
     def get_medications(self, test_name: str, status: str) -> Any:

@@ -80,29 +80,66 @@ class StructuredParser:
 
     def _extract_results(self, blocks: Sequence[str], raw_text: str, gender: str | None) -> List[LabResult]:
         results: List[LabResult] = []
+        processed_tests = set()  # Track to avoid duplicates
+        
         for block in blocks:
-            if ":" not in block:
+            # Skip empty blocks and patient info lines
+            if not block or block.lower().startswith("paciente"):
                 continue
-            name, value = [part.strip() for part in block.split(":", 1)]
-            if not name or not value:
+            
+            # Check for colon-separated format (name: value unit ref)
+            if ":" in block:
+                parts = block.split(":", 1)
+                if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+                    continue
+                    
+                name, value_part = [p.strip() for p in parts]
+                # Extract numeric value from the value part
+                import re
+                numeric_match = re.search(r'([-+]?\d[\d.,]*)', value_part)
+                if not numeric_match:
+                    continue
+                value_str = numeric_match.group(1).replace(",", ".")
+            else:
+                # Try to find numeric value in any format
+                import re
+                numeric_match = re.search(r'([-+]?\d[\d.,]*)', block)
+                if not numeric_match:
+                    continue
+                value_str = numeric_match.group(1).replace(",", ".")
+                name = block[:numeric_match.start()].strip()
+                if not name:
+                    continue
+            
+            if not name or name.lower().startswith("página"):
                 continue
-            if name.lower().startswith("paciente"):
+            
+            # Skip if already processed (avoid duplicates)
+            name_normalized = name.lower().strip()
+            if name_normalized in processed_tests:
                 continue
+                
+            try:
+                numeric_value = float(value_str)
+            except (ValueError, AttributeError):
+                continue
+            
+            processed_tests.add(name_normalized)
+            
+            # Try to match against known tests
             entry = self.references.best_match(name)
             ref = entry.ideal_for(gender) if entry else None
+            
             status = None
-            numeric_value = None
-            try:
-                numeric_value = float(value.replace(",", "."))
-            except Exception:
-                continue
             min_val, max_val = self._parse_range(ref) if ref else (None, None)
+            
             if min_val is not None and numeric_value < min_val:
                 status = "low"
             elif max_val is not None and numeric_value > max_val:
                 status = "high"
             else:
                 status = "normal"
+            
             results.append(
                 LabResult(
                     name=entry.name if entry else name,
