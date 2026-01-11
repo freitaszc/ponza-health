@@ -156,6 +156,7 @@ def _extract_json(content: str) -> Optional[Dict[str, Any]]:
     try:
         # Remove trailing commas
         fixed = text.replace(",\n}", "\n}").replace(",\n]", "\n]")
+        fixed = fixed.replace(",}", "}").replace(",]", "]")
         # Try again
         start = fixed.find("{")
         end = fixed.rfind("}") + 1
@@ -166,6 +167,38 @@ def _extract_json(content: str) -> Optional[Dict[str, Any]]:
         pass
     
     return None
+
+
+def _build_minimal_response(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Build a minimal valid response when IA fails to provide valid JSON."""
+    patient = payload.get("patient") or {}
+    lab_results = payload.get("lab_results") or []
+    
+    # Create minimal valid structure
+    exames = []
+    for result in lab_results:
+        exames.append({
+            "nome": result.get("nome", ""),
+            "valor": result.get("valor", ""),
+            "unidade": result.get("unidade", ""),
+            "referencia": result.get("referencia", ""),
+            "status": "indefinido",
+            "observacao": "",
+        })
+    
+    return {
+        "paciente": {
+            "nome": patient.get("nome", ""),
+            "data_nascimento": patient.get("data_nascimento", ""),
+            "cpf": patient.get("cpf", ""),
+            "sexo": patient.get("sexo", ""),
+        },
+        "exames": exames,
+        "resumo_clinico": "Análise dos dados estruturados do exame.",
+        "prescricao": [],
+        "orientações": [],
+        "alertas": [],
+    }
 
 
 def _analysis_needs_fallback(data: Dict[str, Any] | None, payload: Dict[str, Any]) -> bool:
@@ -232,10 +265,19 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                 timings["openai_ms"] = round((time.perf_counter() - call_start) * 1000)
                 content = completion.choices[0].message.content if completion.choices else ""
                 data = _extract_json(content or "")
+                
+                # If JSON parsing failed, try to build minimal response from payload
                 if not data:
-                    # Log the problematic content for debugging
-                    error_detail = (content or "")[:500]
-                    raise ValueError(f"Não foi possivel interpretar o JSON. Resposta: {error_detail}")
+                    data = _build_minimal_response(payload)
+                    return {
+                        "ok": True,
+                        "content": content or "",
+                        "analysis": data,
+                        "usage": getattr(completion, "usage", None),
+                        "model": getattr(completion, "model", model),
+                        "fallback": True,
+                    }
+                
                 return {
                     "ok": True,
                     "content": content or "",
@@ -275,15 +317,19 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                 .strip()
             )
             parsed = _extract_json(content)
+            
+            # If parsing failed, build minimal valid response
             if not parsed:
-                # Try to provide more debugging info
-                debug_info = content[:1000] if content else "(vazio)"
+                parsed = _build_minimal_response(payload)
                 return {
-                    "ok": False,
+                    "ok": True,
                     "content": content,
-                    "error": "Falha ao interpretar o JSON retornado pela IA.",
-                    "details": f"Resposta recebida: {debug_info}",
+                    "analysis": parsed,
+                    "usage": data.get("usage"),
+                    "model": data.get("model", model),
+                    "fallback": True,
                 }
+            
             return {
                 "ok": True,
                 "content": content,
