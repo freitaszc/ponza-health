@@ -72,15 +72,19 @@ PATIENT_KEYWORDS = (
     "idade",
     "data nasc",
     "data de nascimento",
+    "telefone",
+    "tel",
+    "celular",
+    "rg",
 )
 
 RESULT_HINTS = ("ref", "refer", "valor", "resultado", "vr")
 
 # Multiple patterns to capture different formats of lab results
 RESULT_LINE_RE = re.compile(
-    r"^(?P<name>[A-Za-z0-9 /().%-]{2,}?)\s*[:\-–]\s*"
-    r"(?P<value>[-+]?\d[\d.,]*)\s*"
-    r"(?P<unit>[A-Za-z/%\^0-9]+)?"
+    r"^(?P<name>[A-Za-zÀ-ÿ0-9 /().,%+-]{2,}?)\s*[:\-–—]\s*"
+    r"(?P<value>(?:<=|>=|<|>)?\s*[-+]?\d[\d.,]*)\s*"
+    r"(?P<unit>[A-Za-z/%\^0-9µμ]+)?"
     r"(?:\s*(?:\(|\[)?(?:ref|vr|refer(?:encia)?|valor(?:es)? de ref)[:\s]*"
     r"(?P<ref>[^\)\]]+))?",
     re.IGNORECASE,
@@ -101,6 +105,163 @@ REFERENCE_PATTERN_RE = re.compile(
     re.IGNORECASE,
 )
 
+PATIENT_LABEL_RE = re.compile(
+    r"\b(paciente|nome|cpf|sexo|nascimento|data\s*(?:de\s*)?nasc(?:imento)?|idade|telefone|tel\.?|celular|rg)\b",
+    re.IGNORECASE,
+)
+
+VALUE_TOKEN_RE = re.compile(r"(?:<=|>=|<|>)?\s*[-+]?\d[\d.,]*")
+
+SKIP_RESULT_NAMES = {
+    "página",
+    "total",
+    "análise",
+    "resultado",
+    "resultados",
+    "valor",
+    "unidade",
+    "referencia",
+    "referência",
+}
+
+
+def _clean_patient_value(value: str) -> str:
+    cleaned = value.strip()
+    cleaned = cleaned.strip(":-|;")
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
+
+
+def _extract_patient_fields_from_line(line: str) -> Dict[str, str]:
+    fields: Dict[str, str] = {}
+    matches = list(PATIENT_LABEL_RE.finditer(line))
+    if not matches:
+        return fields
+    leading_ws = len(line) - len(line.lstrip())
+    for idx, match in enumerate(matches):
+        label = match.group(1).lower()
+        label_pos = match.start()
+        tail = line[match.end():]
+        has_separator = bool(re.match(r"\s*[:\-]", tail))
+        effective_pos = max(0, label_pos - leading_ws)
+        if not has_separator and effective_pos > 2:
+            continue
+        if label == "idade" and not has_separator and "anos de idade" in line.lower():
+            continue
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(line)
+        raw_value = _clean_patient_value(line[start:end])
+        if not raw_value:
+            continue
+        if label in ("paciente", "nome"):
+            key = "nome"
+            value = raw_value
+        elif "nasc" in label:
+            key = "data_nascimento"
+            value = raw_value
+        elif label == "sexo":
+            key = "sexo"
+            value = raw_value.split()[0] if raw_value else raw_value
+        elif label == "cpf":
+            key = "cpf"
+            cpf_match = re.search(r"\d{3}\.?\d{3}\.?\d{3}-?\d{2}", raw_value)
+            value = cpf_match.group(0) if cpf_match else raw_value
+        elif label in ("telefone", "tel", "celular"):
+            key = "telefone"
+            phone_match = re.search(r"\(?\d{2}\)?\s*\d{4,5}[-\s]?\d{4}", raw_value)
+            value = phone_match.group(0) if phone_match else raw_value
+        elif label == "idade":
+            key = "idade"
+            value = raw_value
+        elif label == "rg":
+            key = "rg"
+            value = raw_value
+        else:
+            continue
+        if value and key not in fields:
+            fields[key] = value
+    return fields
+
+
+def _extract_reference(line: str) -> str:
+    match = REFERENCE_PATTERN_RE.search(line)
+    if not match:
+        return ""
+    if match.group("ref_min") and match.group("ref_max"):
+        return f"{match.group('ref_min').strip()}-{match.group('ref_max').strip()}"
+    if match.group("ref_simple"):
+        return match.group("ref_simple").strip()
+    return ""
+
+
+def _strip_reference_segment(line: str) -> str:
+    trimmed = re.sub(r"\(([^)]*(?:ref|vr)[^)]*)\)", "", line, flags=re.IGNORECASE)
+    trimmed = re.sub(r"\[([^\]]*(?:ref|vr)[^\]]*)\]", "", trimmed, flags=re.IGNORECASE)
+    marker = re.search(r"(?:ref|vr|refer(?:encia)?|valor(?:es)? de ref)[:\s]", trimmed, re.IGNORECASE)
+    if marker:
+        trimmed = trimmed[:marker.start()]
+    return trimmed.strip()
+
+
+def _clean_test_name(name: str) -> str:
+    cleaned = name.strip()
+    cleaned = re.sub(r"^\d+\s+", "", cleaned)
+    cleaned = cleaned.rstrip(":-–—")
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned.strip()
+
+
+def _extract_value_and_unit(text: str) -> tuple[str, str]:
+    match = VALUE_TOKEN_RE.search(text)
+    if not match:
+        return "", ""
+    value = match.group(0).strip().replace(" ", "")
+    unit = ""
+    tail = text[match.end():].strip()
+    if tail:
+        unit_match = re.match(r"[A-Za-z/%\^0-9µμ]+", tail)
+        if unit_match:
+            candidate = unit_match.group(0)
+            if candidate.upper() not in {"H", "L"}:
+                unit = candidate
+    return value, unit
+
+
+def _parse_columnar_result(line: str) -> Dict[str, Any] | None:
+    columns = [c.strip() for c in re.split(r"\s{2,}", line) if c and c.strip()]
+    if len(columns) < 2:
+        return None
+    name = _clean_test_name(columns[0])
+    if not name:
+        return None
+    value_idx = None
+    for idx in range(1, len(columns)):
+        if VALUE_TOKEN_RE.search(columns[idx]):
+            value_idx = idx
+            break
+    if value_idx is None:
+        return None
+    value, unit = _extract_value_and_unit(columns[value_idx])
+    if not value:
+        return None
+    reference = ""
+    if value_idx + 1 < len(columns):
+        for col in columns[value_idx + 1:]:
+            if not unit and re.search(r"[A-Za-z/%\^]", col) and not re.search(r"\d", col):
+                unit = col.strip()
+                continue
+            if not reference and re.search(r"\d", col):
+                reference = col.strip()
+    if not reference:
+        reference = _extract_reference(line)
+    return {
+        "nome": name,
+        "valor": value,
+        "unidade": unit,
+        "referencia": reference,
+        "raw_line": line,
+    }
+
 
 def _clean_lines(raw_text: str) -> List[str]:
     lines = []
@@ -108,10 +269,20 @@ def _clean_lines(raw_text: str) -> List[str]:
         cleaned = line.strip()
         if not cleaned:
             continue
-        if len(cleaned) > 180:
-            cleaned = cleaned[:180] + "..."
         lines.append(cleaned)
     return lines
+
+
+def _truncate_lines(lines: List[str], max_len: int) -> List[str]:
+    if not max_len:
+        return lines
+    trimmed = []
+    for line in lines:
+        if len(line) > max_len:
+            trimmed.append(line[:max_len].rstrip())
+        else:
+            trimmed.append(line)
+    return trimmed
 
 
 def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
@@ -123,7 +294,7 @@ def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
         lower = line.lower()
         
         # Extract patient info
-        if any(keyword in lower for keyword in PATIENT_KEYWORDS):
+        if _extract_patient_fields_from_line(line):
             patient_lines.append(line)
             continue
         
@@ -143,10 +314,13 @@ def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
         
         # Include numeric lines with letters (may be test results)
         has_letters = any(char.isalpha() for char in line)
-        if has_letters:
+        value_tokens = VALUE_TOKEN_RE.findall(line)
+        if has_letters and value_tokens:
             # Exclude common non-result lines
             if not any(x in lower for x in ["página", "total de", "análise", "data:", "hora:", "solicitação", "laboratório"]):
-                result_lines.append(line)
+                # Prefer lines with more than one numeric token (often columnar results)
+                if len(value_tokens) >= 2 or has_result_hint or has_separator:
+                    result_lines.append(line)
     
     return {"patient_lines": patient_lines, "result_lines": result_lines}
 
@@ -154,61 +328,61 @@ def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
 def _parse_patient_info(lines: List[str]) -> Dict[str, Any]:
     patient: Dict[str, Any] = {}
     for line in lines:
-        lower = line.lower()
-        if "cpf" in lower and "cpf" not in patient:
-            parts = line.split(":")
-            if len(parts) > 1:
-                patient["cpf"] = parts[-1].strip()
-        if ("nome" in lower or "paciente" in lower) and "nome" not in patient:
-            parts = line.split(":")
-            if len(parts) > 1:
-                patient["nome"] = parts[-1].strip()
-        if ("sexo" in lower) and "sexo" not in patient:
-            parts = line.split(":")
-            if len(parts) > 1:
-                patient["sexo"] = parts[-1].strip()
-        if ("nascimento" in lower or "data nasc" in lower) and "data_nascimento" not in patient:
-            parts = line.split(":")
-            if len(parts) > 1:
-                patient["data_nascimento"] = parts[-1].strip()
+        extracted = _extract_patient_fields_from_line(line)
+        for key, value in extracted.items():
+            if key not in patient and value:
+                patient[key] = value
     return patient
 
 
 def _parse_result_lines(lines: List[str]) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
-    
+
     for line in lines:
+        added = False
         # Try the main regex pattern first
         match = RESULT_LINE_RE.match(line)
         if match:
             data = match.groupdict()
+            name = _clean_test_name((data.get("name") or "").strip())
+            if not name or name.lower() in SKIP_RESULT_NAMES:
+                continue
             results.append({
-                "nome": (data.get("name") or "").strip(),
-                "valor": (data.get("value") or "").strip(),
+                "nome": name,
+                "valor": (data.get("value") or "").strip().replace(" ", ""),
                 "unidade": (data.get("unit") or "").strip(),
-                "referencia": (data.get("ref") or "").strip(),
+                "referencia": (data.get("ref") or "").strip() or _extract_reference(line),
                 "raw_line": line,
             })
             continue
-        
+
+        # Try fixed-width column formats (common in lab tables)
+        columnar = _parse_columnar_result(line)
+        if columnar:
+            results.append(columnar)
+            continue
+
+        reference = _extract_reference(line)
+        clean_line = _strip_reference_segment(line)
+
         # Fallback: try to extract from space-separated or comma-separated values
         # Handle cases like: "Hemoglobina 14.5 g/dL ref: 12-16"
-        tokens = line.split()
-        
+        tokens = clean_line.split()
+
         for idx, token in enumerate(tokens):
             # Look for numeric tokens (potential values)
-            if re.match(r"^[-+]?\d[\d.,]*$", token):
+            if VALUE_TOKEN_RE.fullmatch(token):
                 name = " ".join(tokens[:idx]).strip()
-                value = token
-                
+                value = token.replace(" ", "")
+
                 # Try to get unit (next token if it's not a number)
                 unit = ""
-                ref = ""
-                
+                ref = reference
+
                 if idx + 1 < len(tokens):
                     next_token = tokens[idx + 1]
                     # Check if it looks like a unit
-                    if not re.match(r"^[-+]?\d", next_token) and not any(x in next_token.lower() for x in ["ref", "vr", "refer"]):
+                    if not VALUE_TOKEN_RE.match(next_token) and not any(x in next_token.lower() for x in ["ref", "vr", "refer"]):
                         unit = next_token
                         # Everything after is potential reference
                         if idx + 2 < len(tokens):
@@ -217,7 +391,8 @@ def _parse_result_lines(lines: List[str]) -> List[Dict[str, Any]]:
                         # Next token is also numeric or a reference marker
                         ref = " ".join(tokens[idx + 1:])
                 
-                if name and name.lower() not in ["página", "total", "análise"]:
+                name = _clean_test_name(name)
+                if name and name.lower() not in SKIP_RESULT_NAMES:
                     results.append({
                         "nome": name,
                         "valor": value,
@@ -225,8 +400,24 @@ def _parse_result_lines(lines: List[str]) -> List[Dict[str, Any]]:
                         "referencia": ref,
                         "raw_line": line,
                     })
+                    added = True
                     break
-    
+        if added:
+            continue
+
+        # Last resort: extract value by scanning the cleaned line
+        value, unit = _extract_value_and_unit(clean_line)
+        if value:
+            name = _clean_test_name(clean_line[:clean_line.find(value)] if value in clean_line else clean_line)
+            if name and name.lower() not in SKIP_RESULT_NAMES:
+                results.append({
+                    "nome": name,
+                    "valor": value,
+                    "unidade": unit,
+                    "referencia": reference,
+                    "raw_line": line,
+                })
+
     return results
 
 
@@ -295,8 +486,10 @@ def extract_exam_payload(
     timings["pdf_extract_ms"] = round((time.perf_counter() - extract_start) * 1000)
 
     max_results = int(os.getenv("EXAM_ANALYSIS_MAX_RESULTS", "120"))
+    min_results = int(os.getenv("EXAM_ANALYSIS_MIN_RESULTS", "8"))
     ocr_ms = 0
     ocr_pages = 0
+    pipeline_result = None
 
     min_chars = int(os.getenv("EXAM_ANALYSIS_OCR_MIN_CHARS", "200"))
     needs_ocr = require_ocr or len(raw_text) < min_chars
@@ -306,6 +499,7 @@ def extract_exam_payload(
 
             ocr_start = time.perf_counter()
             pipeline = run_pipeline(file_bytes, references_path, require_ocr=True)
+            pipeline_result = pipeline
             ocr_ms = round((time.perf_counter() - ocr_start) * 1000)
             if pipeline.raw_text:
                 raw_text = pipeline.raw_text
@@ -331,19 +525,120 @@ def extract_exam_payload(
         if table_name and table_name not in existing_names:
             lab_results.append(table_result)
             existing_names.add(table_name)
-    
+
+    pipeline_always = str(os.getenv("EXAM_ANALYSIS_PIPELINE_ALWAYS", "")).lower() in {"1", "true", "yes", "on"}
+    if not pipeline_result and (pipeline_always or len(lab_results) < min_results):
+        try:
+            from pdf_pipeline.structured_extractor import run_pipeline
+
+            pipeline_result = run_pipeline(file_bytes, references_path, require_ocr=False)
+        except Exception:
+            pipeline_result = None
+
+    if pipeline_result:
+        pipeline_patient = pipeline_result.patient_data or {}
+        patient_map = {
+            "name": "nome",
+            "gender": "sexo",
+            "birth_date": "data_nascimento",
+            "phone": "telefone",
+            "cpf": "cpf",
+        }
+        for source_key, target_key in patient_map.items():
+            if not patient.get(target_key) and pipeline_patient.get(source_key):
+                patient[target_key] = pipeline_patient.get(source_key)
+
+        pipeline_results = []
+        for item in pipeline_result.lab_results or []:
+            name = item.get("name") or item.get("nome") or item.get("test")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            pipeline_results.append({
+                "nome": name.strip(),
+                "valor": item.get("value") if "value" in item else item.get("valor"),
+                "unidade": item.get("unit") or item.get("unidade") or "",
+                "referencia": item.get("reference") or item.get("referencia") or "",
+                "raw_line": item.get("raw_line") or "[PIPELINE]",
+            })
+        if pipeline_results:
+            existing_names = {r.get("nome", "").lower().strip() for r in lab_results}
+            for item in pipeline_results:
+                key = item.get("nome", "").lower().strip()
+                if key and key not in existing_names:
+                    lab_results.append(item)
+                    existing_names.add(key)
+
+    references_raw = _load_reference_payload(references_path)
+    full_lines = _clean_lines(raw_text)
+    if full_lines and any(not patient.get(key) for key in ("nome", "data_nascimento", "cpf", "sexo", "telefone")):
+        try:
+            from prescription import extract_patient_info  # type: ignore
+        except Exception:
+            extract_patient_info = None  # type: ignore
+        if extract_patient_info:
+            try:
+                name, gender, _age, cpf, phone, _doctor, birth_date = extract_patient_info(full_lines)
+            except Exception:
+                name = gender = cpf = phone = birth_date = ""
+            if name and not patient.get("nome"):
+                patient["nome"] = name
+            if birth_date and not patient.get("data_nascimento"):
+                patient["data_nascimento"] = birth_date
+            if cpf and not patient.get("cpf"):
+                patient["cpf"] = cpf
+            if phone and not patient.get("telefone"):
+                patient["telefone"] = phone
+            if gender and not patient.get("sexo"):
+                patient["sexo"] = gender
+    enable_reference_scan = str(os.getenv("EXAM_ANALYSIS_REFERENCE_SCAN", "1")).lower() in {"1", "true", "yes", "on"}
+    reference_scan_results: list[dict[str, Any]] = []
+    if enable_reference_scan and isinstance(references_raw, dict) and full_lines:
+        try:
+            from prescription import scan_results  # type: ignore
+        except Exception:
+            scan_results = None  # type: ignore
+        if scan_results:
+            gender_hint = patient.get("sexo") or ""
+            try:
+                from prescription import _normalize_patient_gender  # type: ignore
+            except Exception:
+                _normalize_patient_gender = None  # type: ignore
+            if _normalize_patient_gender and gender_hint:
+                try:
+                    gender_hint = _normalize_patient_gender(gender_hint) or gender_hint
+                except Exception:
+                    pass
+            scanned = scan_results(full_lines, references_raw, gender_hint or "F")
+            if isinstance(scanned, dict):
+                for test_name, info in scanned.items():
+                    if not isinstance(info, dict):
+                        continue
+                    value = info.get("value")
+                    if value is None:
+                        continue
+                    reference_scan_results.append({
+                        "nome": test_name,
+                        "valor": value,
+                        "unidade": "",
+                        "referencia": info.get("ideal") or "",
+                        "raw_line": info.get("line") or "[REF_SCAN]",
+                    })
+
+    if reference_scan_results:
+        lab_results = reference_scan_results
+
     if len(lab_results) > max_results:
         lab_results = lab_results[:max_results]
 
-    references_raw = _load_reference_payload(references_path)
     merged_lines = (key_lines.get("patient_lines") or []) + (key_lines.get("result_lines") or [])
     max_lines = int(os.getenv("EXAM_ANALYSIS_MAX_LINES", "200"))
-    max_excerpt = int(os.getenv("EXAM_ANALYSIS_MAX_EXCERPT_CHARS", "6000"))
+    max_excerpt = int(os.getenv("EXAM_ANALYSIS_MAX_EXCERPT_CHARS", "12000"))
+    max_line_len = int(os.getenv("EXAM_ANALYSIS_MAX_LINE_LEN", "240"))
     return {
         "patient": patient,
         "lab_results": lab_results,
         "suggestions": [],
-        "key_lines": merged_lines[:max_lines],
+        "key_lines": _truncate_lines(merged_lines[:max_lines], max_line_len),
         "raw_excerpt": raw_text[:max_excerpt],
         "reference_table": references_raw,
         "references_path": references_path,

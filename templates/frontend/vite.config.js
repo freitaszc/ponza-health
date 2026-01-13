@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
-      strictPort: true,
+      strictPort: false,
       proxy: {
         // Forward Flask-managed pages/assets during dev
         '/static': 'http://localhost:5000',

@@ -380,6 +380,38 @@ def _normalize_for_matching(text: str) -> str:
     return cleaned.lower().strip()
 
 
+def _merge_broken_lines(lines: List[str]) -> List[str]:
+    merged: List[str] = []
+    i = 0
+    while i < len(lines):
+        current = lines[i].strip()
+        if not current:
+            i += 1
+            continue
+        next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if next_line:
+            is_word_break = (
+                current[-1].isalpha()
+                and next_line[0].islower()
+                and not re.search(r"[.:;]$", current)
+                and not re.search(r"\d", current)
+                and not re.match(
+                    r"(?i)^(data|material|metodo|m[eé]todo|resultado|valores|valor|exame|conferido|adultos|"
+                    r"homens|mulheres|crianc|premat|gestant)",
+                    next_line,
+                )
+            )
+            if is_word_break:
+                if current.endswith("-"):
+                    current = current[:-1]
+                merged.append(current + next_line)
+                i += 2
+                continue
+        merged.append(current)
+        i += 1
+    return merged
+
+
 _NUMERIC_PATTERN = re.compile(
     r"(?<![A-Za-z])[<>≈≤≥]?\s*(\d+(?:[.,]\d{1,4})?|\d{1,3}(?:[.\s]\d{3})*(?:[.,]\d{1,4})?)(?![A-Za-z])"
 )
@@ -393,6 +425,7 @@ _GENERIC_SYNONYM_TOKENS = {
     "serum",
     "soro",
     "plasma",
+    "livre",
 }
 
 _BIORESONANCE_KEYWORDS = (
@@ -481,6 +514,9 @@ def _select_numeric_candidate(
 ) -> Optional[float]:
     if not candidates:
         return None
+    non_range = [item for item in candidates if not _is_range_token(text, item[1], item[2])]
+    if non_range:
+        candidates = non_range
     best_value: Optional[float] = None
     best_score = float('-1e9')
     range_min = range_max = None
@@ -580,7 +616,10 @@ def _convert_numeric_token(token: str) -> Optional[float]:
 def _contains_token(haystack: str, token: str) -> bool:
     if not token:
         return False
-    pattern = rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])"
+    if any(ch.isdigit() for ch in token):
+        pattern = rf"(?<![a-z0-9]){re.escape(token)}(?![0-9])"
+    else:
+        pattern = rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])"
     return re.search(pattern, haystack) is not None
 
 
@@ -595,6 +634,16 @@ def _extract_value_from_context(
 
     normalized_context = [_normalize_for_matching(line) for line in context_lines]
     reference_markers = ("valores", "referenc", "faixa", "interval", "limite")
+    metadata_markers = (
+        "data de coleta",
+        "data e hora",
+        "data de impress",
+        "material",
+        "metodo",
+        "método",
+        "resultado anterior",
+        "resultados anteriores",
+    )
     range_tuple = (expected_min, expected_max)
     if expected_min is None and expected_max is None:
         range_tuple = None
@@ -620,6 +669,43 @@ def _extract_value_from_context(
             )
             if value is not None:
                 return value, segment_text.strip()
+
+    for raw_line, norm_line in zip(context_lines, normalized_context):
+        if "resultado" in norm_line:
+            continue
+        if matched_synonym and matched_synonym not in norm_line:
+            continue
+        if re.search(r"\.{2,}", raw_line):
+            candidates = _extract_numeric_tokens(raw_line)
+            value = _select_numeric_candidate(
+                raw_line,
+                candidates,
+                target_range=range_tuple,
+                bad_keywords=_BIORESONANCE_KEYWORDS,
+            )
+            if value is not None:
+                return value, raw_line.strip()
+
+    if matched_synonym:
+        for raw_line, norm_line in zip(context_lines, normalized_context):
+            if matched_synonym not in norm_line:
+                continue
+            candidates = _extract_numeric_tokens(raw_line)
+            unit_candidates = [
+                (token, start, end)
+                for token, start, end in candidates
+                if _has_unit_suffix(raw_line, end)
+            ]
+            if not unit_candidates:
+                continue
+            value = _select_numeric_candidate(
+                raw_line,
+                unit_candidates,
+                target_range=range_tuple,
+                bad_keywords=_BIORESONANCE_KEYWORDS,
+            )
+            if value is not None:
+                return value, raw_line.strip()
 
     match_start = 0
     if matched_synonym:
@@ -650,11 +736,18 @@ def _extract_value_from_context(
     for raw_line, norm_line in zip(effective_lines, effective_norm):
         if any(marker in norm_line for marker in reference_markers):
             continue
+        if any(marker in norm_line for marker in metadata_markers):
+            continue
+        if matched_synonym and matched_synonym in norm_line:
+            if "resultado" not in norm_line and not re.search(r"\.{2,}", raw_line):
+                continue
         filtered.append(raw_line)
-        if len(filtered) >= 3:
+        if len(filtered) >= 5:
             break
 
     if not filtered:
+        if matched_synonym:
+            return None, " ".join(context_lines[:3]).strip()
         filtered = context_lines[:3]
 
     combined_text = " ".join(filtered)
@@ -750,7 +843,7 @@ def extract_patient_info(lines):
     if m := re.search(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b", text_clean):
         cpf = m.group(0)
 
-    if m := re.search(r"\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4}", text_clean):
+    if m := re.search(r"(?<![A-Za-z0-9])\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4}(?![A-Za-z0-9])", text_clean):
         phone = m.group(0)
 
     if re.search(r"(?i)\bsexo[:\-]?\s*f", text_clean):
@@ -1128,6 +1221,7 @@ Responda EXCLUSIVAMENTE com um JSON válido no formato:
 # ======================================================
 def scan_results(lines, references, gender):
     results = {}
+    lines = _merge_broken_lines(lines)
     normalized_lines = [_normalize_for_matching(line) for line in lines]
 
     for test_name, info in references.items():
@@ -1135,34 +1229,77 @@ def scan_results(lines, references, gender):
         synonyms = raw_synonyms + [test_name]
         synonyms_normalized = []
         for raw in synonyms:
-            normalized_syn = _normalize_for_matching(raw)
-            if not normalized_syn:
-                continue
-            tokens = [
-                tok
-                for tok in normalized_syn.split()
-                if len(tok) >= 3 and tok not in _GENERIC_SYNONYM_TOKENS and not tok.isdigit()
-            ]
-            synonyms_normalized.append((normalized_syn, tokens))
+            variants = [raw]
+            if isinstance(raw, str) and "(" in raw and ")" in raw:
+                stripped = re.sub(r"\s*\([^)]*\)", "", raw).strip()
+                if stripped and stripped not in variants:
+                    variants.append(stripped)
+            for variant in variants:
+                normalized_syn = _normalize_for_matching(variant)
+                if not normalized_syn:
+                    continue
+                tokens = [
+                    tok
+                    for tok in normalized_syn.split()
+                    if (
+                        tok
+                        and tok not in _GENERIC_SYNONYM_TOKENS
+                        and not tok.isdigit()
+                        and (len(tok) >= 3 or (len(tok) >= 2 and any(ch.isdigit() for ch in tok)))
+                    )
+                ]
+                synonyms_normalized.append((normalized_syn, tokens))
+        name_norm = _normalize_for_matching(test_name)
+        wants_total = "total" in name_norm
+        wants_livre = "livre" in name_norm
+        reference_markers = (
+            "valores",
+            "referenc",
+            "interval",
+            "faixa",
+            "nota",
+            "inferior",
+            "superior",
+            "abaixo",
+            "acima",
+        )
         best_index = -1
+        best_score = float("-inf")
         matched_synonym = ""
 
         for idx, norm_line in enumerate(normalized_lines):
+            raw_line = lines[idx]
             for synonym, tokens in synonyms_normalized:
                 if not synonym or len(synonym) < 3:
                     continue
+                if wants_total and "livre" in norm_line:
+                    continue
+                if wants_livre and "total" in norm_line:
+                    continue
+                if "resultado" not in norm_line and any(marker in norm_line for marker in reference_markers):
+                    continue
+                matched = False
+                score = 0.0
                 if _contains_token(norm_line, synonym):
-                    best_index = idx
-                    matched_synonym = synonym
-                    break
-                if tokens:
+                    matched = True
+                    score += 3.0
+                elif tokens:
                     hits = sum(1 for tok in tokens if _contains_token(norm_line, tok))
                     if hits >= len(tokens):
-                        best_index = idx
-                        matched_synonym = synonym
-                        break
-            if best_index != -1:
-                break
+                        matched = True
+                        score += 1.5 + (hits / max(len(tokens), 1))
+                if not matched:
+                    continue
+                if "resultado" in norm_line:
+                    score += 2.0
+                if re.search(r"\.{2,}", raw_line):
+                    score += 1.5
+                if _extract_numeric_tokens(raw_line):
+                    score += 0.6
+                if score > best_score:
+                    best_score = score
+                    best_index = idx
+                    matched_synonym = synonym
 
         if best_index == -1:
             results[test_name] = {"value": None, "line": None, "ideal": None, "medications": []}

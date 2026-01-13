@@ -1,9 +1,13 @@
 """AI helpers responsible for building the prescription prompt."""
 from __future__ import annotations
 
+import ast
 import json
 import os
+import re
 import time
+import unicodedata
+from difflib import get_close_matches
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -34,14 +38,17 @@ if load_dotenv:
         load_dotenv(override=False)
 
 OPENAI_API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions")
-OPENAI_MODEL = os.getenv("EXAM_AI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+DEFAULT_MODEL = "gpt-4.1-mini"
+DEFAULT_FALLBACK_MODEL = "gpt-4o-mini"
+OPENAI_MODEL = os.getenv("EXAM_AI_MODEL", os.getenv("OPENAI_MODEL", DEFAULT_MODEL))
 FAST_MODEL = os.getenv("EXAM_AI_MODEL_FAST", OPENAI_MODEL)
-FALLBACK_MODEL = os.getenv("EXAM_AI_MODEL_FALLBACK", "")
+FALLBACK_MODEL = os.getenv("EXAM_AI_MODEL_FALLBACK", DEFAULT_FALLBACK_MODEL)
 AI_TIMEOUT = int(os.getenv("EXAM_AI_TIMEOUT", os.getenv("AI_HTTP_TIMEOUT", "45")))
 MAX_TEXT = int(os.getenv("EXAM_ANALYSIS_MAX_CHARS", "20000"))
-MAX_OUTPUT_TOKENS = int(os.getenv("EXAM_AI_MAX_OUTPUT_TOKENS", "900"))
+MAX_OUTPUT_TOKENS = int(os.getenv("EXAM_AI_MAX_OUTPUT_TOKENS", "1400"))
 MIN_EXAMS_FOR_CONFIDENCE = int(os.getenv("EXAM_AI_MIN_EXAMS", "2"))
 MAX_KEY_LINES = int(os.getenv("EXAM_AI_MAX_KEY_LINES", "200"))
+FORCE_JSON_RESPONSE = str(os.getenv("EXAM_AI_FORCE_JSON", "1")).lower() in {"1", "true", "yes", "on"}
 
 SYSTEM_PROMPT = (
     "Voce e Ponza RX, uma medica especialista em exames laboratoriais. "
@@ -57,6 +64,7 @@ OUTPUT_SPEC = {
         "data_nascimento": "",
         "cpf": "",
         "sexo": "",
+        "telefone": "",
     },
     "exames": [
         {
@@ -80,6 +88,10 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
     lab_results = payload.get("lab_results") or []
     key_lines = payload.get("key_lines") or []
     raw_excerpt = payload.get("raw_excerpt") or ""
+    ref_map = _reference_name_map(payload)
+    allowed_exams = sorted({name for name in ref_map.values()}) if ref_map else []
+    if ref_map:
+        lab_results = _canonicalize_lab_results(lab_results, ref_map)
     if len(key_lines) > MAX_KEY_LINES:
         key_lines = key_lines[:MAX_KEY_LINES]
     input_payload = {
@@ -87,6 +99,8 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         "lab_results": lab_results,
         "key_lines": key_lines,
     }
+    if allowed_exams:
+        input_payload["allowed_exams"] = allowed_exams
     if raw_excerpt:
         input_payload["raw_excerpt"] = raw_excerpt[:MAX_TEXT]
     schema = json.dumps(OUTPUT_SPEC, ensure_ascii=False, indent=2)
@@ -96,17 +110,109 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         f"{input_json}\n\n"
         "INSTRUCOES:\n"
         "1. Use os dados estruturados acima; se algo estiver faltando, consulte key_lines.\n"
-        "2. Se lab_results estiver incompleto, use raw_excerpt como apoio.\n"
-        "3. Para cada exame, capture valor, unidade e referencia indicados.\n"
-        "4. Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
-        "5. Use apenas os valores fornecidos; nao invente dados.\n"
-        "6. Classifique status comparando com a referencia escrita.\n"
-        "7. Resumo clinico: maximo 6 linhas. Prescricoes: objetivas e praticas.\n"
-        "8. CRITICO: Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo.\n"
-        "9. Nao adicione texto fora do JSON. Se algo falhar, retorne JSON valido com campos vazios.\n"
+        "2. allowed_exams contem os exames permitidos (baseado no references.json). "
+        "Use APENAS nomes presentes em allowed_exams e normalize o nome exatamente como no allowed_exams.\n"
+        "3. Nao inclua valores de referencia, cabecalhos ou metadados como exames.\n"
+        "4. Se lab_results estiver incompleto, use raw_excerpt apenas para confirmar valores de exames ja presentes "
+        "em allowed_exams; nao crie exames novos.\n"
+        "5. Para cada exame, capture valor, unidade e referencia indicados.\n"
+        "6. Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
+        "7. Use apenas os valores fornecidos; nao invente dados.\n"
+        "8. Classifique status comparando com a referencia escrita.\n"
+        "9. Observacao: curta (<= 12 palavras) ou vazia; sem justificativas longas.\n"
+        "10. Resumo clinico: maximo 6 linhas. Prescricoes: objetivas e praticas.\n"
+        "11. Se nao houver prescricao/orientacoes/alertas claros, retorne listas vazias.\n"
+        "12. CRITICO: Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo.\n"
+        "13. Nao adicione texto fora do JSON. Se algo falhar, retorne JSON valido com campos vazios.\n"
         f"\nSCHEMA OBRIGATORIO:\n{schema}\n"
         "\nRESPONDA APENAS COM JSON:"
     )
+
+
+def _normalize_exam_name(value: str) -> str:
+    if not value:
+        return ""
+    text = unicodedata.normalize("NFKD", value)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _reference_name_map(payload: Dict[str, Any]) -> dict[str, str]:
+    table = payload.get("reference_table")
+    if not isinstance(table, dict):
+        return {}
+    mapping: dict[str, str] = {}
+    for name, info in table.items():
+        if not isinstance(name, str):
+            continue
+        norm = _normalize_exam_name(name)
+        if norm:
+            mapping.setdefault(norm, name)
+        if isinstance(info, dict):
+            synonyms = info.get("synonyms") or []
+            if isinstance(synonyms, list):
+                for raw in synonyms:
+                    if not isinstance(raw, str):
+                        continue
+                    syn_norm = _normalize_exam_name(raw)
+                    if syn_norm:
+                        mapping.setdefault(syn_norm, name)
+    return mapping
+
+
+def _match_reference_name(name: str, ref_map: dict[str, str]) -> str | None:
+    if not name or not ref_map:
+        return None
+    if not re.search(r"[A-Za-zÁ-ÿ]", name):
+        return None
+    norm = _normalize_exam_name(name)
+    if not norm or len(norm) < 3:
+        return None
+    if norm in ref_map:
+        return ref_map[norm]
+    matches = get_close_matches(norm, ref_map.keys(), n=1, cutoff=0.84)
+    if matches:
+        return ref_map[matches[0]]
+    return None
+
+
+def _lab_item_score(item: dict[str, Any]) -> float:
+    score = 0.0
+    if item.get("valor") not in (None, "", "—"):
+        score += 2.0
+    if item.get("unidade"):
+        score += 1.0
+    if item.get("referencia"):
+        score += 1.0
+    if item.get("raw_line"):
+        score += 0.5
+    return score
+
+
+def _canonicalize_lab_results(
+    lab_results: list[Any],
+    ref_map: dict[str, str],
+) -> list[dict[str, Any]]:
+    if not ref_map:
+        return [item for item in lab_results if isinstance(item, dict)]
+    best: dict[str, dict[str, Any]] = {}
+    for item in lab_results:
+        if not isinstance(item, dict):
+            continue
+        raw_name = item.get("nome") or item.get("name") or item.get("test")
+        if not isinstance(raw_name, str):
+            continue
+        canonical = _match_reference_name(raw_name, ref_map)
+        if not canonical:
+            continue
+        normalized_key = _normalize_exam_name(canonical) or canonical
+        candidate = dict(item)
+        candidate["nome"] = canonical
+        if normalized_key not in best or _lab_item_score(candidate) > _lab_item_score(best[normalized_key]):
+            best[normalized_key] = candidate
+    return [best[key] for key in sorted(best.keys())]
 
 
 def _extract_json(content: str) -> Optional[Dict[str, Any]]:
@@ -124,9 +230,26 @@ def _extract_json(content: str) -> Optional[Dict[str, Any]]:
     
     # Try direct JSON parsing first
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return {"exames": parsed}
+        if isinstance(parsed, dict):
+            return parsed
+        return None
     except json.JSONDecodeError:
         pass
+
+    # Try to extract the first balanced JSON object/array
+    balanced = _extract_balanced_json(text)
+    if balanced:
+        try:
+            parsed = json.loads(balanced)
+            if isinstance(parsed, list):
+                return {"exames": parsed}
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
     
     # Try extracting JSON object from surrounding text
     try:
@@ -134,7 +257,12 @@ def _extract_json(content: str) -> Optional[Dict[str, Any]]:
         end = text.rfind("}") + 1
         if start >= 0 and end > start:
             json_str = text[start:end]
-            return json.loads(json_str)
+            parsed = json.loads(json_str)
+            if isinstance(parsed, list):
+                return {"exames": parsed}
+            if isinstance(parsed, dict):
+                return parsed
+            return None
     except (json.JSONDecodeError, ValueError):
         pass
     
@@ -148,8 +276,20 @@ def _extract_json(content: str) -> Optional[Dict[str, Any]]:
             parsed = json.loads(json_str)
             if isinstance(parsed, list):
                 return {"exames": parsed}
-            return parsed
+            if isinstance(parsed, dict):
+                return parsed
+            return None
     except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Try Python literal eval for single-quoted or None/True/False payloads
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, list):
+            return {"exames": parsed}
+        if isinstance(parsed, dict):
+            return parsed
+    except (ValueError, SyntaxError):
         pass
     
     # Last resort: try to fix common JSON issues
@@ -162,17 +302,124 @@ def _extract_json(content: str) -> Optional[Dict[str, Any]]:
         end = fixed.rfind("}") + 1
         if start >= 0 and end > start:
             json_str = fixed[start:end]
-            return json.loads(json_str)
+            parsed = json.loads(json_str)
+            if isinstance(parsed, list):
+                return {"exames": parsed}
+            if isinstance(parsed, dict):
+                return parsed
+            return None
     except (json.JSONDecodeError, ValueError):
         pass
     
     return None
 
 
+def _extract_balanced_json(text: str) -> str | None:
+    stack = []
+    start_idx = None
+    in_string = False
+    escape = False
+    for idx, ch in enumerate(text):
+        if ch == '"' and not escape:
+            in_string = not in_string
+        if in_string:
+            escape = (ch == "\\") and not escape
+            continue
+        escape = (ch == "\\") and not escape
+        if ch in "{[":
+            if start_idx is None:
+                start_idx = idx
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack and ch == stack[-1]:
+                stack.pop()
+                if not stack and start_idx is not None:
+                    return text[start_idx: idx + 1]
+            else:
+                stack = []
+                start_idx = None
+    return None
+
+
+def _normalize_analysis_payload(data: Any, payload: Dict[str, Any]) -> tuple[Dict[str, Any], bool]:
+    if not isinstance(data, dict):
+        if isinstance(data, list):
+            data = {"exames": data}
+        else:
+            return _build_minimal_response(payload), True
+
+    paciente = data.get("paciente")
+    if not isinstance(paciente, dict):
+        paciente = {}
+    if not paciente and isinstance(data.get("patient"), dict):
+        paciente = data.get("patient") or {}
+
+    exames_raw = data.get("exames")
+    if exames_raw is None:
+        exames_raw = data.get("exams")
+    if not isinstance(exames_raw, list):
+        exames_raw = []
+
+    exames: list[dict[str, Any]] = []
+    for item in exames_raw:
+        if isinstance(item, dict):
+            normalized = dict(item)
+        elif isinstance(item, str):
+            normalized = {"nome": item}
+        else:
+            continue
+        if "valor" not in normalized and "value" in normalized:
+            normalized["valor"] = normalized.get("value")
+        if "unidade" not in normalized and "unit" in normalized:
+            normalized["unidade"] = normalized.get("unit")
+        if "referencia" not in normalized and "reference" in normalized:
+            normalized["referencia"] = normalized.get("reference")
+        if "observacao" not in normalized and "obs" in normalized:
+            normalized["observacao"] = normalized.get("obs")
+        exames.append(normalized)
+
+    resumo = data.get("resumo_clinico")
+    if resumo is None:
+        resumo = data.get("summary") or data.get("resumo")
+    resumo_clinico = resumo if isinstance(resumo, str) else ""
+
+    def _ensure_list(value: Any) -> list:
+        return value if isinstance(value, list) else []
+
+    ref_map = _reference_name_map(payload)
+    if ref_map and exames:
+        filtered: list[dict[str, Any]] = []
+        for item in exames:
+            name = item.get("nome")
+            if not isinstance(name, str):
+                continue
+            canonical = _match_reference_name(name, ref_map)
+            if not canonical:
+                continue
+            normalized = dict(item)
+            normalized["nome"] = canonical
+            filtered.append(normalized)
+        exames = _canonicalize_lab_results(filtered, ref_map)
+
+    data["paciente"] = paciente
+    data["exames"] = exames
+    data["resumo_clinico"] = resumo_clinico
+    data["prescricao"] = _ensure_list(data.get("prescricao") or data.get("prescriptions"))
+    if "orientações" in data:
+        data["orientações"] = _ensure_list(data.get("orientações"))
+    else:
+        data["orientações"] = _ensure_list(data.get("orientacoes") or data.get("orientations"))
+    data["alertas"] = _ensure_list(data.get("alertas") or data.get("alerts"))
+    return data, False
+
+
 def _build_minimal_response(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Build a minimal valid response when IA fails to provide valid JSON."""
     patient = payload.get("patient") or {}
     lab_results = payload.get("lab_results") or []
+    ref_map = _reference_name_map(payload)
+    if ref_map:
+        lab_results = _canonicalize_lab_results(lab_results, ref_map)
     
     # Create minimal valid structure
     exames = []
@@ -192,6 +439,7 @@ def _build_minimal_response(payload: Dict[str, Any]) -> Dict[str, Any]:
             "data_nascimento": patient.get("data_nascimento", ""),
             "cpf": patient.get("cpf", ""),
             "sexo": patient.get("sexo", ""),
+            "telefone": patient.get("telefone", ""),
         },
         "exames": exames,
         "resumo_clinico": "Análise dos dados estruturados do exame.",
@@ -201,13 +449,22 @@ def _build_minimal_response(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _supports_json_response(model: str) -> bool:
+    if not model:
+        return False
+    normalized = model.lower()
+    return any(tag in normalized for tag in ("gpt-4o", "gpt-4.1", "o1", "o3"))
+
+
 def _analysis_needs_fallback(data: Dict[str, Any] | None, payload: Dict[str, Any]) -> bool:
     """Check if analysis result is incomplete and needs fallback."""
-    if not data:
+    if not data or not isinstance(data, dict):
         return True
     
     # Check if we have exames field
     exams = data.get("exames") or []
+    if not isinstance(exams, list):
+        return True
     if not exams:
         return True
     
@@ -232,10 +489,12 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return {
-            "ok": False,
+            "ok": True,
             "content": "",
+            "analysis": _build_minimal_response(payload),
             "error": "OPENAI_API_KEY não configurada (verifique o .env ou a variavel de ambiente).",
             "details": None,
+            "fallback": True,
         }
     project = os.getenv("OPENAI_PROJECT")
     organization = os.getenv("OPENAI_ORGANIZATION") or os.getenv("OPENAI_ORG")
@@ -252,31 +511,27 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                     organization=organization or None,
                     project=project or None,
                 )
-                completion = client.chat.completions.create(  # type: ignore[union-attr]
-                    model=model,
-                    messages=[
+                completion_kwargs = {
+                    "model": model,
+                    "messages": [
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_prompt},
                     ],
-                    temperature=0.2,
-                    top_p=0.9,
-                    max_tokens=MAX_OUTPUT_TOKENS,
+                    "temperature": 0.2,
+                    "top_p": 0.9,
+                    "max_tokens": MAX_OUTPUT_TOKENS,
+                }
+                if FORCE_JSON_RESPONSE and _supports_json_response(model):
+                    completion_kwargs["response_format"] = {"type": "json_object"}
+                completion = client.chat.completions.create(  # type: ignore[union-attr]
+                    **completion_kwargs
                 )
                 timings["openai_ms"] = round((time.perf_counter() - call_start) * 1000)
                 content = completion.choices[0].message.content if completion.choices else ""
-                data = _extract_json(content or "")
-                
-                # If JSON parsing failed, try to build minimal response from payload
-                if not data:
-                    data = _build_minimal_response(payload)
-                    return {
-                        "ok": True,
-                        "content": content or "",
-                        "analysis": data,
-                        "usage": getattr(completion, "usage", None),
-                        "model": getattr(completion, "model", model),
-                        "fallback": True,
-                    }
+                data_raw = _extract_json(content or "")
+                data, used_fallback = _normalize_analysis_payload(data_raw, payload)
+                if data_raw is None:
+                    used_fallback = True
                 
                 return {
                     "ok": True,
@@ -284,6 +539,7 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                     "analysis": data,
                     "usage": getattr(completion, "usage", None),
                     "model": getattr(completion, "model", model),
+                    **({"fallback": True} if used_fallback else {}),
                 }
             except Exception as exc:  # pragma: no cover - log and fallback to manual request
                 sdk_error = exc
@@ -297,6 +553,8 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
             "top_p": 0.9,
             "max_tokens": MAX_OUTPUT_TOKENS,
         }
+        if FORCE_JSON_RESPONSE and _supports_json_response(model):
+            body["response_format"] = {"type": "json_object"}
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -316,19 +574,10 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                 .get("content", "")
                 .strip()
             )
-            parsed = _extract_json(content)
-            
-            # If parsing failed, build minimal valid response
-            if not parsed:
-                parsed = _build_minimal_response(payload)
-                return {
-                    "ok": True,
-                    "content": content,
-                    "analysis": parsed,
-                    "usage": data.get("usage"),
-                    "model": data.get("model", model),
-                    "fallback": True,
-                }
+            parsed_raw = _extract_json(content)
+            parsed, used_fallback = _normalize_analysis_payload(parsed_raw, payload)
+            if parsed_raw is None:
+                used_fallback = True
             
             return {
                 "ok": True,
@@ -336,6 +585,7 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
                 "analysis": parsed,
                 "usage": data.get("usage"),
                 "model": data.get("model", model),
+                **({"fallback": True} if used_fallback else {}),
             }
         except requests.HTTPError as exc:
             details = exc.response.text if exc.response is not None else ""
@@ -370,4 +620,14 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
             return retry
 
     result["timings"] = timings
+    if not result.get("ok"):
+        return {
+            "ok": True,
+            "content": "",
+            "analysis": _build_minimal_response(payload),
+            "error": result.get("error") or "Falha ao consultar o modelo.",
+            "details": result.get("details"),
+            "fallback": True,
+            "timings": timings,
+        }
     return result
