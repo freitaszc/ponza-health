@@ -53,6 +53,7 @@ FORCE_JSON_RESPONSE = str(os.getenv("EXAM_AI_FORCE_JSON", "1")).lower() in {"1",
 SYSTEM_PROMPT = (
     "Voce e Ponza RX, uma medica especialista em exames laboratoriais. "
     "Use os dados estruturados para interpretar os exames e gerar um resumo clinico. "
+    "Resumo clinico: destaque apenas achados preocupantes/anormais em ate 3 linhas. "
     "Classifique cada resultado como 'baixo', 'alto', 'normal' ou 'indefinido' quando aplicavel. "
     "IMPORTANTE: Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele. "
     "Se nao conseguir processar, retorne JSON minimo valido com os campos vazios."
@@ -120,7 +121,8 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         "7. Use apenas os valores fornecidos; nao invente dados.\n"
         "8. Classifique status comparando com a referencia escrita.\n"
         "9. Observacao: curta (<= 12 palavras) ou vazia; sem justificativas longas.\n"
-        "10. Resumo clinico: maximo 6 linhas. Prescricoes: objetivas e praticas.\n"
+        "10. Resumo clinico: ate 3 linhas, somente achados preocupantes/anormais; "
+        "se nao houver, use 'Sem achados preocupantes'. Prescricoes: objetivas e praticas.\n"
         "11. Se nao houver prescricao/orientacoes/alertas claros, retorne listas vazias.\n"
         "12. CRITICO: Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo.\n"
         "13. Nao adicione texto fora do JSON. Se algo falhar, retorne JSON valido com campos vazios.\n"
@@ -137,6 +139,17 @@ def _normalize_exam_name(value: str) -> str:
     text = text.lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _limit_summary_lines(text: str, max_lines: int = 3) -> str:
+    if not text:
+        return ""
+    lines = [line.strip() for line in re.split(r"\r?\n", text) if line.strip()]
+    if not lines:
+        return ""
+    if len(lines) <= max_lines:
+        return "\n".join(lines)
+    return "\n".join(lines[:max_lines])
 
 
 def _reference_name_map(payload: Dict[str, Any]) -> dict[str, str]:
@@ -382,6 +395,7 @@ def _normalize_analysis_payload(data: Any, payload: Dict[str, Any]) -> tuple[Dic
     if resumo is None:
         resumo = data.get("summary") or data.get("resumo")
     resumo_clinico = resumo if isinstance(resumo, str) else ""
+    resumo_clinico = _limit_summary_lines(resumo_clinico, max_lines=3)
 
     def _ensure_list(value: Any) -> list:
         return value if isinstance(value, list) else []
@@ -442,7 +456,7 @@ def _build_minimal_response(payload: Dict[str, Any]) -> Dict[str, Any]:
             "telefone": patient.get("telefone", ""),
         },
         "exames": exames,
-        "resumo_clinico": "Análise dos dados estruturados do exame.",
+        "resumo_clinico": "Sem observacoes registradas.",
         "prescricao": [],
         "orientações": [],
         "alertas": [],

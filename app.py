@@ -3787,7 +3787,7 @@ def lab_analysis_pdf():
     lines.append(f"Médico responsável: {doctor_name}")
     patient_info = "\n".join(lines)
 
-    logo_url = _resolve_public_logo_url("15.svg")
+    logo_url = _resolve_public_logo_url("ponzapdf.png")
 
     pdf_html = render_template(
         "lab_analysis_pdf.html",
@@ -6693,7 +6693,7 @@ def generate_lab_analysis_pdf_bytes(
         orientations=context.get("orientations") or [],
         summary=context.get("summary") or "",
         generated_at=datetime.utcnow(),
-        logo_url=_resolve_public_logo_url("15.svg"),
+        logo_url=_resolve_public_logo_url("ponzapdf.png"),
     )
 
     pdf_io = BytesIO()
