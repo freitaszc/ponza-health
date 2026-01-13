@@ -38,6 +38,7 @@ const Patients = lazyWithPreload(() => import('./pages/Patients'))
 const Payments = lazyWithPreload(() => import('./pages/Payments'))
 const Suppliers = lazyWithPreload(() => import('./pages/Suppliers'))
 const TrialLocked = lazyWithPreload(() => import('./pages/TrialLocked'))
+const Finances = lazyWithPreload(() => import('./pages/Finances'))
 
 const scheduleIdle = (callback) => {
   if (typeof window === 'undefined') return undefined
@@ -72,6 +73,7 @@ const routes = [
   { path: '/payments', component: Payments, shell: 'app' },
   { path: '/purchase', component: Payments, shell: 'app' },
   { path: '/products', component: Stock, shell: 'app' },
+  { path: '/finances', component: Finances, shell: 'app' },
   { path: '/agenda', component: Agenda, shell: 'app' },
   { path: '/upload', component: Upload, shell: 'app' },
   { path: '/catalog', component: Patients, shell: 'app' },
@@ -143,6 +145,7 @@ function AppShell() {
       Dashboard.preload?.()
       Patients.preload?.()
       Agenda.preload?.()
+      Finances.preload?.()
 
       const dashboardKey = buildCacheKey('dashboard', ['summary'])
       if (!readCache(dashboardKey)) {

@@ -21,6 +21,7 @@ const navItems = [
   { label: 'Cotações', href: '/quotes', icon: 'fa-file-text-o' },
   { label: 'Pacientes', href: '/catalog', icon: 'fa-users' },
   { label: 'Estoque', href: '/products', icon: 'fa-archive' },
+  { label: 'Financeiro', href: '/finances', icon: 'fa-line-chart' },
   { label: 'Agenda', href: '/agenda', icon: 'fa-calendar' },
   { label: 'Pagamentos', href: '/payments', icon: 'fa-credit-card' },
 ]
