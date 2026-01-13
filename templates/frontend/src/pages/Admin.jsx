@@ -62,6 +62,7 @@ export default function Admin() {
   const [searchInput, setSearchInput] = useState('')
   const [busyUserId, setBusyUserId] = useState(null)
   const [busyAction, setBusyAction] = useState('')
+  const [creditInputs, setCreditInputs] = useState({})
 
   const sidebarNav = useMemo(() => navItems, [])
 
@@ -184,6 +185,46 @@ export default function Admin() {
     }
   }
 
+  const handleCreditChange = (userId, value) => {
+    const normalized = value.replace(/[^\d]/g, '')
+    setCreditInputs((prev) => ({ ...prev, [userId]: normalized }))
+  }
+
+  const handleAddCredits = async (userId) => {
+    if (busyUserId) return
+    const rawValue = creditInputs[userId] || ''
+    const amount = Number.parseInt(rawValue, 10)
+    if (!amount || amount <= 0) {
+      setError('Informe uma quantidade valida de creditos.')
+      return
+    }
+    setError('')
+    setSuccess('')
+    setBusyUserId(userId)
+    setBusyAction('credits')
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/credits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amount }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || 'Nao foi possivel adicionar creditos.')
+      }
+      const updated = payload.user
+      setUsers((prev) => prev.map((item) => (item.id === userId ? updated : item)))
+      setCreditInputs((prev) => ({ ...prev, [userId]: '' }))
+      setSuccess('Creditos adicionados com sucesso.')
+    } catch (err) {
+      setError(err.message || 'Nao foi possivel adicionar creditos.')
+    } finally {
+      setBusyUserId(null)
+      setBusyAction('')
+    }
+  }
+
   return (
     <div className={`dashboard-shell ${collapsed ? 'is-collapsed' : ''}`}>
       <aside className="dashboard-sidebar">
@@ -257,6 +298,7 @@ export default function Admin() {
                   <th>Usuário</th>
                   <th>Email</th>
                   <th>Assinatura</th>
+                  <th>Créditos</th>
                   <th>Criado em</th>
                   <th>Ações</th>
                 </tr>
@@ -264,7 +306,7 @@ export default function Admin() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="5">Carregando usuários...</td>
+                    <td colSpan="6">Carregando usuários...</td>
                   </tr>
                 ) : filteredUsers.length ? (
                   filteredUsers.map((user) => (
@@ -272,9 +314,34 @@ export default function Admin() {
                       <td>{user.username || '—'}</td>
                       <td>{user.email || '—'}</td>
                       <td>{formatSubscription(user)}</td>
+                      <td>
+                        {(user.package_remaining ?? '—')} / {(user.package_total ?? '—')}
+                      </td>
                       <td>{formatDate(user.created_at)}</td>
                       <td>
                         <div className="admin-actions">
+                          <div className="admin-credits">
+                            <label className="sr-only" htmlFor={`credits-${user.id}`}>
+                              Creditos
+                            </label>
+                            <input
+                              id={`credits-${user.id}`}
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="Creditos"
+                              value={creditInputs[user.id] || ''}
+                              onChange={(event) => handleCreditChange(user.id, event.target.value)}
+                              className="admin-credits__input"
+                            />
+                            <button
+                              type="button"
+                              className="btn-outline btn-small"
+                              onClick={() => handleAddCredits(user.id)}
+                              disabled={busyUserId === user.id}
+                            >
+                              {busyUserId === user.id && busyAction === 'credits' ? 'Aguarde...' : 'Adicionar'}
+                            </button>
+                          </div>
                           <button
                             type="button"
                             className="btn-outline btn-small"
@@ -305,7 +372,7 @@ export default function Admin() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5">Nenhum usuário encontrado.</td>
+                    <td colSpan="6">Nenhum usuário encontrado.</td>
                   </tr>
                 )}
               </tbody>

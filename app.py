@@ -203,6 +203,11 @@ def _serialize_admin_user(user: User) -> dict[str, Any]:
             return value.isoformat()
         return None
 
+    pkg = PackageUsage.query.filter_by(user_id=user.id).first()
+    pkg_total = _coerce_int(getattr(pkg, "total", DEFAULT_FREE_ANALYSIS_ALLOWANCE), default=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
+    pkg_used = _coerce_int(getattr(pkg, "used", 0))
+    pkg_remaining = max(pkg_total - pkg_used, 0)
+
     return {
         "id": user.id,
         "username": user.username,
@@ -212,6 +217,9 @@ def _serialize_admin_user(user: User) -> dict[str, Any]:
         "plan_expires": _iso(user.plan_expiration),
         "trial_expires": _iso(user.trial_expiration),
         "created_at": _iso(user.created_at),
+        "package_total": pkg_total,
+        "package_used": pkg_used,
+        "package_remaining": pkg_remaining,
     }
 
 def _extend_user_subscription(user: User, plan: str) -> None:
@@ -1880,6 +1888,33 @@ def admin_delete_user(user_id: int):
         return jsonify({"success": False, "error": "Nao foi possivel remover o usuario."}), 500
 
     return jsonify({"success": True})
+
+@app.route('/api/admin/users/<int:user_id>/credits', methods=['POST'])
+@login_required
+def admin_add_credits(user_id: int):
+    guard = _admin_guard_response()
+    if guard:
+        return guard
+
+    payload = request.get_json(silent=True) or {}
+    amount = _coerce_int(payload.get("amount"), default=0)
+    if amount <= 0:
+        return jsonify({"success": False, "error": "Quantidade invalida."}), 400
+
+    user = User.query.get_or_404(user_id)
+    if _is_admin_user(user):
+        return jsonify({"success": False, "error": "Nao e possivel alterar o admin."}), 400
+
+    try:
+        pkg, _changed = _ensure_package_usage(user, base_total=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
+        pkg.total = _coerce_int(getattr(pkg, "total", DEFAULT_FREE_ANALYSIS_ALLOWANCE), default=DEFAULT_FREE_ANALYSIS_ALLOWANCE) + amount
+        db.session.add(pkg)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(exc)}), 400
+
+    return jsonify({"success": True, "user": _serialize_admin_user(user)})
 
 # ------------------------------------------------------------------------------
 # Compra de Pacotes
