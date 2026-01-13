@@ -225,7 +225,7 @@ def _serialize_admin_user(user: User) -> dict[str, Any]:
 def _extend_user_subscription(user: User, plan: str) -> None:
     normalized = (plan or "").strip().lower()
     if normalized not in {"monthly", "yearly"}:
-        raise ValueError("Plano invalido.")
+        raise ValueError("Plano inválido.")
 
     previous_plan = (user.plan or "").strip().lower()
     now = datetime.utcnow()
@@ -1431,7 +1431,7 @@ def _login_with_credentials(login_input: str, pwd: str) -> tuple[bool, str]:
 
     stored_hash = getattr(user, 'password_hash', None) if user else None
     if not user or not stored_hash or not check_password_hash(stored_hash, pwd):
-        return False, 'Usuario ou senha invalidos.'
+        return False, 'Usuario ou senha inválidos.'
 
     session['user_id'] = user.id
     session['username'] = user.username
@@ -1854,11 +1854,11 @@ def admin_extend_subscription(user_id: int):
     elif period in {"year", "yearly"}:
         plan = "yearly"
     else:
-        return jsonify({"success": False, "error": "Periodo invalido."}), 400
+        return jsonify({"success": False, "error": "Periodo inválido."}), 400
 
     user = User.query.get_or_404(user_id)
     if _is_admin_user(user) and user.id != current_user().id:
-        return jsonify({"success": False, "error": "Nao e possivel alterar o admin."}), 400
+        return jsonify({"success": False, "error": "Não é possível alterar o admin."}), 400
 
     try:
         _extend_user_subscription(user, plan)
@@ -1878,7 +1878,7 @@ def admin_delete_user(user_id: int):
 
     user = User.query.get_or_404(user_id)
     if _is_admin_user(user):
-        return jsonify({"success": False, "error": "Nao e possivel remover o admin."}), 400
+        return jsonify({"success": False, "error": "Não é possível remover o admin."}), 400
 
     try:
         _delete_user_account(user)
@@ -1902,8 +1902,6 @@ def admin_add_credits(user_id: int):
         return jsonify({"success": False, "error": "Quantidade invalida."}), 400
 
     user = User.query.get_or_404(user_id)
-    if _is_admin_user(user):
-        return jsonify({"success": False, "error": "Nao e possivel alterar o admin."}), 400
 
     try:
         pkg, _changed = _ensure_package_usage(user, base_total=DEFAULT_FREE_ANALYSIS_ALLOWANCE)
@@ -2102,7 +2100,7 @@ def _package_amount_cents(package: int) -> Optional[int]:
 def _create_package_checkout_session(*, user: User, package: int, price_id: str):
     amount_cents = _package_amount_cents(package)
     if amount_cents is None:
-        raise ValueError("Pacote invalido.")
+        raise ValueError("Pacote inválido.")
 
     def _create(line_items):
         return stripe.checkout.Session.create(
@@ -2122,7 +2120,7 @@ def _create_package_checkout_session(*, user: User, package: int, price_id: str)
             if "price" not in param and "price" not in message:
                 raise
             current_app.logger.warning(
-                "[Stripe] Price ID invalido para pacote %s (%s): %s",
+                "[Stripe] Price ID inválido para pacote %s (%s): %s",
                 package,
                 price_id,
                 exc,
@@ -2185,7 +2183,7 @@ def _create_subscription_checkout_session(
             return _create_with_fallback([{"price": price_id, "quantity": 1}])
         except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
             current_app.logger.warning(
-                "[Stripe] Price ID invalido para %s (%s): %s",
+                "[Stripe] Price ID inválido para %s (%s): %s",
                 plan,
                 price_id,
                 exc,
@@ -4573,7 +4571,7 @@ def api_patients():
     if missing:
         return jsonify(success=False, error="Preencha todos os campos obrigatorios."), 400
     if email and not basic_email(email):
-        return jsonify(success=False, error="E-mail invalido."), 400
+        return jsonify(success=False, error="E-mail inválido."), 400
 
     profile_rel = default_image_url
     file = request.files.get('profile_image')
@@ -4669,7 +4667,7 @@ def api_patient_detail(patient_id: int):
     state = (data.get('state') or '').strip().upper()
 
     if email and not basic_email(email):
-        return jsonify(success=False, error="E-mail invalido."), 400
+        return jsonify(success=False, error="E-mail inválido."), 400
 
     file = request.files.get('profile_image')
     if file and file.filename:
@@ -4683,7 +4681,7 @@ def api_patient_detail(patient_id: int):
 
         content = file.read()
         if not content:
-            return jsonify(success=False, error="Arquivo de imagem invalido."), 400
+            return jsonify(success=False, error="Arquivo de imagem inválido."), 400
 
         old_rel = (patient.profile_image or "").replace("\\", "/")
         old_sid = _extract_securefile_id_from_url(old_rel)
@@ -5730,19 +5728,19 @@ def public_quote_response(token: str, *, force_json: bool = False):
             data = None
     except BadSignature:
         if wants_json:
-            return jsonify({"error": "Link invalido."}), 404
+            return jsonify({"error": "Link inválido."}), 404
         abort(404)
 
     if not data:
         if wants_json:
-            return jsonify({"error": "Link invalido."}), 404
+            return jsonify({"error": "Link inválido."}), 404
         abort(404)
 
     quote_id = data.get("q")
     supplier_id = data.get("s")
     if not quote_id or not supplier_id:
         if wants_json:
-            return jsonify({"error": "Link invalido."}), 404
+            return jsonify({"error": "Link inválido."}), 404
         abort(404)
 
     quote = Quote.query.get_or_404(quote_id)

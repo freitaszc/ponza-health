@@ -75,7 +75,7 @@ def generate_package_link(package):
         }
 
         if package not in price_ids:
-            raise ValueError(f"Pacote invalido: {package}")
+            raise ValueError(f"Pacote inválido: {package}")
         price_id = price_ids.get(package) or ""
 
         def _create(line_items):
