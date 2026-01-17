@@ -753,6 +753,7 @@ export default function Agenda() {
               key={item.href}
               className={`dashboard-link ${currentPath === resolvePath(item.href) ? 'is-active' : ''}`}
               href={item.href}
+              data-tooltip={item.label}
             >
               <i className={`fa ${item.icon}`} aria-hidden="true" />
               <span>{item.label}</span>
@@ -760,7 +761,7 @@ export default function Agenda() {
           ))}
         </nav>
         <div className="dashboard-sidebar__footer">
-          <a className="dashboard-link is-logout" href={withBackend('/logout')}>
+          <a className="dashboard-link is-logout" href={withBackend('/logout')} data-tooltip="Sair">
             <i className="fa fa-sign-out" aria-hidden="true" />
             <span>Sair</span>
           </a>

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
 const defaultSteps = [
-  { id: 'upload', label: 'Recebendo o envio' },
-  { id: 'extract', label: 'Extraindo dados do PDF' },
-  { id: 'ocr', label: 'OCR quando necessário' },
-  { id: 'openai', label: 'Analisando com IA' },
-  { id: 'postprocess', label: 'Organizando resultados' },
-  { id: 'db_save', label: 'Salvando no sistema' },
+  { id: 'upload', label: 'Recebendo arquivo', description: 'Validando e processando o PDF enviado' },
+  { id: 'extract', label: 'Extração de dados', description: 'Identificando informações do paciente e resultados' },
+  { id: 'ocr', label: 'Reconhecimento óptico', description: 'Processando imagens quando necessário' },
+  { id: 'openai', label: 'Análise inteligente', description: 'Interpretando valores e classificando resultados' },
+  { id: 'postprocess', label: 'Processamento final', description: 'Organizando e validando os dados extraídos' },
+  { id: 'db_save', label: 'Finalizando', description: 'Salvando resultados e gerando relatório' },
 ]
 
 const normalizeOrigin = () =>
@@ -160,44 +160,66 @@ export default function LabAnalysisLoading() {
     <div className="lab-loading">
       <div className="lab-loading__card">
         <div className="lab-loading__badge">
-          <i className="fa fa-flask" aria-hidden="true" />
-          <span>Ponza Lab</span>
+          <img src="/static/images/PonzaLab.svg" alt="" style={{ height: '28px' }} />
         </div>
-        <h1>Análise em andamento</h1>
-        <p>
-          {error || status || 'Aguardando o envio do exame para iniciar a análise.'}
+        <h1>{error ? 'Erro na análise' : 'Processando seu exame'}</h1>
+        <p className="lab-loading__status">
+          {error || status || 'Aguardando o envio do arquivo para iniciar...'}
         </p>
         {!error ? (
-          <div className="loading-dots" aria-label="Carregando">
-            <span />
-            <span />
-            <span />
+          <div className="lab-loading__progress">
+            <div className="lab-loading__progress-bar">
+              <div 
+                className="lab-loading__progress-fill"
+                style={{ 
+                  width: `${Math.max(10, (defaultSteps.findIndex(s => s.id === currentStep) + 1) / defaultSteps.length * 100)}%` 
+                }}
+              />
+            </div>
           </div>
         ) : null}
         <div className="lab-loading__steps">
-          {defaultSteps.map((step) => (
-            <div
-              key={step.id}
-              className={`lab-loading__step ${currentStep === step.id ? 'is-active' : ''}`}
-            >
-              <span>{step.label}</span>
-            </div>
-          ))}
+          {defaultSteps.map((step, index) => {
+            const currentIndex = defaultSteps.findIndex(s => s.id === currentStep)
+            const isCompleted = currentIndex > index
+            const isActive = currentStep === step.id
+            return (
+              <div
+                key={step.id}
+                className={`lab-loading__step ${isActive ? 'is-active' : ''} ${isCompleted ? 'is-completed' : ''}`}
+              >
+                <div className="lab-loading__step-icon">
+                  {isCompleted ? (
+                    <i className="fa fa-check" />
+                  ) : isActive ? (
+                    <span className="lab-loading__step-spinner" />
+                  ) : (
+                    <span className="lab-loading__step-number">{index + 1}</span>
+                  )}
+                </div>
+                <div className="lab-loading__step-content">
+                  <span className="lab-loading__step-label">{step.label}</span>
+                  <span className="lab-loading__step-desc">{step.description}</span>
+                </div>
+              </div>
+            )
+          })}
         </div>
         {timings ? (
           <div className="lab-loading__timings">
-            <strong>Tempo de cada etapa (ms)</strong>
+            <strong>Tempo de processamento</strong>
             <div>
               {Object.entries(timings).map(([key, value]) => (
                 <span key={key}>
-                  {key}: {value}
+                  {key}: {value}ms
                 </span>
               ))}
             </div>
           </div>
         ) : null}
         <div className="lab-loading__footer">
-          Esta aba ficará aberta até o resultado finalizar.
+          <i className="fa fa-info-circle" style={{ marginRight: '6px' }} />
+          Mantenha esta janela aberta até a conclusão da análise
         </div>
       </div>
     </div>

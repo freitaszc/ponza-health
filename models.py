@@ -509,3 +509,132 @@ class PatientExamHistory(db.Model, BaseModel):
     patient = db.relationship("Patient", backref=db.backref("exam_history", lazy="dynamic", cascade="all, delete-orphan"))
     user = db.relationship("User", backref=db.backref("patient_exam_histories", lazy="dynamic"))
     pdf_file = db.relationship("PdfFile", backref="exam_history")
+
+
+# ----------------------------
+# Financial Models
+# ----------------------------
+class Cashbox(db.Model, BaseModel):
+    """Caixa - represents a cash register or payment channel."""
+    __tablename__ = "cashboxes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    type = db.Column(db.String(50), nullable=False, default="manual")  # manual, card, online, insurance
+    status = db.Column(db.String(20), nullable=False, default="open")  # open, closed
+    initial_balance = db.Column(db.Float, nullable=False, default=0.0)
+    current_balance = db.Column(db.Float, nullable=False, default=0.0)
+    opened_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    closed_at = db.Column(db.DateTime, nullable=True)
+    responsible = db.Column(db.String(120), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("cashboxes", lazy="dynamic"))
+
+    __table_args__ = (
+        Index("ix_cashboxes_status", "status"),
+        Index("ix_cashboxes_type", "type"),
+        Index("ix_cashboxes_opened_at", "opened_at"),
+    )
+
+
+class PatientPayment(db.Model, BaseModel):
+    """Tracks payments made by patients."""
+    __tablename__ = "patient_payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    event_id = db.Column(
+        db.Integer,
+        db.ForeignKey("agenda_events.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    amount = db.Column(db.Float, nullable=False)
+    amount_paid = db.Column(db.Float, nullable=False, default=0.0)
+    payment_method = db.Column(db.String(50), nullable=True)  # cash, credit_card, debit_card, pix, insurance
+    payment_type = db.Column(db.String(50), nullable=False, default="consultation")  # consultation, procedure, exam, medicine, package
+    status = db.Column(db.String(20), nullable=False, default="pending")  # pending, partial, paid, cancelled
+    due_date = db.Column(db.Date, nullable=True)
+    paid_at = db.Column(db.DateTime, nullable=True)
+    description = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    insurance_name = db.Column(db.String(120), nullable=True)
+    insurance_authorization = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("patient_payments", lazy="dynamic"))
+    patient = db.relationship("Patient", backref=db.backref("payments", lazy="dynamic", cascade="all, delete-orphan"))
+    event = db.relationship("AgendaEvent", backref=db.backref("payments", lazy="dynamic"))
+
+    __table_args__ = (
+        Index("ix_patient_payments_status", "status"),
+        Index("ix_patient_payments_payment_type", "payment_type"),
+        Index("ix_patient_payments_due_date", "due_date"),
+        Index("ix_patient_payments_created_at", "created_at"),
+    )
+
+    @property
+    def balance(self) -> float:
+        """Amount still owed."""
+        return max(0, self.amount - self.amount_paid)
+
+
+class CashboxTransaction(db.Model, BaseModel):
+    """Individual transactions within a cashbox."""
+    __tablename__ = "cashbox_transactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cashbox_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cashboxes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    patient_payment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patient_payments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    type = db.Column(db.String(20), nullable=False)  # income, expense, adjustment
+    category = db.Column(db.String(50), nullable=True)  # consultation, procedure, medicine, refund, etc.
+    amount = db.Column(db.Float, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    payment_method = db.Column(db.String(50), nullable=True)  # cash, credit_card, debit_card, pix, insurance
+    reference = db.Column(db.String(100), nullable=True)  # external reference number
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    cashbox = db.relationship("Cashbox", backref=db.backref("transactions", lazy="dynamic", cascade="all, delete-orphan"))
+    user = db.relationship("User", backref=db.backref("cashbox_transactions", lazy="dynamic"))
+    patient_payment = db.relationship("PatientPayment", backref=db.backref("transactions", lazy="dynamic"))
+
+    __table_args__ = (
+        Index("ix_cashbox_transactions_type", "type"),
+        Index("ix_cashbox_transactions_category", "category"),
+        Index("ix_cashbox_transactions_created_at", "created_at"),
+    )

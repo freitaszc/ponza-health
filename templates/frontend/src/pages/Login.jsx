@@ -168,7 +168,14 @@ export default function Login() {
             </div>
             <div className="auth-actions">
               <button className="btn-primary btn-auth" type="submit" disabled={isSubmitting}>
-                Entrar
+                {isSubmitting ? (
+                  <>
+                    <span className="btn-spinner" />
+                    Entrando...
+                  </>
+                ) : (
+                  'Entrar'
+                )}
               </button>
             </div>
           </form>

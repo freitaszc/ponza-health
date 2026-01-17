@@ -59,6 +59,7 @@ from models import (
     Supplier, Product, AgendaEvent, Quote, QuoteResponse,
     SecureFile, PdfFile, WaitlistItem, ScheduledEmail,
     StockMovement, quote_suppliers, PatientExamHistory,
+    Cashbox, CashboxTransaction, PatientPayment,
 )
 
 # ------------------------------------------------------------------------------
@@ -3164,38 +3165,19 @@ def _build_resumo_clinico_from_abnormal(
     existing_resumo: str | None = None
 ) -> str:
     """
-    Build or enhance resumo_clinico by including abnormal values.
-    Format: lists exam names with their values and status (high/low).
+    Return the AI-generated resumo clinico without modification.
+    The resumo should be a professional medical summary without listing values.
     """
+    # If AI generated a proper resumo, use it
+    if existing_resumo and existing_resumo.strip():
+        return existing_resumo.strip()
+    
+    # Fallback if no resumo was generated
     if not abnormal_exams:
-        return existing_resumo or "Todos os exames dentro dos valores de referência. Sem alterações significativas."
+        return "Exames laboratoriais dentro dos parâmetros de normalidade. Não foram identificadas alterações significativas que necessitem de intervenção imediata."
     
-    lines = []
-    for exam in abnormal_exams:
-        nome = exam.get("nome") or exam.get("name") or ""
-        valor = exam.get("valor") or exam.get("value") or ""
-        status = (exam.get("status") or "").lower()
-        referencia = exam.get("referencia") or exam.get("reference") or ""
-        
-        if not nome:
-            continue
-        
-        status_label = "alto" if status == "alto" else "baixo" if status == "baixo" else "alterado"
-        line = f"• {nome}: {valor}"
-        if referencia:
-            line += f" (ref: {referencia})"
-        line += f" - {status_label}"
-        lines.append(line)
-    
-    abnormal_summary = "\n".join(lines) if lines else ""
-    
-    if existing_resumo and abnormal_summary:
-        # Combine existing resumo with abnormal values list
-        return f"{existing_resumo}\n\nValores alterados:\n{abnormal_summary}"
-    elif abnormal_summary:
-        return f"Valores fora da faixa de referência:\n{abnormal_summary}"
-    else:
-        return existing_resumo or "Sem alterações significativas nos exames."
+    # Generic fallback for when AI fails to generate resumo but there are alterations
+    return "Análise laboratorial apresenta valores alterados que requerem avaliação clínica. Recomenda-se correlação com quadro clínico do paciente e acompanhamento médico."
 
 
 def _perform_ai_lab_analysis(
@@ -4725,6 +4707,8 @@ def _resolve_patient_image(path: Optional[str]) -> str:
     return path
 
 def _serialize_patient_summary(patient: Patient) -> dict:
+    # Get exam count efficiently using the relationship
+    exam_count = patient.exam_history.count() if hasattr(patient, 'exam_history') else 0
     return {
         "id": patient.id,
         "name": patient.name,
@@ -4732,6 +4716,7 @@ def _serialize_patient_summary(patient: Patient) -> dict:
         "doctor_name": patient.doctor.name if patient.doctor else "",
         "status": patient.status or "Inativo",
         "profile_image": _resolve_patient_image(patient.profile_image),
+        "exam_count": exam_count,
     }
 
 def _serialize_patient_detail(patient: Patient) -> dict:
@@ -6978,6 +6963,587 @@ def generate_lab_analysis_pdf_bytes(
         print("[PDF/gen] erro ao salvar PDF de analise no DB:", e)
 
     return pdf_io.getvalue()
+
+
+# ------------------------------------------------------------------------------
+# Finance / Cashbox API
+# ------------------------------------------------------------------------------
+@app.route('/finances', methods=['GET'], endpoint='finances')
+@login_required
+def finances_view():
+    return serve_react_index()
+
+
+@app.route('/api/finances/summary', methods=['GET'])
+@login_required
+def api_finances_summary():
+    """Get financial summary with statistics."""
+    user = g.user
+    now = datetime.utcnow()
+    
+    # Timeframe filter
+    timeframe = request.args.get('timeframe', '30d')
+    days = {'7d': 7, '30d': 30, '90d': 90, '365d': 365}.get(timeframe, 30)
+    start_date = now - timedelta(days=days)
+    
+    # Cashbox stats
+    cashboxes = Cashbox.query.filter(Cashbox.user_id == user.id).all()
+    open_cashboxes = [c for c in cashboxes if c.status == 'open']
+    closed_cashboxes = [c for c in cashboxes if c.status == 'closed']
+    total_balance = sum(c.current_balance for c in open_cashboxes)
+    
+    # Transaction stats for period
+    transactions = CashboxTransaction.query.filter(
+        CashboxTransaction.user_id == user.id,
+        CashboxTransaction.created_at >= start_date
+    ).all()
+    
+    total_income = sum(t.amount for t in transactions if t.type == 'income')
+    total_expense = sum(abs(t.amount) for t in transactions if t.type == 'expense')
+    net_result = total_income - total_expense
+    
+    # Payment stats
+    payments = PatientPayment.query.filter(
+        PatientPayment.user_id == user.id,
+        PatientPayment.created_at >= start_date
+    ).all()
+    
+    pending_payments = [p for p in payments if p.status == 'pending']
+    paid_payments = [p for p in payments if p.status == 'paid']
+    total_pending = sum(p.balance for p in pending_payments)
+    total_received = sum(p.amount_paid for p in paid_payments)
+    
+    # Receivables by due date
+    today = now.date()
+    week_ahead = today + timedelta(days=7)
+    receivables_today = sum(p.balance for p in pending_payments if p.due_date and p.due_date <= today)
+    receivables_week = sum(p.balance for p in pending_payments if p.due_date and today < p.due_date <= week_ahead)
+    receivables_later = sum(p.balance for p in pending_payments if p.due_date and p.due_date > week_ahead)
+    
+    # Monthly data for chart (last 6 months)
+    monthly_data = []
+    for i in range(5, -1, -1):
+        month_start = (now - timedelta(days=30 * i)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if i > 0:
+            month_end = (now - timedelta(days=30 * (i - 1))).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            month_end = now
+        
+        month_transactions = [t for t in transactions if month_start <= t.created_at < month_end]
+        month_income = sum(t.amount for t in month_transactions if t.type == 'income')
+        month_expense = sum(abs(t.amount) for t in month_transactions if t.type == 'expense')
+        
+        monthly_data.append({
+            'month': month_start.strftime('%b'),
+            'income': round(month_income, 2),
+            'expense': round(month_expense, 2),
+            'net': round(month_income - month_expense, 2)
+        })
+    
+    # Payment method breakdown
+    payment_methods = {}
+    for t in transactions:
+        if t.type == 'income' and t.payment_method:
+            method = t.payment_method
+            payment_methods[method] = payment_methods.get(method, 0) + t.amount
+    
+    # Average ticket
+    paid_count = len(paid_payments)
+    avg_ticket = total_received / paid_count if paid_count > 0 else 0
+    
+    return jsonify({
+        'success': True,
+        'summary': {
+            'total_balance': round(total_balance, 2),
+            'open_cashboxes': len(open_cashboxes),
+            'closed_cashboxes': len(closed_cashboxes),
+            'total_cashboxes': len(cashboxes),
+            'total_income': round(total_income, 2),
+            'total_expense': round(total_expense, 2),
+            'net_result': round(net_result, 2),
+            'margin_percent': round((net_result / total_income * 100) if total_income > 0 else 0, 1),
+            'total_pending': round(total_pending, 2),
+            'total_received': round(total_received, 2),
+            'avg_ticket': round(avg_ticket, 2),
+            'receivables': {
+                'today': round(receivables_today, 2),
+                'week': round(receivables_week, 2),
+                'later': round(receivables_later, 2)
+            }
+        },
+        'monthly_data': monthly_data,
+        'payment_methods': {k: round(v, 2) for k, v in payment_methods.items()},
+        'timeframe': timeframe
+    })
+
+
+@app.route('/api/cashboxes', methods=['GET', 'POST'])
+@login_required
+def api_cashboxes():
+    """List or create cashboxes."""
+    user = g.user
+    
+    if request.method == 'GET':
+        status_filter = request.args.get('status', 'all')
+        query = Cashbox.query.filter(Cashbox.user_id == user.id)
+        
+        if status_filter == 'open':
+            query = query.filter(Cashbox.status == 'open')
+        elif status_filter == 'closed':
+            query = query.filter(Cashbox.status == 'closed')
+        
+        cashboxes = query.order_by(Cashbox.opened_at.desc()).all()
+        
+        result = []
+        for cb in cashboxes:
+            # Get today's transactions count
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_transactions = CashboxTransaction.query.filter(
+                CashboxTransaction.cashbox_id == cb.id,
+                CashboxTransaction.created_at >= today_start
+            ).count()
+            
+            result.append({
+                'id': cb.id,
+                'name': cb.name,
+                'description': cb.description,
+                'type': cb.type,
+                'status': cb.status,
+                'initial_balance': cb.initial_balance,
+                'current_balance': cb.current_balance,
+                'responsible': cb.responsible,
+                'opened_at': cb.opened_at.isoformat() if cb.opened_at else None,
+                'closed_at': cb.closed_at.isoformat() if cb.closed_at else None,
+                'today_transactions': today_transactions
+            })
+        
+        return jsonify({'success': True, 'cashboxes': result})
+    
+    # POST - create new cashbox
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Nome é obrigatório'}), 400
+    
+    cashbox = Cashbox(
+        user_id=user.id,
+        name=name,
+        description=data.get('description', ''),
+        type=data.get('type', 'manual'),
+        initial_balance=float(data.get('initial_balance', 0)),
+        current_balance=float(data.get('initial_balance', 0)),
+        responsible=data.get('responsible', user.name or user.username),
+        status='open'
+    )
+    db.session.add(cashbox)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'cashbox': {
+            'id': cashbox.id,
+            'name': cashbox.name,
+            'status': cashbox.status,
+            'current_balance': cashbox.current_balance
+        }
+    })
+
+
+@app.route('/api/cashboxes/<int:cashbox_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def api_cashbox_detail(cashbox_id):
+    """Get, update, or delete a specific cashbox."""
+    user = g.user
+    cashbox = Cashbox.query.filter(
+        Cashbox.id == cashbox_id,
+        Cashbox.user_id == user.id
+    ).first()
+    
+    if not cashbox:
+        return jsonify({'success': False, 'error': 'Caixa não encontrado'}), 404
+    
+    if request.method == 'GET':
+        # Get transactions for this cashbox
+        transactions = CashboxTransaction.query.filter(
+            CashboxTransaction.cashbox_id == cashbox_id
+        ).order_by(CashboxTransaction.created_at.desc()).limit(100).all()
+        
+        return jsonify({
+            'success': True,
+            'cashbox': {
+                'id': cashbox.id,
+                'name': cashbox.name,
+                'description': cashbox.description,
+                'type': cashbox.type,
+                'status': cashbox.status,
+                'initial_balance': cashbox.initial_balance,
+                'current_balance': cashbox.current_balance,
+                'responsible': cashbox.responsible,
+                'opened_at': cashbox.opened_at.isoformat() if cashbox.opened_at else None,
+                'closed_at': cashbox.closed_at.isoformat() if cashbox.closed_at else None
+            },
+            'transactions': [{
+                'id': t.id,
+                'type': t.type,
+                'category': t.category,
+                'amount': t.amount,
+                'description': t.description,
+                'payment_method': t.payment_method,
+                'created_at': t.created_at.isoformat()
+            } for t in transactions]
+        })
+    
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        
+        # Handle closing the cashbox
+        if data.get('action') == 'close':
+            if cashbox.status == 'closed':
+                return jsonify({'success': False, 'error': 'Caixa já está fechado'}), 400
+            cashbox.status = 'closed'
+            cashbox.closed_at = datetime.utcnow()
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Caixa fechado com sucesso'})
+        
+        # Handle reopening the cashbox
+        if data.get('action') == 'reopen':
+            if cashbox.status == 'open':
+                return jsonify({'success': False, 'error': 'Caixa já está aberto'}), 400
+            cashbox.status = 'open'
+            cashbox.closed_at = None
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Caixa reaberto com sucesso'})
+        
+        # Regular update
+        if 'name' in data:
+            cashbox.name = data['name']
+        if 'description' in data:
+            cashbox.description = data['description']
+        if 'responsible' in data:
+            cashbox.responsible = data['responsible']
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    
+    if request.method == 'DELETE':
+        db.session.delete(cashbox)
+        db.session.commit()
+        return jsonify({'success': True})
+
+
+@app.route('/api/cashboxes/<int:cashbox_id>/transactions', methods=['POST'])
+@login_required
+def api_cashbox_add_transaction(cashbox_id):
+    """Add a transaction to a cashbox."""
+    user = g.user
+    cashbox = Cashbox.query.filter(
+        Cashbox.id == cashbox_id,
+        Cashbox.user_id == user.id
+    ).first()
+    
+    if not cashbox:
+        return jsonify({'success': False, 'error': 'Caixa não encontrado'}), 404
+    
+    if cashbox.status == 'closed':
+        return jsonify({'success': False, 'error': 'Não é possível adicionar transações a um caixa fechado'}), 400
+    
+    data = request.get_json() or {}
+    trans_type = data.get('type', 'income')
+    amount = float(data.get('amount', 0))
+    
+    if amount <= 0:
+        return jsonify({'success': False, 'error': 'Valor deve ser maior que zero'}), 400
+    
+    # For expenses, store as negative
+    if trans_type == 'expense':
+        amount = -abs(amount)
+    
+    transaction = CashboxTransaction(
+        cashbox_id=cashbox_id,
+        user_id=user.id,
+        type=trans_type,
+        category=data.get('category'),
+        amount=amount,
+        description=data.get('description'),
+        payment_method=data.get('payment_method'),
+        reference=data.get('reference'),
+        patient_payment_id=data.get('patient_payment_id')
+    )
+    
+    # Update cashbox balance
+    cashbox.current_balance += amount
+    
+    db.session.add(transaction)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'transaction': {
+            'id': transaction.id,
+            'amount': transaction.amount,
+            'type': transaction.type
+        },
+        'new_balance': cashbox.current_balance
+    })
+
+
+@app.route('/api/patient_payments', methods=['GET', 'POST'])
+@login_required
+def api_patient_payments():
+    """List or create patient payments."""
+    user = g.user
+    
+    if request.method == 'GET':
+        status_filter = request.args.get('status', 'all')
+        patient_id = request.args.get('patient_id')
+        
+        query = PatientPayment.query.filter(PatientPayment.user_id == user.id)
+        
+        if status_filter == 'pending':
+            query = query.filter(PatientPayment.status.in_(['pending', 'partial']))
+        elif status_filter == 'paid':
+            query = query.filter(PatientPayment.status == 'paid')
+        
+        if patient_id:
+            query = query.filter(PatientPayment.patient_id == int(patient_id))
+        
+        payments = query.order_by(PatientPayment.created_at.desc()).limit(200).all()
+        
+        result = []
+        for p in payments:
+            patient = Patient.query.get(p.patient_id)
+            result.append({
+                'id': p.id,
+                'patient_id': p.patient_id,
+                'patient_name': patient.name if patient else 'Paciente removido',
+                'amount': p.amount,
+                'amount_paid': p.amount_paid,
+                'balance': p.balance,
+                'status': p.status,
+                'payment_method': p.payment_method,
+                'payment_type': p.payment_type,
+                'description': p.description,
+                'due_date': p.due_date.isoformat() if p.due_date else None,
+                'paid_at': p.paid_at.isoformat() if p.paid_at else None,
+                'insurance_name': p.insurance_name,
+                'created_at': p.created_at.isoformat()
+            })
+        
+        return jsonify({'success': True, 'payments': result})
+    
+    # POST - create new payment
+    data = request.get_json() or {}
+    patient_id = data.get('patient_id')
+    amount = float(data.get('amount', 0))
+    
+    if not patient_id:
+        return jsonify({'success': False, 'error': 'Paciente é obrigatório'}), 400
+    if amount <= 0:
+        return jsonify({'success': False, 'error': 'Valor deve ser maior que zero'}), 400
+    
+    # Verify patient exists and belongs to user
+    patient = Patient.query.filter(
+        Patient.id == patient_id,
+        Patient.user_id == user.id
+    ).first()
+    
+    if not patient:
+        return jsonify({'success': False, 'error': 'Paciente não encontrado'}), 404
+    
+    due_date = None
+    if data.get('due_date'):
+        try:
+            due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    
+    payment = PatientPayment(
+        user_id=user.id,
+        patient_id=patient_id,
+        event_id=data.get('event_id'),
+        amount=amount,
+        amount_paid=0,
+        payment_method=data.get('payment_method'),
+        payment_type=data.get('payment_type', 'consultation'),
+        status='pending',
+        due_date=due_date,
+        description=data.get('description'),
+        notes=data.get('notes'),
+        insurance_name=data.get('insurance_name'),
+        insurance_authorization=data.get('insurance_authorization')
+    )
+    db.session.add(payment)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'payment': {
+            'id': payment.id,
+            'amount': payment.amount,
+            'status': payment.status
+        }
+    })
+
+
+@app.route('/api/patient_payments/<int:payment_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def api_patient_payment_detail(payment_id):
+    """Get, update, or delete a patient payment."""
+    user = g.user
+    payment = PatientPayment.query.filter(
+        PatientPayment.id == payment_id,
+        PatientPayment.user_id == user.id
+    ).first()
+    
+    if not payment:
+        return jsonify({'success': False, 'error': 'Pagamento não encontrado'}), 404
+    
+    if request.method == 'GET':
+        patient = Patient.query.get(payment.patient_id)
+        return jsonify({
+            'success': True,
+            'payment': {
+                'id': payment.id,
+                'patient_id': payment.patient_id,
+                'patient_name': patient.name if patient else 'Paciente removido',
+                'amount': payment.amount,
+                'amount_paid': payment.amount_paid,
+                'balance': payment.balance,
+                'status': payment.status,
+                'payment_method': payment.payment_method,
+                'payment_type': payment.payment_type,
+                'description': payment.description,
+                'notes': payment.notes,
+                'due_date': payment.due_date.isoformat() if payment.due_date else None,
+                'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
+                'insurance_name': payment.insurance_name,
+                'insurance_authorization': payment.insurance_authorization,
+                'created_at': payment.created_at.isoformat()
+            }
+        })
+    
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        
+        # Handle payment receipt
+        if data.get('action') == 'receive':
+            amount_received = float(data.get('amount', 0))
+            if amount_received <= 0:
+                return jsonify({'success': False, 'error': 'Valor deve ser maior que zero'}), 400
+            
+            payment.amount_paid += amount_received
+            payment.payment_method = data.get('payment_method') or payment.payment_method
+            
+            if payment.amount_paid >= payment.amount:
+                payment.status = 'paid'
+                payment.paid_at = datetime.utcnow()
+            else:
+                payment.status = 'partial'
+            
+            # Optionally add to cashbox
+            cashbox_id = data.get('cashbox_id')
+            if cashbox_id:
+                cashbox = Cashbox.query.filter(
+                    Cashbox.id == cashbox_id,
+                    Cashbox.user_id == user.id,
+                    Cashbox.status == 'open'
+                ).first()
+                
+                if cashbox:
+                    transaction = CashboxTransaction(
+                        cashbox_id=cashbox_id,
+                        user_id=user.id,
+                        patient_payment_id=payment.id,
+                        type='income',
+                        category=payment.payment_type,
+                        amount=amount_received,
+                        description=f"Pagamento - {Patient.query.get(payment.patient_id).name if Patient.query.get(payment.patient_id) else 'Paciente'}",
+                        payment_method=data.get('payment_method')
+                    )
+                    cashbox.current_balance += amount_received
+                    db.session.add(transaction)
+            
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'payment': {
+                    'id': payment.id,
+                    'amount_paid': payment.amount_paid,
+                    'balance': payment.balance,
+                    'status': payment.status
+                }
+            })
+        
+        # Regular update
+        if 'description' in data:
+            payment.description = data['description']
+        if 'notes' in data:
+            payment.notes = data['notes']
+        if 'due_date' in data and data['due_date']:
+            try:
+                payment.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        if 'status' in data:
+            payment.status = data['status']
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    
+    if request.method == 'DELETE':
+        db.session.delete(payment)
+        db.session.commit()
+        return jsonify({'success': True})
+
+
+@app.route('/api/patient/<int:patient_id>/payments', methods=['GET'])
+@login_required
+def api_patient_payments_list(patient_id):
+    """Get all payments for a specific patient."""
+    user = g.user
+    
+    patient = Patient.query.filter(
+        Patient.id == patient_id,
+        Patient.user_id == user.id
+    ).first()
+    
+    if not patient:
+        return jsonify({'success': False, 'error': 'Paciente não encontrado'}), 404
+    
+    payments = PatientPayment.query.filter(
+        PatientPayment.patient_id == patient_id
+    ).order_by(PatientPayment.created_at.desc()).all()
+    
+    total_charged = sum(p.amount for p in payments)
+    total_paid = sum(p.amount_paid for p in payments)
+    total_pending = sum(p.balance for p in payments if p.status in ['pending', 'partial'])
+    
+    return jsonify({
+        'success': True,
+        'patient': {
+            'id': patient.id,
+            'name': patient.name
+        },
+        'summary': {
+            'total_charged': round(total_charged, 2),
+            'total_paid': round(total_paid, 2),
+            'total_pending': round(total_pending, 2)
+        },
+        'payments': [{
+            'id': p.id,
+            'amount': p.amount,
+            'amount_paid': p.amount_paid,
+            'balance': p.balance,
+            'status': p.status,
+            'payment_type': p.payment_type,
+            'payment_method': p.payment_method,
+            'description': p.description,
+            'due_date': p.due_date.isoformat() if p.due_date else None,
+            'paid_at': p.paid_at.isoformat() if p.paid_at else None,
+            'created_at': p.created_at.isoformat()
+        } for p in payments]
+    })
+
 
 # ------------------------------------------------------------------------------
 # Erros / Contexto

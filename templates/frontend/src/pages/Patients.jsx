@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { buildCacheKey, readCache, writeCache } from '../utils/cache'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { buildCacheKey, clearCache, readCache, writeCache } from '../utils/cache'
 
 const backendBase = import.meta.env.VITE_BACKEND_URL || ''
 const withBackend = (path) => (backendBase ? `${backendBase}${path}` : path)
@@ -67,6 +67,7 @@ export default function Patients() {
     search: initialSearch,
     status: initialStatusSelection.length === 1 ? initialStatusSelection[0] : '',
   })
+  const [refetchCounter, setRefetchCounter] = useState(0)
   const [openMenuId, setOpenMenuId] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalPatientId, setModalPatientId] = useState('')
@@ -98,10 +99,24 @@ export default function Patients() {
     return () => window.removeEventListener('click', handleClick)
   }, [])
 
+  // Refetch data when page becomes visible (e.g., after editing patient)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Clear cache and trigger refetch
+        clearCache('patients')
+        setRefetchCounter((c) => c + 1)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   useEffect(() => {
     let active = true
     const cacheKey = buildCacheKey('patients', [query.search || 'all', query.status || 'all'])
-    const cached = readCache(cacheKey)
+    // Only use cache on initial load, not on refetch
+    const cached = refetchCounter === 0 ? readCache(cacheKey) : null
     if (cached && Array.isArray(cached)) {
       setPatients(cached)
       setLoading(false)
@@ -135,7 +150,7 @@ export default function Patients() {
     return () => {
       active = false
     }
-  }, [query])
+  }, [query, refetchCounter])
 
   const handleToggleSidebar = () => {
     const next = !collapsed
@@ -309,6 +324,7 @@ export default function Patients() {
               key={item.href}
               className={`dashboard-link ${isActiveLink(item.href) ? 'is-active' : ''}`}
               href={item.href}
+              data-tooltip={item.label}
             >
               <i className={`fa ${item.icon}`} aria-hidden="true" />
               <span>{item.label}</span>
@@ -316,7 +332,7 @@ export default function Patients() {
           ))}
         </nav>
         <div className="dashboard-sidebar__footer">
-          <a className="dashboard-link is-logout" href={withBackend('/logout')}>
+          <a className="dashboard-link is-logout" href={withBackend('/logout')} data-tooltip="Sair">
             <i className="fa fa-sign-out" aria-hidden="true" />
             <span>Sair</span>
           </a>
@@ -388,7 +404,7 @@ export default function Patients() {
                 <tr>
                   <th>Paciente</th>
                   <th>Telefone</th>
-                  <th>Medico</th>
+                  <th>Exames</th>
                   <th>Status</th>
                   <th>Ações</th>
                 </tr>
@@ -421,7 +437,20 @@ export default function Patients() {
                         </div>
                       </td>
                       <td>{patient.phone_primary || '—'}</td>
-                      <td>{patient.doctor_name || '—'}</td>
+                      <td>
+                        {patient.exam_count > 0 ? (
+                          <a 
+                            href={`/edit_patient/${patient.id}#sec-exames`}
+                            className="exam-count-badge"
+                            title="Ver histórico de exames"
+                          >
+                            <i className="fa fa-flask" style={{ marginRight: '4px' }} />
+                            {patient.exam_count}
+                          </a>
+                        ) : (
+                          <span style={{ color: '#999' }}>—</span>
+                        )}
+                      </td>
                       <td>
                         <button
                           type="button"
@@ -449,7 +478,7 @@ export default function Patients() {
                             {openMenuId === patient.id ? (
                               <div className="dropdown-menu" role="menu">
                                 <a href={`/patient_result/${patient.id}`}>Ver diagnóstico</a>
-                                <a href={`/edit_patient/${patient.id}`}>Editar informações</a>
+                                <a href={`/edit_patient/${patient.id}`}>Ver informações</a>
                                 <button type="button" onClick={() => openConsultationModal(patient.id)}>
                                   Adicionar consulta
                                 </button>

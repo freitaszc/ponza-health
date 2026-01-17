@@ -200,6 +200,38 @@ def _clean_patient_value(value: str) -> str:
     return cleaned.strip()
 
 
+# Common exam names that should NOT be confused with patient names
+EXAM_NAME_KEYWORDS = {
+    "hemoglobina", "glicose", "glicada", "colesterol", "triglicerídeos", "triglicerideos",
+    "creatinina", "ureia", "ácido", "acido", "úrico", "urico", "tsh", "t3", "t4",
+    "hemácias", "hemacias", "leucócitos", "leucocitos", "plaquetas", "vitamina",
+    "ferro", "ferritina", "sódio", "sodio", "potássio", "potassio", "cálcio", "calcio",
+    "magnésio", "magnesio", "fósforo", "fosforo", "bilirrubina", "tgo", "tgp", "ggt",
+    "fosfatase", "proteína", "proteina", "albumina", "globulina", "ldh", "cpk",
+    "amilase", "lipase", "psa", "hba1c", "pcr", "vhs", "hemograma", "eritrócitos",
+    "eritrocitos", "hematócrito", "hematocrito", "vcm", "hcm", "chcm", "rdw",
+    "neutrófilos", "neutrofilos", "linfócitos", "linfocitos", "monócitos", "monocitos",
+    "eosinófilos", "eosinofilos", "basófilos", "basofilos", "glicemia", "insulina",
+    "cortisol", "prolactina", "testosterona", "estradiol", "progesterona", "fsh", "lh",
+    "urina", "fezes", "hdl", "ldl", "vldl", "gli", "hb", "ht", "vcm"
+}
+
+
+def _is_exam_name(value: str) -> bool:
+    """Check if a value looks like an exam name rather than a person's name."""
+    if not value:
+        return False
+    lower = value.lower()
+    # Check if any exam keyword is in the value
+    for keyword in EXAM_NAME_KEYWORDS:
+        if keyword in lower:
+            return True
+    # Check if it looks like a numeric value or measurement
+    if re.search(r"\d+[.,]\d+|\d+\s*(mg|g|dl|ml|mm|%|u/l|ui/l)", lower):
+        return True
+    return False
+
+
 def _extract_patient_fields_from_line(line: str) -> Dict[str, str]:
     fields: Dict[str, str] = {}
     matches = list(PATIENT_LABEL_RE.finditer(line))
@@ -224,6 +256,9 @@ def _extract_patient_fields_from_line(line: str) -> Dict[str, str]:
         if label in ("paciente", "nome"):
             key = "nome"
             value = raw_value
+            # Skip if this looks like an exam name
+            if _is_exam_name(value):
+                continue
         elif "nasc" in label:
             key = "data_nascimento"
             value = raw_value
@@ -255,10 +290,14 @@ def _extract_reference(line: str) -> str:
     match = REFERENCE_PATTERN_RE.search(line)
     if not match:
         return ""
-    if match.group("ref_min") and match.group("ref_max"):
-        return f"{match.group('ref_min').strip()}-{match.group('ref_max').strip()}"
-    if match.group("ref_simple"):
-        return match.group("ref_simple").strip()
+    # Use lastgroup to check which alternative matched, or check groups safely
+    groups = match.groupdict()
+    # Check for labeled reference range (e.g., "ref: 150-250" or "ref: < 100")
+    if groups.get("ref_range"):
+        return groups["ref_range"].strip()
+    # Check for min-max range (e.g., "4.0-10.0")
+    if groups.get("ref_min") and groups.get("ref_max"):
+        return f"{groups['ref_min'].strip()}-{groups['ref_max'].strip()}"
     return ""
 
 

@@ -67,6 +67,7 @@ export default function Result() {
   const [patientDraft, setPatientDraft] = useState(null)
   const [summaryDraft, setSummaryDraft] = useState('')
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [showAllExams, setShowAllExams] = useState(false)
 
   const sidebarNav = useMemo(() => navItems, [])
 
@@ -220,7 +221,18 @@ export default function Result() {
 
   const renderAiResults = () => {
     const exams = data?.exams || []
-    const visibleExams = exams.filter((exam) => hasReference(exam) && !isUndefinedStatus(exam))
+    // Filter exams with altered status (alto or baixo)
+    const alteredExams = exams.filter((exam) => {
+      const status = (exam.status || exam.estado || '').toString().toLowerCase()
+      return status === 'alto' || status === 'baixo'
+    })
+    // All exams with reference, excluding undefined status
+    const allValidExams = exams.filter((exam) => hasReference(exam) && !isUndefinedStatus(exam))
+    // If toggle is on, show all valid exams; otherwise show only altered (or all if none altered)
+    const visibleExams = showAllExams 
+      ? allValidExams 
+      : (alteredExams.length > 0 ? alteredExams : allValidExams)
+    const hasAlteredExams = alteredExams.length > 0
     const prescription = prescriptionItems
     const orientations = orientationItems
     const hasComparison = data?.has_comparison || false
@@ -306,7 +318,26 @@ export default function Result() {
         )}
 
         <div className="result-section">
-          <h3>Resultados laboratoriais</h3>
+          <div className="result-section__header">
+            <h3>
+              Resultados laboratoriais
+              {!showAllExams && hasAlteredExams && (
+                <span style={{ fontSize: '0.75em', fontWeight: 'normal', marginLeft: '8px', color: '#dc2626' }}>
+                  (Mostrando apenas valores alterados)
+                </span>
+              )}
+            </h3>
+            {hasAlteredExams && (
+              <button 
+                type="button" 
+                className={`result-toggle ${showAllExams ? 'is-active' : ''}`}
+                onClick={() => setShowAllExams(!showAllExams)}
+              >
+                <i className={`fa ${showAllExams ? 'fa-eye-slash' : 'fa-eye'}`} style={{ marginRight: '6px' }} />
+                {showAllExams ? 'Ocultar Normais' : 'Ver Todos os Exames'}
+              </button>
+            )}
+          </div>
           {visibleExams.length ? (
             <div className="result-table">
               <table>
@@ -484,6 +515,7 @@ export default function Result() {
               key={item.href}
               className={`dashboard-link ${currentPath === resolvePath(item.href) ? 'is-active' : ''}`}
               href={item.href}
+              data-tooltip={item.label}
             >
               <i className={`fa ${item.icon}`} aria-hidden="true" />
               <span>{item.label}</span>
@@ -491,7 +523,7 @@ export default function Result() {
           ))}
         </nav>
         <div className="dashboard-sidebar__footer">
-          <a className="dashboard-link is-logout" href={withBackend('/logout')}>
+          <a className="dashboard-link is-logout" href={withBackend('/logout')} data-tooltip="Sair">
             <i className="fa fa-sign-out" aria-hidden="true" />
             <span>Sair</span>
           </a>

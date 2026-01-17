@@ -401,6 +401,7 @@ export default function Stock() {
               key={item.href}
               className={`dashboard-link ${isActiveLink(item.href) ? 'is-active' : ''}`}
               href={item.href}
+              data-tooltip={item.label}
             >
               <i className={`fa ${item.icon}`} aria-hidden="true" />
               <span>{item.label}</span>
@@ -408,7 +409,7 @@ export default function Stock() {
           ))}
         </nav>
         <div className="dashboard-sidebar__footer">
-          <a className="dashboard-link is-logout" href={withBackend('/logout')}>
+          <a className="dashboard-link is-logout" href={withBackend('/logout')} data-tooltip="Sair">
             <i className="fa fa-sign-out" aria-hidden="true" />
             <span>Sair</span>
           </a>

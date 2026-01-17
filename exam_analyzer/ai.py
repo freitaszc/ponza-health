@@ -43,24 +43,35 @@ DEFAULT_FALLBACK_MODEL = "gpt-4o-mini"
 OPENAI_MODEL = os.getenv("EXAM_AI_MODEL", os.getenv("OPENAI_MODEL", DEFAULT_MODEL))
 FAST_MODEL = os.getenv("EXAM_AI_MODEL_FAST", OPENAI_MODEL)
 FALLBACK_MODEL = os.getenv("EXAM_AI_MODEL_FALLBACK", DEFAULT_FALLBACK_MODEL)
-AI_TIMEOUT = int(os.getenv("EXAM_AI_TIMEOUT", os.getenv("AI_HTTP_TIMEOUT", "45")))
-MAX_TEXT = int(os.getenv("EXAM_ANALYSIS_MAX_CHARS", "20000"))
-MAX_OUTPUT_TOKENS = int(os.getenv("EXAM_AI_MAX_OUTPUT_TOKENS", "1400"))
+AI_TIMEOUT = int(os.getenv("EXAM_AI_TIMEOUT", os.getenv("AI_HTTP_TIMEOUT", "30")))
+MAX_TEXT = int(os.getenv("EXAM_ANALYSIS_MAX_CHARS", "15000"))
+MAX_OUTPUT_TOKENS = int(os.getenv("EXAM_AI_MAX_OUTPUT_TOKENS", "1200"))
 MIN_EXAMS_FOR_CONFIDENCE = int(os.getenv("EXAM_AI_MIN_EXAMS", "2"))
-MAX_KEY_LINES = int(os.getenv("EXAM_AI_MAX_KEY_LINES", "200"))
+MAX_KEY_LINES = int(os.getenv("EXAM_AI_MAX_KEY_LINES", "150"))
 FORCE_JSON_RESPONSE = str(os.getenv("EXAM_AI_FORCE_JSON", "1")).lower() in {"1", "true", "yes", "on"}
+# Speed optimizations
+SKIP_DETAILED_PROMPT = str(os.getenv("EXAM_AI_SKIP_DETAILED", "0")).lower() in {"1", "true", "yes", "on"}
+MAX_EXAMS_PER_CALL = int(os.getenv("EXAM_AI_MAX_EXAMS", "50"))
 
 SYSTEM_PROMPT = (
     "Voce e Ponza RX, uma medica especialista em exames laboratoriais com vasta experiencia em analise de laudos. "
-    "Sua tarefa e interpretar os dados de exames e gerar um resumo clinico preciso.\n\n"
+    "Sua tarefa e interpretar os dados de exames e gerar um laudo profissional.\n\n"
     "REGRAS ESSENCIAIS:\n"
     "1. EXTRAIA CORRETAMENTE as informacoes do paciente (nome, CPF, sexo, data de nascimento, telefone) dos dados fornecidos.\n"
+    "   - O nome do paciente NUNCA e um nome de exame (hemoglobina, glicose, etc). Procure por 'Paciente:', 'Nome:', 'Cliente:'.\n"
+    "   - Se nao encontrar o nome claramente identificado, deixe vazio.\n"
     "2. Para cada exame, CLASSIFIQUE o status como 'baixo', 'alto', 'normal' ou 'indefinido' comparando o valor com a referencia.\n"
-    "3. O resumo_clinico deve destacar APENAS valores fora da faixa de referencia (altos ou baixos) em ate 3 linhas.\n"
-    "4. Se TODOS os valores estiverem normais, use: 'Todos os exames dentro dos valores de referencia. Sem alteracoes significativas.'\n"
-    "5. NUNCA invente dados. Se um campo nao estiver disponivel, deixe vazio.\n"
+    "3. O campo 'resumo_clinico' e OBRIGATORIO e NUNCA pode estar vazio. Deve ser um PARECER MEDICO FORMAL.\n"
+    "   - Escreva um PARAGRAFO de 2-4 frases em linguagem medica formal e profissional.\n"
+    "   - PROIBIDO: listar valores, numeros, unidades ou referencias. Ex: 'Hemoglobina: 10 g/dL' NAO PODE aparecer.\n"
+    "   - Contextualize os achados clinicamente usando termos medicos.\n"
+    "   - Mencione as areas afetadas (hematologico, tireoidiano, metabolico, hepatico, renal, etc).\n"
+    "   - EXEMPLO CORRETO: 'Paciente apresenta alteracoes hematologicas sugestivas de processo anemico, associadas a deficiencia de vitaminas do complexo B. Perfil tireoidiano indica hipofuncao glandular leve. Perfil glicemico em faixa pre-diabetica merece atencao. Recomenda-se correlacao clinica e acompanhamento laboratorial.'\n"
+    "   - EXEMPLO ERRADO: 'Hemoglobina 13.4 (baixo), Vitamina D 25.0 (baixo), TSH alto'\n"
+    "4. Se TODOS os valores estiverem normais, o resumo_clinico DEVE ser: 'Exames laboratoriais dentro dos parametros de normalidade. Nao foram identificadas alteracoes significativas que necessitem de intervencao imediata. Manter acompanhamento de rotina conforme orientacao medica.'\n"
+    "5. NUNCA invente dados. Se um campo nao estiver disponivel, deixe vazio (exceto resumo_clinico que e obrigatorio).\n"
     "6. Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele.\n"
-    "7. Se nao conseguir processar, retorne JSON minimo valido com os campos vazios."
+    "7. Se nao conseguir processar os exames, o resumo_clinico deve ser: 'Nao foi possivel processar os dados do laudo. Recomenda-se revisao manual do documento.'"
 )
 
 OUTPUT_SPEC = {
@@ -136,8 +147,9 @@ def _build_analysis_prompt(payload: Dict[str, Any], previous_results: Dict[str, 
         "Dados extraidos do laudo laboratorial:\n"
         f"{input_json}\n\n"
         "INSTRUCOES DETALHADAS:\n"
-        "1. PACIENTE: Extraia os dados do paciente de 'patient' e 'key_lines'. "
-        "Procure por padroes como 'Nome:', 'Paciente:', 'CPF:', 'Sexo:', 'Nascimento:', etc.\n"
+        "1. PACIENTE: Extraia os dados do paciente de 'patient' e 'key_lines'. \n"
+        "   - Procure por padroes como 'Nome:', 'Paciente:', 'Cliente:', 'CPF:', 'Sexo:', 'Nascimento:', etc.\n"
+        "   - IMPORTANTE: O nome do paciente NAO e um nome de exame. Ignore linhas que parecem resultados de exames.\n"
         "2. EXAMES: Use os dados de 'lab_results'. Para cada exame:\n"
         "   - 'nome': use EXATAMENTE o nome de 'allowed_exams' se disponivel\n"
         "   - 'valor': o valor numerico encontrado\n"
@@ -147,9 +159,12 @@ def _build_analysis_prompt(payload: Dict[str, Any], previous_results: Dict[str, 
         "   - 'observacao': breve (max 12 palavras) apenas se relevante\n"
         "3. NAO inclua cabecalhos, titulos ou metadados como exames.\n"
         "4. Para hemograma: separe valores percentuais (%) e absolutos (/mm3) em registros diferentes.\n"
-        "5. RESUMO CLINICO: destaque APENAS achados anormais (status 'baixo' ou 'alto').\n"
-        "   - Se todos normais: 'Todos os exames dentro dos valores de referencia.'\n"
-        "   - Se houver alteracoes: liste-as de forma objetiva em ate 3 linhas.\n"
+        "5. RESUMO CLINICO (OBRIGATORIO - NAO PODE ESTAR VAZIO):\n"
+        "   - Escreva um PARAGRAFO profissional de 2-4 frases.\n"
+        "   - PROIBIDO listar valores, numeros ou referencias. Nenhum numero pode aparecer no resumo.\n"
+        "   - Use termos medicos: 'alteracoes hematologicas', 'perfil tireoidiano', 'deficiencia vitaminica', etc.\n"
+        "   - Contextualize clinicamente os achados encontrados.\n"
+        "   - Se todos normais: use frase padrao de normalidade.\n"
         "6. PRESCRICAO/ORIENTACOES: apenas se houver alteracoes claras. Caso contrario, deixe listas vazias.\n"
         "7. ALERTAS: apenas para valores criticamente alterados que necessitem atencao imediata.\n"
     )
@@ -597,8 +612,8 @@ def generate_ai_analysis(
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": 0.2,
-                    "top_p": 0.9,
+                    "temperature": 0.1,
+                    "top_p": 0.8,
                     "max_tokens": MAX_OUTPUT_TOKENS,
                 }
                 if FORCE_JSON_RESPONSE and _supports_json_response(model):
@@ -629,8 +644,8 @@ def generate_ai_analysis(
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 0.2,
-            "top_p": 0.9,
+            "temperature": 0.1,
+            "top_p": 0.8,
             "max_tokens": MAX_OUTPUT_TOKENS,
         }
         if FORCE_JSON_RESPONSE and _supports_json_response(model):
