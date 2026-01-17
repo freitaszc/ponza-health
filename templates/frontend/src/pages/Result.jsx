@@ -223,6 +223,10 @@ export default function Result() {
     const visibleExams = exams.filter((exam) => hasReference(exam) && !isUndefinedStatus(exam))
     const prescription = prescriptionItems
     const orientations = orientationItems
+    const hasComparison = data?.has_comparison || false
+    const comparacaoExames = data?.comparacao_exames || []
+    const evolucaoClinica = data?.evolucao_clinica || ''
+    const previousExamDate = data?.previous_exam_date || ''
 
     return (
       <>
@@ -240,6 +244,66 @@ export default function Result() {
           <h3>Resumo clínico</h3>
           <div className="result-textbox">{summaryDraft || 'Sem observações registradas.'}</div>
         </div>
+
+        {hasComparison && (evolucaoClinica || comparacaoExames.length > 0) && (
+          <div className="result-section result-section--comparison">
+            <h3>
+              <i className="fa fa-line-chart" style={{ marginRight: '8px' }} />
+              Comparação com exame anterior
+              {previousExamDate && (
+                <span style={{ fontSize: '0.8em', fontWeight: 'normal', marginLeft: '8px', color: '#666' }}>
+                  ({previousExamDate})
+                </span>
+              )}
+            </h3>
+            {evolucaoClinica && (
+              <div className="result-textbox" style={{ marginBottom: '16px', background: '#f0f7ff', borderLeft: '4px solid #2196f3' }}>
+                <strong>Evolução clínica:</strong>
+                <p style={{ margin: '8px 0 0 0' }}>{evolucaoClinica}</p>
+              </div>
+            )}
+            {comparacaoExames.length > 0 && (
+              <div className="result-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Exame</th>
+                      <th>Valor Anterior</th>
+                      <th>Valor Atual</th>
+                      <th>Tendência</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparacaoExames.map((item, index) => {
+                      const tendencia = (item.tendencia || '').toLowerCase()
+                      let tendenciaClass = 'lab-status--estavel'
+                      let tendenciaIcon = '→'
+                      if (tendencia === 'melhorou') {
+                        tendenciaClass = 'lab-status--melhorou'
+                        tendenciaIcon = '↗'
+                      } else if (tendencia === 'piorou') {
+                        tendenciaClass = 'lab-status--piorou'
+                        tendenciaIcon = '↘'
+                      }
+                      return (
+                        <tr key={`comparison-${index}`}>
+                          <td>{item.nome || '-'}</td>
+                          <td>{item.valor_anterior || '-'}</td>
+                          <td>{item.valor_atual || '-'}</td>
+                          <td>
+                            <span className={`lab-status ${tendenciaClass}`}>
+                              {tendenciaIcon} {item.tendencia || 'estável'}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="result-section">
           <h3>Resultados laboratoriais</h3>

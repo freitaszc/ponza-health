@@ -58,7 +58,7 @@ from models import (
     db, User, Patient, Doctor, Consult, PackageUsage,
     Supplier, Product, AgendaEvent, Quote, QuoteResponse,
     SecureFile, PdfFile, WaitlistItem, ScheduledEmail,
-    StockMovement, quote_suppliers,
+    StockMovement, quote_suppliers, PatientExamHistory,
 )
 
 # ------------------------------------------------------------------------------
@@ -2800,8 +2800,29 @@ def _process_pdf_upload_payload(
     doctor_display = doctor_name_input or (getattr(u, "name", None) or u.username)
 
     if use_ai:
+        # First, try to identify the patient to get previous exam history
+        # We do a preliminary patient lookup based on manual overrides or extracted data
+        preliminary_patient = None
+        preliminary_cpf = manual_overrides.get("cpf", "").strip()
+        preliminary_name = manual_overrides.get("nome", "").strip() or manual_name
+        
+        if preliminary_cpf:
+            preliminary_patient = Patient.query.filter_by(user_id=u.id, cpf=preliminary_cpf).first()
+        if not preliminary_patient and preliminary_name:
+            preliminary_patient = Patient.query.filter_by(user_id=u.id, name=preliminary_name).first()
+        
+        # Get previous exam results for comparison if patient exists
+        previous_results = None
+        if preliminary_patient:
+            previous_results = _get_patient_previous_exam(u.id, preliminary_patient.id)
+        
         try:
-            analysis = _perform_ai_lab_analysis(content, manual_overrides, timings=timings)
+            analysis = _perform_ai_lab_analysis(
+                content,
+                manual_overrides,
+                timings=timings,
+                previous_results=previous_results,
+            )
         except RuntimeError as exc:
             return False, {"error": str(exc)}
 
@@ -2826,9 +2847,36 @@ def _process_pdf_upload_payload(
         pf.patient_id = patient.id
         db.session.add(pf)
         db.session.commit()
+        
+        # Save exam history for future comparisons
+        try:
+            _save_patient_exam_history(
+                user_id=u.id,
+                patient_id=patient.id,
+                exam_date=datetime.today().date(),
+                resumo_clinico=diagnosis_text,
+                abnormal_results=analysis.get("abnormal_exams") or [],
+                all_results=analysis.get("raw_exams") or analysis.get("exames") or [],
+                pdf_file_id=pf.id,
+            )
+        except Exception as exc:
+            # Don't fail the analysis if history save fails
+            try:
+                current_app.logger.warning("[Ponza Lab] Failed to save exam history: %s", exc)
+            except Exception:
+                pass
+        
         timings["db_save_ms"] = round((time.perf_counter() - db_analysis_start) * 1000)
 
         context = _build_analysis_context(analysis, file_name=file.filename, doctor_name=doctor_display)
+        
+        # Add comparison data to context if available
+        if analysis.get("has_comparison"):
+            context["has_comparison"] = True
+            context["previous_exam_date"] = analysis.get("previous_exam_date")
+            context["comparacao_exames"] = analysis.get("comparacao_exames") or []
+            context["evolucao_clinica"] = analysis.get("evolucao_clinica") or ""
+        
         lab_pdf_bytes = generate_lab_analysis_pdf_bytes(
             patient=patient,
             context=context,
@@ -2883,6 +2931,11 @@ def _process_pdf_upload_payload(
             "orientations": context.get("orientations") or [],
             "alerts": context.get("alerts") or [],
             "file_name": context.get("file_name"),
+            # Add comparison data to token payload
+            "has_comparison": context.get("has_comparison", False),
+            "previous_exam_date": context.get("previous_exam_date"),
+            "comparacao_exames": context.get("comparacao_exames") or [],
+            "evolucao_clinica": context.get("evolucao_clinica") or "",
         }
         analysis_token = serializer.dumps(token_payload)
 
@@ -2895,6 +2948,7 @@ def _process_pdf_upload_payload(
             "analysis_token": analysis_token,
             "patient_id": patient.id,
             "timings": timings,
+            "has_comparison": context.get("has_comparison", False),
         }
 
     refs_path = _project_references_json()
@@ -3052,15 +3106,108 @@ def _handle_pdf_upload_ai(
     return redirect(url_for('lab_analysis_view', token=analysis_token))
 
 
+def _get_patient_previous_exam(user_id: int, patient_id: int) -> dict[str, Any] | None:
+    """
+    Retrieve the most recent exam history for a patient to enable comparison.
+    Returns dict with 'exames' and 'resumo_clinico' or None if no history.
+    """
+    history = (
+        PatientExamHistory.query
+        .filter_by(user_id=user_id, patient_id=patient_id)
+        .order_by(PatientExamHistory.exam_date.desc(), PatientExamHistory.created_at.desc())
+        .first()
+    )
+    if not history:
+        return None
+    
+    try:
+        all_results = json.loads(history.all_results) if history.all_results else []
+    except (json.JSONDecodeError, TypeError):
+        all_results = []
+    
+    return {
+        "exames": all_results,
+        "resumo_clinico": history.resumo_clinico or "",
+        "exam_date": history.exam_date.isoformat() if history.exam_date else None,
+    }
+
+
+def _save_patient_exam_history(
+    *,
+    user_id: int,
+    patient_id: int,
+    exam_date: date,
+    resumo_clinico: str,
+    abnormal_results: list[dict[str, Any]],
+    all_results: list[dict[str, Any]],
+    pdf_file_id: int | None = None,
+) -> PatientExamHistory:
+    """
+    Save exam results to history for future comparison.
+    """
+    history = PatientExamHistory(
+        user_id=user_id,
+        patient_id=patient_id,
+        exam_date=exam_date,
+        resumo_clinico=resumo_clinico,
+        abnormal_results=json.dumps(abnormal_results, ensure_ascii=False) if abnormal_results else None,
+        all_results=json.dumps(all_results, ensure_ascii=False) if all_results else None,
+        pdf_file_id=pdf_file_id,
+    )
+    db.session.add(history)
+    db.session.commit()
+    return history
+
+
+def _build_resumo_clinico_from_abnormal(
+    abnormal_exams: list[dict[str, Any]],
+    existing_resumo: str | None = None
+) -> str:
+    """
+    Build or enhance resumo_clinico by including abnormal values.
+    Format: lists exam names with their values and status (high/low).
+    """
+    if not abnormal_exams:
+        return existing_resumo or "Todos os exames dentro dos valores de referência. Sem alterações significativas."
+    
+    lines = []
+    for exam in abnormal_exams:
+        nome = exam.get("nome") or exam.get("name") or ""
+        valor = exam.get("valor") or exam.get("value") or ""
+        status = (exam.get("status") or "").lower()
+        referencia = exam.get("referencia") or exam.get("reference") or ""
+        
+        if not nome:
+            continue
+        
+        status_label = "alto" if status == "alto" else "baixo" if status == "baixo" else "alterado"
+        line = f"• {nome}: {valor}"
+        if referencia:
+            line += f" (ref: {referencia})"
+        line += f" - {status_label}"
+        lines.append(line)
+    
+    abnormal_summary = "\n".join(lines) if lines else ""
+    
+    if existing_resumo and abnormal_summary:
+        # Combine existing resumo with abnormal values list
+        return f"{existing_resumo}\n\nValores alterados:\n{abnormal_summary}"
+    elif abnormal_summary:
+        return f"Valores fora da faixa de referência:\n{abnormal_summary}"
+    else:
+        return existing_resumo or "Sem alterações significativas nos exames."
+
+
 def _perform_ai_lab_analysis(
     file_bytes: bytes,
     overrides: dict[str, str],
     *,
     timings: dict[str, Any] | None = None,
+    previous_results: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     timings = timings or {}
     payload = extract_exam_payload(file_bytes, require_ocr=False, timings=timings)
-    ai_response = generate_ai_analysis(payload, timings=timings)
+    ai_response = generate_ai_analysis(payload, timings=timings, previous_results=previous_results)
     if not ai_response.get("ok"):
         raise RuntimeError(ai_response.get("error") or "Falha ao analisar o PDF.")
     post_start = time.perf_counter()
@@ -3082,6 +3229,17 @@ def _perform_ai_lab_analysis(
     abnormal_exams, prescription = _apply_reference_rules(analysis, reference_table)
     analysis["abnormal_exams"] = abnormal_exams
     analysis["prescricao"] = prescription
+    
+    # Enhance resumo_clinico to always include abnormal values
+    existing_resumo = analysis.get("resumo_clinico") or ""
+    analysis["resumo_clinico"] = _build_resumo_clinico_from_abnormal(abnormal_exams, existing_resumo)
+    
+    # Add comparison data if previous results were provided
+    if previous_results:
+        analysis["has_comparison"] = True
+        analysis["previous_exam_date"] = previous_results.get("exam_date")
+        # comparacao_exames and evolucao_clinica should already be in analysis from AI
+    
     timings["postprocess_ms"] = round((time.perf_counter() - post_start) * 1000)
     return analysis
 
@@ -3854,6 +4012,18 @@ def api_lab_analysis_view():
     patient_details = [
         {"label": label, "value": value} for label, value in (context.get("patient_details") or [])
     ]
+    
+    # Include comparison data if available
+    has_comparison = payload.get("has_comparison", False)
+    comparison_data = {}
+    if has_comparison:
+        comparison_data = {
+            "has_comparison": True,
+            "previous_exam_date": payload.get("previous_exam_date"),
+            "comparacao_exames": payload.get("comparacao_exames") or [],
+            "evolucao_clinica": payload.get("evolucao_clinica") or "",
+        }
+    
     return jsonify({
         "mode": "ai",
         "patient": context.get("patient") or {},
@@ -3865,6 +4035,7 @@ def api_lab_analysis_view():
         "alerts": context.get("alerts") or [],
         "pdf_token": token,
         "doctor_name": doctor_name,
+        **comparison_data,
     })
 
 @app.route('/public_download')
@@ -3905,6 +4076,95 @@ def public_download():
         as_attachment=False,
         download_name=f"relatorio_{patient_id}.pdf"
     )
+
+
+@app.route('/api/patient/<int:patient_id>/exam_history')
+@login_required
+def api_patient_exam_history(patient_id: int):
+    """
+    Get the exam history for a patient, showing evolution over time.
+    Returns list of past exams with their resumo_clinico and abnormal values.
+    """
+    u = current_user()
+    patient = Patient.query.get_or_404(patient_id)
+    if patient.user_id != u.id:
+        abort(403)
+    
+    # Get all exam history records ordered by date (most recent first)
+    history_records = (
+        PatientExamHistory.query
+        .filter_by(user_id=u.id, patient_id=patient_id)
+        .order_by(PatientExamHistory.exam_date.desc(), PatientExamHistory.created_at.desc())
+        .all()
+    )
+    
+    history_list = []
+    for record in history_records:
+        try:
+            abnormal = json.loads(record.abnormal_results) if record.abnormal_results else []
+        except (json.JSONDecodeError, TypeError):
+            abnormal = []
+        
+        try:
+            all_results = json.loads(record.all_results) if record.all_results else []
+        except (json.JSONDecodeError, TypeError):
+            all_results = []
+        
+        history_list.append({
+            "id": record.id,
+            "exam_date": record.exam_date.isoformat() if record.exam_date else None,
+            "resumo_clinico": record.resumo_clinico or "",
+            "abnormal_results": abnormal,
+            "total_exams": len(all_results),
+            "abnormal_count": len(abnormal),
+            "created_at": record.created_at.isoformat() if record.created_at else None,
+        })
+    
+    return jsonify({
+        "success": True,
+        "patient_id": patient_id,
+        "patient_name": patient.name,
+        "exam_count": len(history_list),
+        "history": history_list,
+    })
+
+
+@app.route('/api/patient/<int:patient_id>/exam_history/<int:history_id>')
+@login_required
+def api_patient_exam_history_detail(patient_id: int, history_id: int):
+    """
+    Get detailed exam results from a specific history record.
+    """
+    u = current_user()
+    patient = Patient.query.get_or_404(patient_id)
+    if patient.user_id != u.id:
+        abort(403)
+    
+    record = PatientExamHistory.query.get_or_404(history_id)
+    if record.patient_id != patient_id or record.user_id != u.id:
+        abort(403)
+    
+    try:
+        abnormal = json.loads(record.abnormal_results) if record.abnormal_results else []
+    except (json.JSONDecodeError, TypeError):
+        abnormal = []
+    
+    try:
+        all_results = json.loads(record.all_results) if record.all_results else []
+    except (json.JSONDecodeError, TypeError):
+        all_results = []
+    
+    return jsonify({
+        "success": True,
+        "id": record.id,
+        "patient_id": patient_id,
+        "exam_date": record.exam_date.isoformat() if record.exam_date else None,
+        "resumo_clinico": record.resumo_clinico or "",
+        "abnormal_results": abnormal,
+        "all_results": all_results,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+    })
+
 
 @app.route('/result/<int:patient_id>')
 @login_required

@@ -476,3 +476,36 @@ class StockMovement(db.Model, BaseModel):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     product = db.relationship("Product", back_populates="movements")
+
+
+class PatientExamHistory(db.Model, BaseModel):
+    """Stores historical exam data for patients to enable multi-exam comparison."""
+    __tablename__ = "patient_exam_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    exam_date = db.Column(db.Date, nullable=False, index=True)
+    resumo_clinico = db.Column(db.Text, nullable=True)
+    abnormal_results = db.Column(db.Text, nullable=True)  # JSON string with abnormal results
+    all_results = db.Column(db.Text, nullable=True)  # JSON string with all exam results
+    pdf_file_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pdf_files.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    patient = db.relationship("Patient", backref=db.backref("exam_history", lazy="dynamic", cascade="all, delete-orphan"))
+    user = db.relationship("User", backref=db.backref("patient_exam_histories", lazy="dynamic"))
+    pdf_file = db.relationship("PdfFile", backref="exam_history")

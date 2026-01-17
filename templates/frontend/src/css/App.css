@@ -3701,6 +3701,79 @@ section[id],
   color: #92400e;
 }
 
+/* Comparison tendencies */
+.lab-status--estavel {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.lab-status--melhorou {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.lab-status--piorou {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Exam Comparison Section */
+.exam-comparison {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.exam-comparison h3 {
+  margin-bottom: 1rem;
+  color: #334155;
+  font-size: 1.25rem;
+}
+
+.exam-comparison__evolucao {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #6366f1;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.exam-comparison__table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.exam-comparison__table th {
+  background: #f1f5f9;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.exam-comparison__table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.exam-comparison__table tr:last-child td {
+  border-bottom: none;
+}
+
+.exam-comparison__table tr:hover {
+  background: #f8fafc;
+}
+
 @media (max-width: 1200px) {
   .dashboard-grid {
     grid-template-columns: 1fr;

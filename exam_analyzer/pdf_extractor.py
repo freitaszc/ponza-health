@@ -8,7 +8,7 @@ import sys
 import time
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -63,6 +63,29 @@ def _extract_full_text(file_bytes: bytes) -> str:
         return ""
 
 
+def _extract_text_with_layout(file_bytes: bytes) -> str:
+    """Extract text preserving layout structure (better for columnar data)."""
+    try:
+        with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+            chunks = []
+            for page in doc:
+                # Use "dict" mode for better structure understanding
+                blocks = page.get_text("dict", flags=fitz.TEXT_PRESERVE_WHITESPACE)
+                page_text = []
+                for block in blocks.get("blocks", []):
+                    if block.get("type") == 0:  # text block
+                        for line in block.get("lines", []):
+                            line_text = " ".join(
+                                span.get("text", "") for span in line.get("spans", [])
+                            )
+                            if line_text.strip():
+                                page_text.append(line_text)
+                chunks.append("\n".join(page_text))
+        return "\n\n".join(chunks).strip()
+    except Exception:
+        return _extract_full_text(file_bytes)
+
+
 PATIENT_KEYWORDS = (
     "paciente",
     "nome",
@@ -76,17 +99,59 @@ PATIENT_KEYWORDS = (
     "tel",
     "celular",
     "rg",
+    "cliente",
+    "solicitante",
 )
 
-RESULT_HINTS = ("ref", "refer", "valor", "resultado", "vr")
+RESULT_HINTS = ("ref", "refer", "valor", "resultado", "vr", "normal", "ideal")
+
+# Skip lines containing these patterns (headers, metadata, etc.)
+SKIP_LINE_PATTERNS = [
+    r"^página\s*\d+",
+    r"^pag\s*\.",
+    r"^data\s*de\s*(?:coleta|emissão|impressão)",
+    r"^laboratório",
+    r"^laudo\s*(?:nº|numero|n°)",
+    r"^solicitante",
+    r"^médico",
+    r"^crm",
+    r"^material\s*:",
+    r"^método\s*:",
+    r"^observa[çc][ãa]o\s*:",
+    r"^nota\s*:",
+    r"^\*+",
+    r"^assinatura",
+    r"^responsável",
+]
+SKIP_LINE_RE = re.compile("|".join(SKIP_LINE_PATTERNS), re.IGNORECASE)
 
 # Multiple patterns to capture different formats of lab results
+# Pattern 1: Name : Value Unit (Ref: xxx)
 RESULT_LINE_RE = re.compile(
     r"^(?P<name>[A-Za-zÀ-ÿ0-9 /().,%+-]{2,}?)\s*[:\-–—]\s*"
     r"(?P<value>(?:<=|>=|<|>)?\s*[-+]?\d[\d.,]*)\s*"
     r"(?P<unit>[A-Za-z/%\^0-9µμ]+)?"
     r"(?:\s*(?:\(|\[)?(?:ref|vr|refer(?:encia)?|valor(?:es)? de ref)[:\s]*"
     r"(?P<ref>[^\)\]]+))?",
+    re.IGNORECASE,
+)
+
+# Pattern 2: Flexible pattern for various lab formats
+RESULT_FLEXIBLE_RE = re.compile(
+    r"(?P<name>[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 /().,%+-]{1,50}?)"
+    r"[\s:.\-–—]+"
+    r"(?P<value>(?:<=|>=|<|>)?\s*[-+]?\d[\d.,]*(?:\s*[xX]\s*10\^\d+)?)"
+    r"(?:\s*(?P<unit>[A-Za-z/%\^µμ][A-Za-z0-9/%\^µμ³]*))?"
+    r"(?:\s+(?P<ref>[\d.,]+\s*[-–a-z]+\s*[\d.,]+|[<>]=?\s*[\d.,]+))?",
+    re.IGNORECASE,
+)
+
+# Pattern 3: For columnar layouts (Name    Value    Unit    Reference)
+COLUMNAR_RE = re.compile(
+    r"^(?P<name>[A-Za-zÀ-ÿ][^\d]{2,30}?)\s{2,}"
+    r"(?P<value>(?:<=|>=|<|>)?\s*[-+]?\d[\d.,]*)\s*"
+    r"(?:(?P<unit>[A-Za-z/%µμ][A-Za-z0-9/%µμ³/]*)\s*)?"
+    r"(?:(?P<ref>[\d.,\s\-–<>]+))?",
     re.IGNORECASE,
 )
 
@@ -98,15 +163,18 @@ COMPLEX_VALUE_RE = re.compile(
 
 # Pattern to detect reference ranges (e.g., 150-250, < 100, > 50)
 REFERENCE_PATTERN_RE = re.compile(
-    r"(?:ref|refer(?:encia)?|vr|valor de ref)[:\s]*"
-    r"(?P<ref_min>[-+]?\d+[.,]?\d*)\s*[-–a-z]*\s*(?P<ref_max>[-+]?\d+[.,]?\d*)|"
-    r"(?:ref|refer(?:encia)?|vr)[:\s]*"
-    r"(?P<ref_simple>[<>]=?[-+]?\d+[.,]?\d*|[-+]?\d+[.,]?\d*)",
+    r"(?:ref|refer[êe]?n?cia|vr|valor(?:es)?\s*(?:de\s*)?ref(?:erência)?|normal)[:\s]*"
+    r"(?P<ref_range>[\d.,]+\s*[-–a]\s*[\d.,]+|[<>]=?\s*[\d.,]+|[\d.,]+)"
+    r"|"
+    r"(?P<ref_min>[-+]?\d+[.,]?\d*)\s*[-–a]\s*(?P<ref_max>[-+]?\d+[.,]?\d*)",
     re.IGNORECASE,
 )
 
+# Enhanced patient label regex with more patterns
 PATIENT_LABEL_RE = re.compile(
-    r"\b(paciente|nome|cpf|sexo|nascimento|data\s*(?:de\s*)?nasc(?:imento)?|idade|telefone|tel\.?|celular|rg)\b",
+    r"\b(paciente|nome(?:\s+(?:completo|do\s+paciente))?|cpf|sexo|nascimento|"
+    r"data\s*(?:de\s*)?nasc(?:imento)?|idade|telefone|tel\.?|celular|rg|"
+    r"cliente|gênero|genero)\b",
     re.IGNORECASE,
 )
 
@@ -293,10 +361,15 @@ def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
     for line in lines:
         lower = line.lower()
         
-        # Extract patient info
-        if _extract_patient_fields_from_line(line):
-            patient_lines.append(line)
+        # Skip metadata/header lines
+        if SKIP_LINE_RE.search(lower):
             continue
+        
+        # Extract patient info
+        patient_fields = _extract_patient_fields_from_line(line)
+        if patient_fields:
+            patient_lines.append(line)
+            # Don't continue - some lines have both patient info and result data
         
         # Enhanced detection: look for lines with numbers (values)
         has_digit = any(char.isdigit() for char in line)
@@ -307,19 +380,44 @@ def _extract_key_lines(raw_text: str) -> Dict[str, List[str]]:
         has_result_hint = any(hint in lower for hint in RESULT_HINTS)
         has_separator = ":" in line or "-" in line or "–" in line
         
+        # Check for common exam name patterns
+        has_exam_pattern = bool(re.search(
+            r"\b(hemoglobina|glicose|colesterol|triglicerídeos|creatinina|ureia|"
+            r"ácido úrico|tsh|t3|t4|hemácias|leucócitos|plaquetas|vitamina|"
+            r"ferro|ferritina|sódio|potássio|cálcio|magnésio|fósforo|"
+            r"bilirrubina|tgo|tgp|ggt|fosfatase|proteína|albumina|globulina|"
+            r"ldh|cpk|amilase|lipase|psa|hba1c|pcr|vhs|hemograma|"
+            r"urina|fezes|glicemia|insulina|cortisol|prolactina|"
+            r"testosterona|estradiol|progesterona|fsh|lh)\b",
+            lower
+        ))
+        
         # Include if it matches strong patterns
-        if has_result_hint or has_separator:
+        if has_result_hint or has_exam_pattern:
             result_lines.append(line)
             continue
+        
+        if has_separator:
+            # Check this is not a date/time separator
+            if not re.search(r"\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}", line):
+                result_lines.append(line)
+                continue
         
         # Include numeric lines with letters (may be test results)
         has_letters = any(char.isalpha() for char in line)
         value_tokens = VALUE_TOKEN_RE.findall(line)
         if has_letters and value_tokens:
             # Exclude common non-result lines
-            if not any(x in lower for x in ["página", "total de", "análise", "data:", "hora:", "solicitação", "laboratório"]):
+            skip_keywords = [
+                "página", "total de", "análise", "data:", "hora:", 
+                "solicitação", "laboratório", "laudo", "emissão",
+                "coleta", "impressão", "material", "método"
+            ]
+            if not any(x in lower for x in skip_keywords):
                 # Prefer lines with more than one numeric token (often columnar results)
                 if len(value_tokens) >= 2 or has_result_hint or has_separator:
+                    result_lines.append(line)
+                elif len(line) > 10 and len(line) < 150:  # Reasonable line length for results
                     result_lines.append(line)
     
     return {"patient_lines": patient_lines, "result_lines": result_lines}
@@ -340,21 +438,58 @@ def _parse_result_lines(lines: List[str]) -> List[Dict[str, Any]]:
 
     for line in lines:
         added = False
+        
+        # Skip lines that are clearly not results
+        lower = line.lower()
+        if SKIP_LINE_RE.search(lower):
+            continue
+        
         # Try the main regex pattern first
         match = RESULT_LINE_RE.match(line)
         if match:
             data = match.groupdict()
             name = _clean_test_name((data.get("name") or "").strip())
             if not name or name.lower() in SKIP_RESULT_NAMES:
+                pass  # Try other patterns
+            else:
+                results.append({
+                    "nome": name,
+                    "valor": (data.get("value") or "").strip().replace(" ", ""),
+                    "unidade": (data.get("unit") or "").strip(),
+                    "referencia": (data.get("ref") or "").strip() or _extract_reference(line),
+                    "raw_line": line,
+                })
                 continue
-            results.append({
-                "nome": name,
-                "valor": (data.get("value") or "").strip().replace(" ", ""),
-                "unidade": (data.get("unit") or "").strip(),
-                "referencia": (data.get("ref") or "").strip() or _extract_reference(line),
-                "raw_line": line,
-            })
-            continue
+
+        # Try flexible pattern
+        flex_match = RESULT_FLEXIBLE_RE.search(line)
+        if flex_match:
+            data = flex_match.groupdict()
+            name = _clean_test_name((data.get("name") or "").strip())
+            if name and name.lower() not in SKIP_RESULT_NAMES:
+                results.append({
+                    "nome": name,
+                    "valor": (data.get("value") or "").strip().replace(" ", ""),
+                    "unidade": (data.get("unit") or "").strip(),
+                    "referencia": (data.get("ref") or "").strip() or _extract_reference(line),
+                    "raw_line": line,
+                })
+                continue
+        
+        # Try columnar pattern
+        col_match = COLUMNAR_RE.match(line)
+        if col_match:
+            data = col_match.groupdict()
+            name = _clean_test_name((data.get("name") or "").strip())
+            if name and name.lower() not in SKIP_RESULT_NAMES:
+                results.append({
+                    "nome": name,
+                    "valor": (data.get("value") or "").strip().replace(" ", ""),
+                    "unidade": (data.get("unit") or "").strip(),
+                    "referencia": (data.get("ref") or "").strip() or _extract_reference(line),
+                    "raw_line": line,
+                })
+                continue
 
         # Try fixed-width column formats (common in lab tables)
         columnar = _parse_columnar_result(line)

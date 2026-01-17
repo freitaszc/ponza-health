@@ -51,12 +51,16 @@ MAX_KEY_LINES = int(os.getenv("EXAM_AI_MAX_KEY_LINES", "200"))
 FORCE_JSON_RESPONSE = str(os.getenv("EXAM_AI_FORCE_JSON", "1")).lower() in {"1", "true", "yes", "on"}
 
 SYSTEM_PROMPT = (
-    "Voce e Ponza RX, uma medica especialista em exames laboratoriais. "
-    "Use os dados estruturados para interpretar os exames e gerar um resumo clinico. "
-    "Resumo clinico: destaque apenas achados preocupantes/anormais em ate 3 linhas. "
-    "Classifique cada resultado como 'baixo', 'alto', 'normal' ou 'indefinido' quando aplicavel. "
-    "IMPORTANTE: Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele. "
-    "Se nao conseguir processar, retorne JSON minimo valido com os campos vazios."
+    "Voce e Ponza RX, uma medica especialista em exames laboratoriais com vasta experiencia em analise de laudos. "
+    "Sua tarefa e interpretar os dados de exames e gerar um resumo clinico preciso.\n\n"
+    "REGRAS ESSENCIAIS:\n"
+    "1. EXTRAIA CORRETAMENTE as informacoes do paciente (nome, CPF, sexo, data de nascimento, telefone) dos dados fornecidos.\n"
+    "2. Para cada exame, CLASSIFIQUE o status como 'baixo', 'alto', 'normal' ou 'indefinido' comparando o valor com a referencia.\n"
+    "3. O resumo_clinico deve destacar APENAS valores fora da faixa de referencia (altos ou baixos) em ate 3 linhas.\n"
+    "4. Se TODOS os valores estiverem normais, use: 'Todos os exames dentro dos valores de referencia. Sem alteracoes significativas.'\n"
+    "5. NUNCA invente dados. Se um campo nao estiver disponivel, deixe vazio.\n"
+    "6. Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele.\n"
+    "7. Se nao conseguir processar, retorne JSON minimo valido com os campos vazios."
 )
 
 OUTPUT_SPEC = {
@@ -83,8 +87,23 @@ OUTPUT_SPEC = {
     "alertas": [],
 }
 
+# Extended output spec for comparison analysis
+OUTPUT_SPEC_COMPARISON = {
+    **OUTPUT_SPEC,
+    "comparacao_exames": [
+        {
+            "nome": "",
+            "valor_atual": "",
+            "valor_anterior": "",
+            "tendencia": "",  # "melhorou", "piorou", "estavel"
+            "observacao": "",
+        }
+    ],
+    "evolucao_clinica": "",
+}
 
-def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
+
+def _build_analysis_prompt(payload: Dict[str, Any], previous_results: Dict[str, Any] | None = None) -> str:
     patient = payload.get("patient") or {}
     lab_results = payload.get("lab_results") or []
     key_lines = payload.get("key_lines") or []
@@ -104,31 +123,61 @@ def _build_analysis_prompt(payload: Dict[str, Any]) -> str:
         input_payload["allowed_exams"] = allowed_exams
     if raw_excerpt:
         input_payload["raw_excerpt"] = raw_excerpt[:MAX_TEXT]
-    schema = json.dumps(OUTPUT_SPEC, ensure_ascii=False, indent=2)
+    
+    # Add previous results for comparison if available
+    if previous_results:
+        input_payload["exames_anteriores"] = previous_results.get("exames") or []
+        input_payload["resumo_anterior"] = previous_results.get("resumo_clinico") or ""
+    
+    schema = json.dumps(OUTPUT_SPEC_COMPARISON if previous_results else OUTPUT_SPEC, ensure_ascii=False, indent=2)
     input_json = json.dumps(input_payload, ensure_ascii=False, indent=2)
-    return (
-        "Dados extraidos do laudo (nao enviar texto bruto completo):\n"
+    
+    base_instructions = (
+        "Dados extraidos do laudo laboratorial:\n"
         f"{input_json}\n\n"
-        "INSTRUCOES:\n"
-        "1. Use os dados estruturados acima; se algo estiver faltando, consulte key_lines.\n"
-        "2. allowed_exams contem os exames permitidos (baseado no references.json). "
-        "Use APENAS nomes presentes em allowed_exams e normalize o nome exatamente como no allowed_exams.\n"
-        "3. Nao inclua valores de referencia, cabecalhos ou metadados como exames.\n"
-        "4. Se lab_results estiver incompleto, use raw_excerpt apenas para confirmar valores de exames ja presentes "
-        "em allowed_exams; nao crie exames novos.\n"
-        "5. Para cada exame, capture valor, unidade e referencia indicados.\n"
-        "6. Quando houver valores porcentuais e absolutos, crie dois registros (ex.: neutrofilos % e /mm3).\n"
-        "7. Use apenas os valores fornecidos; nao invente dados.\n"
-        "8. Classifique status comparando com a referencia escrita.\n"
-        "9. Observacao: curta (<= 12 palavras) ou vazia; sem justificativas longas.\n"
-        "10. Resumo clinico: ate 3 linhas, somente achados preocupantes/anormais; "
-        "se nao houver, use 'Sem achados preocupantes'. Prescricoes: objetivas e praticas.\n"
-        "11. Se nao houver prescricao/orientacoes/alertas claros, retorne listas vazias.\n"
-        "12. CRITICO: Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo.\n"
-        "13. Nao adicione texto fora do JSON. Se algo falhar, retorne JSON valido com campos vazios.\n"
+        "INSTRUCOES DETALHADAS:\n"
+        "1. PACIENTE: Extraia os dados do paciente de 'patient' e 'key_lines'. "
+        "Procure por padroes como 'Nome:', 'Paciente:', 'CPF:', 'Sexo:', 'Nascimento:', etc.\n"
+        "2. EXAMES: Use os dados de 'lab_results'. Para cada exame:\n"
+        "   - 'nome': use EXATAMENTE o nome de 'allowed_exams' se disponivel\n"
+        "   - 'valor': o valor numerico encontrado\n"
+        "   - 'unidade': a unidade de medida (g/dL, mg/dL, etc.)\n"
+        "   - 'referencia': faixa de referencia indicada\n"
+        "   - 'status': compare valor com referencia -> 'baixo', 'alto', 'normal' ou 'indefinido'\n"
+        "   - 'observacao': breve (max 12 palavras) apenas se relevante\n"
+        "3. NAO inclua cabecalhos, titulos ou metadados como exames.\n"
+        "4. Para hemograma: separe valores percentuais (%) e absolutos (/mm3) em registros diferentes.\n"
+        "5. RESUMO CLINICO: destaque APENAS achados anormais (status 'baixo' ou 'alto').\n"
+        "   - Se todos normais: 'Todos os exames dentro dos valores de referencia.'\n"
+        "   - Se houver alteracoes: liste-as de forma objetiva em ate 3 linhas.\n"
+        "6. PRESCRICAO/ORIENTACOES: apenas se houver alteracoes claras. Caso contrario, deixe listas vazias.\n"
+        "7. ALERTAS: apenas para valores criticamente alterados que necessitem atencao imediata.\n"
+    )
+    
+    if previous_results:
+        comparison_instructions = (
+            "\n8. COMPARACAO COM EXAMES ANTERIORES:\n"
+            "   - Voce recebeu 'exames_anteriores' e 'resumo_anterior' do ultimo exame do paciente.\n"
+            "   - Para cada exame presente em ambos, preencha 'comparacao_exames' com:\n"
+            "     - 'valor_atual': valor do exame atual\n"
+            "     - 'valor_anterior': valor do exame anterior\n"
+            "     - 'tendencia': 'melhorou' (saiu de alterado para normal ou valor mais proximo do ideal), "
+            "'piorou' (saiu de normal para alterado ou valor mais distante do ideal), 'estavel'\n"
+            "     - 'observacao': breve comentario sobre a evolucao\n"
+            "   - 'evolucao_clinica': resumo da evolucao comparando os dois exames (max 3 linhas).\n"
+        )
+        base_instructions += comparison_instructions
+    
+    base_instructions += (
+        "\nREGRAS CRITICAS:\n"
+        "- Responda EXCLUSIVAMENTE com JSON valido seguindo o schema abaixo.\n"
+        "- NAO adicione texto antes ou depois do JSON.\n"
+        "- Se falhar, retorne JSON valido com campos vazios.\n"
         f"\nSCHEMA OBRIGATORIO:\n{schema}\n"
         "\nRESPONDA APENAS COM JSON:"
     )
+    
+    return base_instructions
 
 
 def _normalize_exam_name(value: str) -> str:
@@ -499,7 +548,24 @@ def _analysis_needs_fallback(data: Dict[str, Any] | None, payload: Dict[str, Any
     return False
 
 
-def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | None = None) -> Dict[str, Any]:
+def generate_ai_analysis(
+    payload: Dict[str, Any],
+    *,
+    timings: Dict[str, Any] | None = None,
+    previous_results: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """
+    Generate AI analysis for lab results.
+    
+    Args:
+        payload: Extracted data from the PDF
+        timings: Optional dict to track timing metrics
+        previous_results: Optional dict with previous exam results for comparison
+            Should contain 'exames' list and 'resumo_clinico' string
+    
+    Returns:
+        Dict with analysis results including comparison if previous_results provided
+    """
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return {
@@ -512,7 +578,7 @@ def generate_ai_analysis(payload: Dict[str, Any], *, timings: Dict[str, Any] | N
         }
     project = os.getenv("OPENAI_PROJECT")
     organization = os.getenv("OPENAI_ORGANIZATION") or os.getenv("OPENAI_ORG")
-    user_prompt = _build_analysis_prompt(payload)
+    user_prompt = _build_analysis_prompt(payload, previous_results=previous_results)
     timings = timings or {}
 
     def _call_with_model(model: str) -> Dict[str, Any]:
