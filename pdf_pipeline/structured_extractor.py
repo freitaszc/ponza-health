@@ -21,6 +21,8 @@ from .reference_loader import load_references
 class ExtractionConfig:
     ocr_required: bool = False
     temp_dir: Path = field(default_factory=lambda: Path("/tmp/ponza_pdf"))
+    ocr_max_pages: int | None = None
+    ocr_dpi: int = 300
 
 
 @dataclass(slots=True)
@@ -86,13 +88,19 @@ class PdfAnalysisPipeline:
     def _maybe_run_ocr(self, source: str | bytes) -> Optional[OcrResult]:
         if not self.config.ocr_required:
             return None
+        max_pages = self.config.ocr_max_pages
+        if max_pages is not None and max_pages <= 0:
+            return None
         temp_dir = ensure_directory(self.config.temp_dir)
         page_images: List[Path] = []
         try:
             with self._open_document(source) as doc:
-                for page_number in range(doc.page_count):
+                page_count = doc.page_count
+                if max_pages is not None:
+                    page_count = min(page_count, max_pages)
+                for page_number in range(page_count):
                     page = doc.load_page(page_number)
-                    pix = page.get_pixmap(dpi=300)  # type: ignore[attr-defined]
+                    pix = page.get_pixmap(dpi=self.config.ocr_dpi)  # type: ignore[attr-defined]
                     img_bytes = pix.tobytes("png")
                     path = derive_temp_path(temp_dir, f"page_{page_number}", ".png")
                     path.write_bytes(img_bytes)
@@ -116,6 +124,18 @@ class PdfAnalysisPipeline:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def run_pipeline(source: str | bytes, references_path: str | Path, *, require_ocr: bool = False) -> ExtractionResult:
-    pipeline = PdfAnalysisPipeline(config=ExtractionConfig(ocr_required=require_ocr))
+def run_pipeline(
+    source: str | bytes,
+    references_path: str | Path,
+    *,
+    require_ocr: bool = False,
+    ocr_max_pages: int | None = None,
+    ocr_dpi: int | None = None,
+) -> ExtractionResult:
+    config = ExtractionConfig(ocr_required=require_ocr)
+    if ocr_max_pages is not None:
+        config.ocr_max_pages = ocr_max_pages
+    if ocr_dpi is not None:
+        config.ocr_dpi = ocr_dpi
+    pipeline = PdfAnalysisPipeline(config=config)
     return pipeline.extract(source, references_path)

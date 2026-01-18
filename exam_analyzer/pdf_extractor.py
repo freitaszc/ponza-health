@@ -52,15 +52,25 @@ def _load_reference_payload(path: str) -> Dict[str, Any]:
     return data
 
 
-def _extract_full_text(file_bytes: bytes) -> str:
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _extract_full_text(file_bytes: bytes) -> tuple[str, int]:
     try:
         with fitz.open(stream=file_bytes, filetype="pdf") as doc:
             chunks = []
             for page in doc:
                 chunks.append(page.get_text("text"))
-        return "\n".join(chunks).strip()
+            return "\n".join(chunks).strip(), doc.page_count
     except Exception:
-        return ""
+        return "", 0
 
 
 def _extract_text_with_layout(file_bytes: bytes) -> str:
@@ -83,7 +93,7 @@ def _extract_text_with_layout(file_bytes: bytes) -> str:
                 chunks.append("\n".join(page_text))
         return "\n\n".join(chunks).strip()
     except Exception:
-        return _extract_full_text(file_bytes)
+        return _extract_full_text(file_bytes)[0]
 
 
 PATIENT_KEYWORDS = (
@@ -595,13 +605,18 @@ def _parse_result_lines(lines: List[str]) -> List[Dict[str, Any]]:
     return results
 
 
-def _extract_table_results(file_bytes: bytes) -> List[Dict[str, Any]]:
+def _extract_table_results(file_bytes: bytes, *, max_pages: int | None = None) -> List[Dict[str, Any]]:
     """Extract lab results from tables in PDF (common format for lab reports)."""
     results: List[Dict[str, Any]] = []
+    if max_pages is not None and max_pages <= 0:
+        return results
     try:
         import pdfplumber
         with pdfplumber.open(file_bytes if isinstance(file_bytes, (str, Path)) else BytesIO(file_bytes)) as pdf:
-            for page in pdf.pages:
+            pages = pdf.pages
+            if max_pages is not None and max_pages > 0:
+                pages = pages[:max_pages]
+            for page in pages:
                 tables = page.extract_tables()
                 if not tables:
                     continue
@@ -656,30 +671,46 @@ def extract_exam_payload(
     references_path = _locate_references()
     timings = timings or {}
     extract_start = time.perf_counter()
-    raw_text = _extract_full_text(file_bytes)
+    raw_text, page_count = _extract_full_text(file_bytes)
     timings["pdf_extract_ms"] = round((time.perf_counter() - extract_start) * 1000)
+    timings["pdf_pages"] = page_count
 
-    max_results = int(os.getenv("EXAM_ANALYSIS_MAX_RESULTS", "120"))
-    min_results = int(os.getenv("EXAM_ANALYSIS_MIN_RESULTS", "8"))
+    max_results = _env_int("EXAM_ANALYSIS_MAX_RESULTS", 120)
+    min_results = _env_int("EXAM_ANALYSIS_MIN_RESULTS", 8)
     ocr_ms = 0
     ocr_pages = 0
     pipeline_result = None
 
-    min_chars = int(os.getenv("EXAM_ANALYSIS_OCR_MIN_CHARS", "200"))
+    min_chars = _env_int("EXAM_ANALYSIS_OCR_MIN_CHARS", 200)
     needs_ocr = require_ocr or len(raw_text) < min_chars
     if needs_ocr:
-        try:
-            from pdf_pipeline.structured_extractor import run_pipeline
+        ocr_max_pages = _env_int("EXAM_ANALYSIS_OCR_MAX_PAGES", 12)
+        ocr_max_mb = _env_int("EXAM_ANALYSIS_OCR_MAX_MB", 0)
+        ocr_dpi = _env_int("EXAM_ANALYSIS_OCR_DPI", 300)
+        if ocr_max_mb > 0 and len(file_bytes) > ocr_max_mb * 1024 * 1024:
+            timings["ocr_skipped"] = "file_size"
+        elif ocr_max_pages == 0:
+            timings["ocr_skipped"] = "page_limit"
+        else:
+            ocr_limit = ocr_max_pages if ocr_max_pages > 0 else None
+            try:
+                from pdf_pipeline.structured_extractor import run_pipeline
 
-            ocr_start = time.perf_counter()
-            pipeline = run_pipeline(file_bytes, references_path, require_ocr=True)
-            pipeline_result = pipeline
-            ocr_ms = round((time.perf_counter() - ocr_start) * 1000)
-            if pipeline.raw_text:
-                raw_text = pipeline.raw_text
-            ocr_pages = getattr(pipeline.artifacts, "ocr_pages", 0)
-        except Exception:
-            ocr_ms = 0
+                ocr_start = time.perf_counter()
+                pipeline = run_pipeline(
+                    file_bytes,
+                    references_path,
+                    require_ocr=True,
+                    ocr_max_pages=ocr_limit,
+                    ocr_dpi=ocr_dpi,
+                )
+                pipeline_result = pipeline
+                ocr_ms = round((time.perf_counter() - ocr_start) * 1000)
+                if pipeline.raw_text:
+                    raw_text = pipeline.raw_text
+                ocr_pages = getattr(pipeline.artifacts, "ocr_pages", 0)
+            except Exception:
+                ocr_ms = 0
 
     if ocr_ms:
         timings["ocr_ms"] = ocr_ms
@@ -689,7 +720,8 @@ def extract_exam_payload(
     lab_results = _parse_result_lines(key_lines.get("result_lines") or [])
     
     # Try to extract results from tables as well (common in lab reports)
-    table_results = _extract_table_results(file_bytes)
+    table_max_pages = _env_int("EXAM_ANALYSIS_TABLE_MAX_PAGES", 8)
+    table_results = _extract_table_results(file_bytes, max_pages=table_max_pages)
     
     # Merge results, avoiding duplicates
     existing_names = {r.get("nome", "").lower().strip() for r in lab_results}
