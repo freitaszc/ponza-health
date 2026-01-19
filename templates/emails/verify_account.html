@@ -5,102 +5,63 @@
     <meta charset="UTF-8">
     <title>Confirmação de Conta — Ponza Health</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-        body {
-            margin: 0;
-            background: #f5f7fa;
-            font-family: 'Funnel Sans', Arial, Helvetica, sans-serif;
-            color: #1e293b;
-        }
-
-        .container {
-            max-width: 640px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-
-        .card {
-            background: #ffffff;
-            border-radius: 18px;
-            padding: 40px 32px;
-            box-shadow: 0 12px 32px rgba(19, 29, 53, 0.15);
-            text-align: center;
-        }
-
-        h2 {
-            font-size: 26px;
-            margin: 0 0 20px;
-            color: #0a1628;
-        }
-
-        p {
-            font-size: 15px;
-            color: #475569;
-            line-height: 1.6;
-        }
-
-        .btn-primary {
-            display: inline-block;
-            width: 100%;
-            background: linear-gradient(135deg, #0a1628, #1e293b, #334155);
-            color: #fff;
-            text-decoration: none;
-            font-weight: 700;
-            padding: 14px 0;
-            border-radius: 999px;
-            margin: 25px 0 15px;
-            transition: opacity .25s ease;
-        }
-
-        .btn-primary:hover {
-            opacity: 0.9;
-        }
-
-        .footer {
-            margin-top: 40px;
-            text-align: center;
-            font-size: 13px;
-            color: #94a3b8;
-            line-height: 1.5;
-        }
-
-        .footer a {
-            color: #94a3b8;
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
-        }
-    </style>
 </head>
 
-<body>
-    <div class="container">
-        <div style="text-align:center; margin-bottom:20px;">
-            <img src="cid:logo" alt="Ponza Health" style="max-width:220px;height:auto;">
-        </div>
+<body style="margin:0; padding:0; background:#f5f7fa; font-family:Arial, Helvetica, sans-serif; color:#1e293b;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fa;">
+        <tr>
+            <td align="center" style="padding:40px 20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+                    <!-- Logo -->
+                    <tr>
+                        <td align="center" style="padding-bottom:20px;">
+                            <img src="cid:logo" alt="Ponza Health" style="max-width:220px;height:auto;">
+                        </td>
+                    </tr>
+                    <!-- Card -->
+                    <tr>
+                        <td style="background:#ffffff; border-radius:18px; padding:40px 32px; text-align:center; box-shadow:0 12px 32px rgba(19,29,53,0.15);">
+                            <h2 style="font-size:26px; margin:0 0 20px; color:#0a1628;">Confirme sua Conta</h2>
+                            <p style="font-size:15px; color:#475569; line-height:1.6; margin:0 0 10px;">
+                                Olá <strong>{{ username }}</strong>,
+                            </p>
+                            <p style="font-size:15px; color:#475569; line-height:1.6; margin:0 0 25px;">
+                                Obrigado por se cadastrar na <strong>Ponza Health</strong>.<br>
+                                Para ativar sua conta, clique no botão abaixo:
+                            </p>
 
-        <div class="card">
-            <h2>Confirme sua Conta</h2>
-            <p>Olá <strong>{{ username }}</strong>,</p>
-            <p>Obrigado por se cadastrar na <strong>Ponza Health</strong>.<br>
-                Para ativar sua conta, clique no botão abaixo:</p>
+                            <!-- Botão -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 25px;">
+                                <tr>
+                                    <td align="center" style="background:#0a1628; border-radius:999px;">
+                                        <a href="{{ confirm_url }}" target="_blank" style="display:inline-block; padding:14px 40px; font-size:16px; font-weight:700; color:#ffffff; text-decoration:none;">
+                                            Confirmar E-mail
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
 
-            <a href="{{ confirm_url }}" class="btn-primary">Confirmar E-mail</a>
-
-            <p>Se você não criou uma conta conosco, basta ignorar este e-mail.</p>
-            <p><strong>WhatsApp:</strong>
-                <a href="https://wa.me/5533984613689" style="color:#0a1628; text-decoration:none;">+55 33 98461-3689</a>
-            </p>
-        </div>
-
-        <div class="footer">
-            © {{ current_year }} Ponza Health. Todos os direitos reservados.<br>
-            <a href="{{ url_for('privacy_policy', _external=True) }}">Política de Privacidade</a> •
-            <a href="{{ url_for('terms', _external=True) }}">Termos de Uso</a>
-        </div>
-    </div>
+                            <p style="font-size:15px; color:#475569; line-height:1.6; margin:0 0 15px;">
+                                Se você não criou uma conta conosco, basta ignorar este e-mail.
+                            </p>
+                            <p style="font-size:15px; color:#475569; line-height:1.6; margin:0;">
+                                <strong>WhatsApp:</strong>
+                                <a href="https://wa.me/5533984613689" style="color:#0a1628; text-decoration:none;">+55 33 98461-3689</a>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td align="center" style="padding-top:40px; font-size:13px; color:#94a3b8; line-height:1.5;">
+                            © {{ current_year }} Ponza Health. Todos os direitos reservados.<br>
+                            <a href="{{ url_for('privacy_policy', _external=True) }}" style="color:#94a3b8; text-decoration:none;">Política de Privacidade</a> •
+                            <a href="{{ url_for('terms', _external=True) }}" style="color:#94a3b8; text-decoration:none;">Termos de Uso</a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 
 </html>

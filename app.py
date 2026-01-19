@@ -478,7 +478,7 @@ def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=
     msg = Message(
         subject=subject,
         recipients=recipients_list,
-    sender=resolved_sender,
+        sender=resolved_sender,
         reply_to=reply_to
     )
     if html:
@@ -1126,7 +1126,7 @@ def _register_validation_error(username: str, email: str, password: str, confirm
         return "A senha deve conter pelo menos uma letra maiuscula."
     if not re.search(r"\d", password):
         return "A senha deve conter pelo menos um número."
-    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\\-+=]", password):
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_+=\-]", password):
         return "A senha deve conter pelo menos um caractere especial."
     if password != confirm:
         return "As senhas não coincidem."
@@ -1168,16 +1168,21 @@ def _process_register(payload: dict[str, Any]) -> tuple[bool, str]:
         confirm_url=confirm_url,
         current_year=datetime.utcnow().year,
     )
-    send_email(
-        subject="Confirme sua conta - Ponza Health",
-        recipients=[email],
-        html=html,
-        inline_images=[{
-            "filename": "logo.png",
-            "path": os.path.join("static", "images", "1.png"),
-            "cid": "logo",
-        }],
-    )
+    
+    try:
+        send_email(
+            subject="Confirme sua conta - Ponza Health",
+            recipients=[email],
+            html=html,
+            inline_images=[{
+                "filename": "logo.png",
+                "path": os.path.join("static", "images", "2.png"),
+                "cid": "logo",
+            }],
+        )
+    except Exception as exc:
+        current_app.logger.exception("Falha ao enviar e-mail de verificação: %s", exc)
+        return False, "Não foi possível enviar o e-mail de verificação. Verifique se o e-mail está correto e tente novamente."
 
     message = (
         "Conta criada com sucesso! Enviamos um link de confirmacao para "
@@ -1390,7 +1395,7 @@ def dispatch_emails():
             html=html,
             inline_images=[{
                 "filename": "logo.png",
-                "path": os.path.join("static", "images", "1.png"),
+                "path": os.path.join("static", "images", "2.png"),
                 "cid": "logo"
             }]
         )
@@ -3899,11 +3904,11 @@ def download_pdf(patient_id):
     public_base = current_app.config.get("PUBLIC_BASE_URL")
     if public_base:
         base = public_base.rstrip("/")
-        logo_url = f"{base}/static/images/1.png"
+        logo_url = f"{base}/static/images/2.png"
     elif request:
-        logo_url = url_for("static", filename="images/1.png", _external=True)
+        logo_url = url_for("static", filename="images/2.png", _external=True)
     else:
-        logo_url = os.path.join(current_app.root_path, "static", "images", "1.png")
+        logo_url = os.path.join(current_app.root_path, "static", "images", "2.png")
     html_str = render_template(
         "result_pdf.html",
         patient_info="\n".join(patient_info),
