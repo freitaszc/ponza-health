@@ -1,16 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useRouter } from '../components/Router'
 import { buildCacheKey, writeCache } from '../utils/cache'
 
 export default function Login() {
   const { navigate } = useRouter()
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const dashboardCacheKey = buildCacheKey('dashboard', ['summary'])
   const patientsCacheKey = buildCacheKey('patients', ['all', 'all'])
   const quotesCacheKey = buildCacheKey('quotes', ['all'])
   const suppliersCacheKey = buildCacheKey('suppliers', ['all'])
   const stockCacheKey = buildCacheKey('stock', ['all', 'all'])
+
+  // Verificar se há mensagem de conta confirmada na URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const confirmed = params.get('confirmed')
+    if (confirmed === 'true') {
+      setSuccess('Conta confirmada com sucesso! Você já pode fazer login.')
+      // Limpa o parâmetro da URL sem recarregar a página
+      window.history.replaceState({}, '', '/login')
+    }
+  }, [])
 
   const prefetchDashboard = async () => {
     try {
@@ -145,6 +157,12 @@ export default function Login() {
           <div className="auth-card-head">
             <h2>Entrar</h2>
           </div>
+
+          {success ? (
+            <div className="auth-message auth-message--success" role="status">
+              {success}
+            </div>
+          ) : null}
 
           {error ? (
             <div className="auth-message auth-message--error" role="alert">

@@ -42,9 +42,7 @@ export default function Cadastro() {
         data.message ||
           'Conta criada com sucesso. Enviamos um link de confirmação no seu e-mail para liberar o acesso.',
       )
-      if (data.redirect) {
-        setTimeout(() => navigate(data.redirect), 1500)
-      }
+      // Não redireciona - pessoa fica na página vendo a mensagem de sucesso
     } catch (err) {
       setError('Não foi possível conectar ao servidor. Tente novamente.')
     } finally {

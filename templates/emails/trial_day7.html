@@ -1,116 +1,66 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
   <meta charset="UTF-8">
   <title>Ponza Health — 7º dia do seu teste gratuito</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      font-family: 'Funnel Sans', Arial, sans-serif;
-      background: #f5f7fa;
-      margin: 0;
-      padding: 0;
-    }
-
-    .container {
-      max-width: 640px;
-      margin: 40px auto;
-      padding: 32px 24px;
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(19, 29, 53, 0.15);
-    }
-
-    .logo {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .logo img {
-      height: 80px;
-    }
-
-    h2 {
-      text-align: center;
-      font-size: 26px;
-      color: #0a1628;
-      margin-bottom: 20px;
-    }
-
-    p,
-    ul {
-      font-size: 16px;
-      line-height: 1.6;
-      color: #475569;
-    }
-
-    ul {
-      padding-left: 20px;
-      margin: 16px 0;
-    }
-
-    .btn {
-      display: inline-block;
-      background: linear-gradient(135deg, #0a1628, #1e293b);
-      color: #fff;
-      text-decoration: none;
-      font-weight: bold;
-      padding: 14px 26px;
-      border-radius: 999px;
-      margin: 30px auto 0;
-      display: block;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
-
-    .btn:hover {
-      background: linear-gradient(135deg, #1e293b, #334155);
-    }
-
-    .footer {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 13px;
-      margin-top: 30px;
-    }
-  </style>
 </head>
+<body style="margin:0; padding:0; background:#f5f7fa; font-family:Arial, Helvetica, sans-serif; color:#1e293b;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fa;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; background:#ffffff; border-radius:16px; box-shadow:0 8px 24px rgba(19,29,53,0.15);">
+          <tr>
+            <td style="padding:32px 24px;">
+              <!-- Logo -->
+              <div style="text-align:center; margin-bottom:24px;">
+                <img src="{{ logo_url }}" alt="Ponza Health" style="max-width:200px; height:auto;">
+              </div>
 
-<body>
-  <div class="container">
-    <div class="logo">
-      <img src="{{ logo_url }}" alt="Ponza Health" style="max-width:200px;height:auto;">
-    </div>
+              <h2 style="text-align:center; font-size:26px; color:#0a1628; margin:0 0 20px;">Você está na metade do seu teste!</h2>
+              
+              <p style="font-size:16px; line-height:1.6; color:#475569; margin:10px 0;">Oi {{ user.username }}, como está a experiência até agora?</p>
 
-    <h2>Você está no 7º dia do seu teste gratuito 👏</h2>
-    <p>Oi {{ user.username }}, como está a experiência até agora?</p>
+              <p style="font-size:16px; line-height:1.6; color:#475569; margin:10px 0;">
+                Você já está no <strong>7º dia</strong> — metade do seu período de teste! Este é o momento ideal para explorar os recursos mais avançados do <strong>Ponza Health</strong>.
+              </p>
 
-    <p>Este é o momento ideal para explorar todos os recursos do <strong>Ponza Health</strong> e ver o quanto sua
-      clínica pode se tornar mais ágil e organizada:</p>
-    <ul>
-      <li><strong>Análise automática de exames</strong> com leitura inteligente de PDFs e geração de condutas em
-        segundos.</li>
-      <li><strong>Catálogo completo</strong> de pacientes e médicos para gestão centralizada.</li>
-      <li><strong>Controle de estoque</strong> com alertas automáticos de reposição.</li>
-      <li><strong>Cotações automáticas</strong> com fornecedores e acompanhamento de respostas.</li>
-      <li><strong>Agenda inteligente</strong> com lembretes automáticos que reduzem faltas.</li>
-    </ul>
+              <p style="font-size:16px; line-height:1.6; color:#475569; margin:10px 0;">Você já experimentou estas funcionalidades?</p>
+              
+              <ul style="padding-left:20px; color:#475569; margin:16px 0; font-size:16px; line-height:1.8;">
+                <li><strong>Análise de bioressonância</strong> — interprete laudos de equipamentos como Metatron, Hunter e outros com inteligência artificial.</li>
+                <li><strong>Módulo financeiro</strong> — gerencie receitas, despesas, fluxo de caixa e controle pagamentos de pacientes em um só lugar.</li>
+                <li><strong>Cotações com fornecedores</strong> — solicite orçamentos e compare propostas automaticamente.</li>
+                <li><strong>Relatórios e análises</strong> — acompanhe o desempenho da sua clínica com dashboards em tempo real.</li>
+              </ul>
 
-    <p>Aproveite o restante do teste para se aprofundar e descobrir como o Ponza Health pode otimizar o dia a dia da sua
-      clínica.</p>
+              <p style="font-size:16px; line-height:1.6; color:#475569; margin:10px 0;">
+                Ainda restam <strong>7 dias</strong> para você testar tudo. Aproveite ao máximo!
+              </p>
 
-    <a href="https://ponzahealth.com.br" class="btn">Continuar explorando</a>
+              <!-- Botão -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:30px auto;">
+                <tr>
+                  <td align="center" style="background:#0a1628; border-radius:999px;">
+                    <a href="https://ponzahealth.com.br" target="_blank" style="display:inline-block; padding:14px 26px; font-size:16px; font-weight:700; color:#ffffff; text-decoration:none;">
+                      Continuar explorando
+                    </a>
+                  </td>
+                </tr>
+              </table>
 
-    <p style="text-align:center; color:#475569; margin-top:24px;">
-      Dúvidas? Fale com a gente pelo WhatsApp:
-      <strong>+55 11 99999-9999</strong>
-    </p>
+              <p style="font-size:16px; line-height:1.6; color:#475569; margin:10px 0; text-align:center;">
+                Dúvidas? Fale com a gente pelo WhatsApp: <strong>+55 33 98461-3689</strong>
+              </p>
 
-    <div class="footer">
-      © {{ current_year }} Ponza Health — Todos os direitos reservados
-    </div>
-  </div>
+              <div style="text-align:center; color:#94a3b8; font-size:13px; margin-top:30px;">
+                © {{ current_year or 2026 }} Ponza Health — Todos os direitos reservados
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
-
 </html>

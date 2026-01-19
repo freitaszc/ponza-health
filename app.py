@@ -502,7 +502,6 @@ def send_email(subject, recipients, html=None, body=None, sender=None, reply_to=
 
     mail.send(msg)
 
-
 def _coerce_int(value: Any, *, default: int = 0) -> int:
     try:
         if value is None:
@@ -1249,7 +1248,6 @@ def register():
                 return jsonify({
                     "success": True,
                     "message": message,
-                    "redirect": url_for("login"),
                 })
             return jsonify({"success": False, "error": message}), 400
 
@@ -1361,8 +1359,8 @@ def verify_email(token):
             return redirect(url_for('prices'))
 
     # Caso padrão: usuário sem plano → trial gratuito
-    flash('Conta confirmada com sucesso! Você já pode fazer login.', 'success')
-    return redirect(url_for('login'))
+    # Redireciona para login com parâmetro para mostrar mensagem de sucesso
+    return redirect(url_for('login', confirmed='true'))
 
 
 # ------------------------------------------------------------------------------
