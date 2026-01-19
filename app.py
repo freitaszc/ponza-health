@@ -91,6 +91,7 @@ app.config["PUBLIC_BASE_URL"] = (
     os.getenv("PUBLIC_BASE_URL")
     or os.getenv("APP_BASE_URL")
     or os.getenv("PUBLIC_APP_URL")
+    or ""
 )
 
 smtp_username = os.getenv("SMTP_USERNAME")
@@ -1161,7 +1162,7 @@ def _process_register(payload: dict[str, Any]) -> tuple[bool, str]:
     )
     confirm_url = url_for("auth.verify_email", token=token, _external=True)
     
-    public_base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    public_base = (current_app.config.get("PUBLIC_BASE_URL") or "").rstrip("/")
     logo_url = f"{public_base}/static/images/2.png" if public_base else url_for("static", filename="images/2.png", _external=True)
 
     html = render_template(
@@ -1397,7 +1398,7 @@ def dispatch_emails():
               .all())
 
     sent_count = 0
-    public_base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    public_base = (current_app.config.get("PUBLIC_BASE_URL") or "").rstrip("/")
     logo_url = f"{public_base}/static/images/2.png" if public_base else url_for("static", filename="images/2.png", _external=True)
     
     for e in emails:
