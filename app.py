@@ -1161,24 +1161,40 @@ def _process_register(payload: dict[str, Any]) -> tuple[bool, str]:
         salt="email-confirm",
     )
     confirm_url = url_for("auth.verify_email", token=token, _external=True)
+    
+    public_base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    logo_url = f"{public_base}/static/images/2.png" if public_base else url_for("static", filename="images/2.png", _external=True)
 
     html = render_template(
         "emails/verify_account.html",
         username=username,
         confirm_url=confirm_url,
         current_year=datetime.utcnow().year,
+        logo_url=logo_url,
     )
+    
+    # Versão texto puro para melhor entregabilidade
+    plain_text = f"""Olá {username},
+
+Obrigado por se cadastrar na Ponza Health!
+
+Para ativar sua conta, acesse o link abaixo:
+{confirm_url}
+
+Se você não criou uma conta conosco, basta ignorar este e-mail.
+
+Atenciosamente,
+Equipe Ponza Health
+WhatsApp: +55 33 98461-3689
+"""
     
     try:
         send_email(
             subject="Confirme sua conta - Ponza Health",
             recipients=[email],
             html=html,
-            inline_images=[{
-                "filename": "logo.png",
-                "path": os.path.join("static", "images", "2.png"),
-                "cid": "logo",
-            }],
+            body=plain_text,
+            reply_to="ponzahealth@gmail.com",
         )
     except Exception as exc:
         current_app.logger.exception("Falha ao enviar e-mail de verificação: %s", exc)
@@ -1383,21 +1399,34 @@ def dispatch_emails():
               .all())
 
     sent_count = 0
+    public_base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    logo_url = f"{public_base}/static/images/2.png" if public_base else url_for("static", filename="images/2.png", _external=True)
+    
     for e in emails:
         user = User.query.get(e.user_id)
         if not user:
             continue
 
-        html = render_template(f'emails/{e.template}.html', user=user)
+        html = render_template(f'emails/{e.template}.html', user=user, logo_url=logo_url)
+        
+        # Texto puro para melhor entregabilidade
+        plain_text = f"""Olá {user.username},
+
+Este é um lembrete sobre seu período de teste na Ponza Health.
+
+Acesse sua conta em: {public_base or 'https://ponzahealth.com.br'}
+
+Atenciosamente,
+Equipe Ponza Health
+WhatsApp: +55 33 98461-3689
+"""
+        
         send_email(
-            subject='Aviso do período de teste',
+            subject='Ponza Health - Lembrete do período de teste',
             recipients=[user.email],
             html=html,
-            inline_images=[{
-                "filename": "logo.png",
-                "path": os.path.join("static", "images", "2.png"),
-                "cid": "logo"
-            }]
+            body=plain_text,
+            reply_to="ponzahealth@gmail.com",
         )
         e.sent = True
         sent_count += 1
