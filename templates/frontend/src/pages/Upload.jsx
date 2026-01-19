@@ -54,6 +54,7 @@ export default function Upload() {
   const [referenceSaved, setReferenceSaved] = useState('')
   const [newReferenceName, setNewReferenceName] = useState('')
   const [newReferenceIdeal, setNewReferenceIdeal] = useState('')
+  const [isBioresonancia, setIsBioresonancia] = useState(false)
 
   const fileInputRef = useRef(null)
   const analysisTabRef = useRef(null)
@@ -356,6 +357,14 @@ export default function Upload() {
               Envie um PDF de exames para análise automática ou insira os dados manualmente.
             </p>
             <div className="lab-hero__actions">
+              <button 
+                type="button" 
+                className={`lab-hero__biores-btn ${isBioresonancia ? 'is-active' : ''}`}
+                onClick={() => setIsBioresonancia(!isBioresonancia)}
+              >
+                <i className="fa fa-heartbeat" aria-hidden="true" />
+                {isBioresonancia ? 'Análise Bioressonância Ativa' : 'Analisar Bioressonância'}
+              </button>
               <button type="button" className="lab-hero__reference-btn" onClick={() => setReferenceModalOpen(true)}>
                 <i className="fa fa-sliders" aria-hidden="true" />
                 Ajustar referências
@@ -385,12 +394,17 @@ export default function Upload() {
           {mode === 'pdf' ? (
             <form className="lab-panel" onSubmit={handleSubmit} encType="multipart/form-data">
               <input type="hidden" name="use_ai" value="1" />
+              {isBioresonancia && <input type="hidden" name="bioresonancia" value="1" />}
               <input ref={fileInputRef} type="file" name="pdf_file" accept="application/pdf" hidden onChange={handleFileChange} />
 
               <div className="lab-panel__header">
-                <span className="lab-panel__eyebrow">Exame para análise</span>
-                <h2 className="lab-panel__title">Envie um PDF de exames</h2>
-                <p className="lab-panel__desc">Organize os resultados em minutos com uma leitura clara e objetiva.</p>
+                <span className="lab-panel__eyebrow">{isBioresonancia ? 'Bioressonância' : 'Exame para análise'}</span>
+                <h2 className="lab-panel__title">{isBioresonancia ? 'Envie um PDF de Bioressonância' : 'Envie um PDF de exames'}</h2>
+                <p className="lab-panel__desc">
+                  {isBioresonancia 
+                    ? 'Análise especializada para arquivos de Bioressonância (~100 páginas).'
+                    : 'Organize os resultados em minutos com uma leitura clara e objetiva.'}
+                </p>
               </div>
 
               <div
@@ -452,7 +466,9 @@ export default function Upload() {
 
               <div className="lab-actions">
                 <button className="lab-primary" type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? 'Analisando...' : 'Analisar com IA'}
+                  {isSubmitting 
+                    ? (isBioresonancia ? 'Analisando Bioressonância...' : 'Analisando...')
+                    : (isBioresonancia ? 'Analisar Bioressonância' : 'Analisar com IA')}
                 </button>
               </div>
             </form>

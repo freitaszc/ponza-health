@@ -500,7 +500,6 @@ export default function Finances() {
         {/* Header Section */}
         <section className="finance-hero">
           <div className="finance-hero__header">
-            <span className="finance-pill">Gestão Financeira</span>
             <h1>Central Financeira</h1>
             <p className="finance-lead">
               Controle completo de caixas, pagamentos de pacientes e fluxo de caixa da sua clínica.

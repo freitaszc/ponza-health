@@ -52,6 +52,9 @@ FORCE_JSON_RESPONSE = str(os.getenv("EXAM_AI_FORCE_JSON", "1")).lower() in {"1",
 # Speed optimizations
 SKIP_DETAILED_PROMPT = str(os.getenv("EXAM_AI_SKIP_DETAILED", "0")).lower() in {"1", "true", "yes", "on"}
 MAX_EXAMS_PER_CALL = int(os.getenv("EXAM_AI_MAX_EXAMS", "50"))
+# Bioresonancia specific settings
+BIORESONANCIA_MAX_PAGES = int(os.getenv("BIORESONANCIA_MAX_PAGES", "30"))
+BIORESONANCIA_MAX_EXAMS = int(os.getenv("BIORESONANCIA_MAX_EXAMS", "200"))
 
 SYSTEM_PROMPT = (
     "Voce e Ponza RX, uma medica especialista em exames laboratoriais com vasta experiencia em analise de laudos. "
@@ -72,6 +75,29 @@ SYSTEM_PROMPT = (
     "5. NUNCA invente dados. Se um campo nao estiver disponivel, deixe vazio (exceto resumo_clinico que e obrigatorio).\n"
     "6. Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele.\n"
     "7. Se nao conseguir processar os exames, o resumo_clinico deve ser: 'Nao foi possivel processar os dados do laudo. Recomenda-se revisao manual do documento.'"
+)
+
+BIORESONANCIA_SYSTEM_PROMPT = (
+    "Voce e Ponza RX, uma medica especialista em bioressonancia e medicina integrativa. "
+    "Sua tarefa e interpretar dados de exames de bioressonancia e gerar um laudo profissional abrangente.\n\n"
+    "CONTEXTO IMPORTANTE - BIORESSONANCIA:\n"
+    "- Arquivos de bioressonancia sao extensos (ate 100+ paginas) com multiplos sistemas avaliados.\n"
+    "- Cada item ja contem sua FAIXA NORMAL no proprio documento - NAO use referencias externas.\n"
+    "- O status deve ser determinado comparando o 'valor de medicao real' com a 'faixa normal' presente no documento.\n"
+    "- Foque nos valores ANORMAIS (marcados com +, ++ ou +++ no documento original).\n\n"
+    "REGRAS ESSENCIAIS:\n"
+    "1. EXTRAIA CORRETAMENTE as informacoes do paciente (nome, sexo, idade, altura, peso) dos cabecalhos.\n"
+    "2. Para cada exame, USE A REFERENCIA DO PROPRIO DOCUMENTO, nao referencias externas.\n"
+    "3. CLASSIFIQUE status como: 'normal' (dentro da faixa ou -), 'baixo' (abaixo da faixa), 'alto' (acima da faixa).\n"
+    "4. PRIORIZE exames com alteracoes significativas (++ ou +++).\n"
+    "5. O campo 'resumo_clinico' e OBRIGATORIO e deve ser um RESUMO EXECUTIVO dos principais achados:\n"
+    "   - Escreva um parecer de 4-8 frases identificando os SISTEMAS mais afetados.\n"
+    "   - Mencione as areas criticas: cardiovascular, neurologico, endocrino, imunologico, vitaminas/minerais, etc.\n"
+    "   - Destaque padroes importantes e correlacoes entre sistemas.\n"
+    "   - NAO liste valores numericos no resumo - use linguagem medica descritiva.\n"
+    "   - EXEMPLO: 'Paciente apresenta comprometimento significativo do perfil cardiovascular com alteracoes de viscosidade sanguinea e resistencia vascular. Sistema endocrino demonstra disfuncao tireoidiana moderada. Perfil de vitaminas revela deficiencias importantes, especialmente do complexo B. Recomenda-se atencao especial ao sistema imunologico que apresenta sinais de desequilibrio.'\n"
+    "6. Na 'prescricao', inclua recomendacoes gerais baseadas nos principais desequilibrios encontrados.\n"
+    "7. Responda EXCLUSIVAMENTE com JSON valido, sem texto fora dele."
 )
 
 OUTPUT_SPEC = {
@@ -723,6 +749,263 @@ def generate_ai_analysis(
             "error": result.get("error") or "Falha ao consultar o modelo.",
             "details": result.get("details"),
             "fallback": True,
+            "timings": timings,
+        }
+    return result
+
+
+def _build_bioresonancia_prompt(payload: Dict[str, Any]) -> str:
+    """Build prompt specifically for Bioresonância analysis."""
+    patient = payload.get("patient") or {}
+    lab_results = payload.get("lab_results") or []
+    key_lines = payload.get("key_lines") or []
+    raw_excerpt = payload.get("raw_excerpt") or ""
+    
+    # For bioresonância, we process in chunks to avoid memory issues
+    # Limit to most important results (prioritize abnormal ones)
+    max_results = BIORESONANCIA_MAX_EXAMS
+    if len(lab_results) > max_results:
+        # Try to prioritize abnormal results
+        abnormal = [r for r in lab_results if _is_bioresonancia_abnormal(r)]
+        normal = [r for r in lab_results if not _is_bioresonancia_abnormal(r)]
+        lab_results = abnormal[:max_results] if len(abnormal) >= max_results else abnormal + normal[:max_results - len(abnormal)]
+    
+    input_payload = {
+        "patient": patient,
+        "lab_results": lab_results,
+        "key_lines": key_lines[:100],  # Limit key lines for bioresonância
+    }
+    if raw_excerpt:
+        input_payload["raw_excerpt"] = raw_excerpt[:MAX_TEXT * 2]  # Allow more text for bioresonância
+    
+    schema = json.dumps(OUTPUT_SPEC, ensure_ascii=False, indent=2)
+    input_json = json.dumps(input_payload, ensure_ascii=False, indent=2)
+    
+    instructions = (
+        "Dados extraidos do exame de BIORESSONANCIA:\n"
+        f"{input_json}\n\n"
+        "INSTRUCOES ESPECIFICAS PARA BIORESSONANCIA:\n"
+        "1. PACIENTE: Extraia nome, sexo, idade, altura e peso dos cabecalhos do documento.\n"
+        "2. EXAMES: Para cada item de bioressonancia:\n"
+        "   - 'nome': nome do parametro avaliado\n"
+        "   - 'valor': o 'valor de medicao real' encontrado\n"
+        "   - 'referencia': a 'faixa normal' indicada NO PROPRIO DOCUMENTO (nao use referencias externas)\n"
+        "   - 'status': compare valor com a faixa do documento -> 'baixo', 'alto', 'normal'\n"
+        "     * Use as marcacoes do documento: (-) = normal, (+) = pouco anormal, (++) = moderadamente anormal, (+++) = severamente anormal\n"
+        "   - 'observacao': breve (max 15 palavras) sobre relevancia clinica\n"
+        "3. PRIORIZE itens com alteracoes (++, +++).\n"
+        "4. SISTEMAS tipicos em bioressonancia: Cardiovascular, Cerebrovascular, Funcao Gastrointestinal, Funcao Hepatica, "
+        "Funcao Renal, Funcao Pulmonar, Nervos Cranianos, Doencas Osseas, Densidade Mineral Ossea, Doencas Reumatoides, "
+        "Acucar no Sangue, Condicao Fisica Basica, Toxinas, Oligoelementos, Vitaminas, Aminoacidos, Coenzimas, "
+        "Sistema Endocrino, Sistema Imunologico, Tireoide, Prostata/Ginecologia, Pele, Olhos, Metais Pesados, Alergias.\n"
+        "5. RESUMO CLINICO (OBRIGATORIO - CAMPO MAIS IMPORTANTE):\n"
+        "   - Escreva um RESUMO EXECUTIVO de 4-8 frases.\n"
+        "   - Identifique os 3-5 SISTEMAS mais comprometidos e sua gravidade.\n"
+        "   - Mencione padroes importantes: deficiencias nutricionais, sobrecarga toxica, desequilibrios hormonais, etc.\n"
+        "   - Use linguagem medica descritiva. NAO liste numeros ou valores.\n"
+        "   - Finalize com recomendacoes gerais de acompanhamento.\n"
+        "6. PRESCRICAO: Inclua 3-5 recomendacoes baseadas nos principais achados.\n"
+        "7. ALERTAS: Liste sistemas com alteracoes severas (+++) que requerem atencao imediata.\n"
+        f"\nSCHEMA OBRIGATORIO:\n{schema}\n"
+        "\nRESPONDA APENAS COM JSON VALIDO:"
+    )
+    
+    return instructions
+
+
+def _is_bioresonancia_abnormal(result: Dict[str, Any]) -> bool:
+    """Check if a bioresonância result is abnormal based on common markers."""
+    raw_line = str(result.get("raw_line", ""))
+    status = str(result.get("status", "")).lower()
+    
+    # Check for +, ++, +++ markers
+    if "++" in raw_line or "+++" in raw_line:
+        return True
+    if status in ("alto", "baixo", "anormal"):
+        return True
+    
+    # Try to compare value with reference if available
+    try:
+        valor = result.get("valor", "")
+        referencia = result.get("referencia", "")
+        if valor and referencia:
+            # Simple check if value is outside a range like "1.0 - 2.0"
+            import re
+            range_match = re.search(r"([\d.,]+)\s*[-–]\s*([\d.,]+)", str(referencia))
+            if range_match:
+                low = float(range_match.group(1).replace(",", "."))
+                high = float(range_match.group(2).replace(",", "."))
+                val = float(str(valor).replace(",", "."))
+                if val < low or val > high:
+                    return True
+    except (ValueError, TypeError):
+        pass
+    
+    return False
+
+
+def generate_bioresonancia_analysis(
+    payload: Dict[str, Any],
+    *,
+    timings: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """
+    Generate AI analysis specifically for Bioresonância files.
+    Uses different prompts and handles large files more efficiently.
+    
+    Args:
+        payload: Extracted data from the PDF
+        timings: Optional dict to track timing metrics
+    
+    Returns:
+        Dict with analysis results
+    """
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        return {
+            "ok": True,
+            "content": "",
+            "analysis": _build_minimal_response(payload),
+            "error": "OPENAI_API_KEY não configurada.",
+            "details": None,
+            "fallback": True,
+        }
+    
+    project = os.getenv("OPENAI_PROJECT")
+    organization = os.getenv("OPENAI_ORGANIZATION") or os.getenv("OPENAI_ORG")
+    user_prompt = _build_bioresonancia_prompt(payload)
+    timings = timings or {}
+    
+    def _call_with_model(model: str) -> Dict[str, Any]:
+        sdk_error: Exception | None = None
+        call_start = time.perf_counter()
+        if OpenAI is not None:
+            try:
+                client = OpenAI(
+                    api_key=api_key,
+                    organization=organization or None,
+                    project=project or None,
+                )
+                completion_kwargs = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": BIORESONANCIA_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.15,
+                    "top_p": 0.85,
+                    "max_tokens": MAX_OUTPUT_TOKENS + 400,  # Allow more tokens for comprehensive summary
+                }
+                if FORCE_JSON_RESPONSE and _supports_json_response(model):
+                    completion_kwargs["response_format"] = {"type": "json_object"}
+                completion = client.chat.completions.create(**completion_kwargs)
+                timings["openai_ms"] = round((time.perf_counter() - call_start) * 1000)
+                content = completion.choices[0].message.content if completion.choices else ""
+                data_raw = _extract_json(content or "")
+                data, used_fallback = _normalize_analysis_payload(data_raw, payload)
+                if data_raw is None:
+                    used_fallback = True
+                
+                return {
+                    "ok": True,
+                    "content": content or "",
+                    "analysis": data,
+                    "usage": getattr(completion, "usage", None),
+                    "model": getattr(completion, "model", model),
+                    "bioresonancia": True,
+                    **({"fallback": True} if used_fallback else {}),
+                }
+            except Exception as exc:
+                sdk_error = exc
+        
+        # Fallback to requests if OpenAI SDK fails
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": BIORESONANCIA_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.15,
+            "top_p": 0.85,
+            "max_tokens": MAX_OUTPUT_TOKENS + 400,
+        }
+        if FORCE_JSON_RESPONSE and _supports_json_response(model):
+            body["response_format"] = {"type": "json_object"}
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        if project:
+            headers["OpenAI-Project"] = project
+        if organization:
+            headers["OpenAI-Organization"] = organization
+        try:
+            response = requests.post(OPENAI_API_URL, headers=headers, json=body, timeout=AI_TIMEOUT + 30)
+            response.raise_for_status()
+            timings["openai_ms"] = round((time.perf_counter() - call_start) * 1000)
+            data = response.json()
+            content = (
+                data.get("choices", [{}])[0]
+                .get("message", {})
+                .get("content", "")
+                .strip()
+            )
+            parsed_raw = _extract_json(content)
+            parsed, used_fallback = _normalize_analysis_payload(parsed_raw, payload)
+            if parsed_raw is None:
+                used_fallback = True
+            
+            return {
+                "ok": True,
+                "content": content,
+                "analysis": parsed,
+                "usage": data.get("usage"),
+                "model": data.get("model", model),
+                "bioresonancia": True,
+                **({"fallback": True} if used_fallback else {}),
+            }
+        except requests.HTTPError as exc:
+            details = exc.response.text if exc.response is not None else ""
+            return {
+                "ok": False,
+                "content": "",
+                "error": f"Falha ao consultar o modelo: {exc}",
+                "details": details[:5000],
+            }
+        except Exception as exc:
+            message = f"Falha ao consultar o modelo: {exc}"
+            if sdk_error:
+                message += f" (SDK: {sdk_error})"
+            return {
+                "ok": False,
+                "content": "",
+                "error": message,
+                "details": None,
+            }
+    
+    primary_model = FAST_MODEL
+    result = _call_with_model(primary_model)
+    if result.get("ok"):
+        result["timings"] = timings
+        return result
+    
+    fallback_model = FALLBACK_MODEL.strip()
+    if fallback_model and fallback_model != primary_model:
+        retry = _call_with_model(fallback_model)
+        if retry.get("ok"):
+            retry["timings"] = timings
+            return retry
+    
+    result["timings"] = timings
+    if not result.get("ok"):
+        return {
+            "ok": True,
+            "content": "",
+            "analysis": _build_minimal_response(payload),
+            "error": result.get("error") or "Falha ao consultar o modelo.",
+            "details": result.get("details"),
+            "fallback": True,
+            "bioresonancia": True,
             "timings": timings,
         }
     return result

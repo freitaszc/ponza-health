@@ -330,11 +330,11 @@ export default function Result() {
             {hasAlteredExams && (
               <button 
                 type="button" 
-                className={`result-toggle ${showAllExams ? 'is-active' : ''}`}
+                className={`result-toggle-btn ${showAllExams ? 'is-active' : ''}`}
                 onClick={() => setShowAllExams(!showAllExams)}
               >
                 <i className={`fa ${showAllExams ? 'fa-eye-slash' : 'fa-eye'}`} style={{ marginRight: '6px' }} />
-                {showAllExams ? 'Ocultar Normais' : 'Ver Todos os Exames'}
+                {showAllExams ? 'Ocultar Normais' : 'Ver Todos'}
               </button>
             )}
           </div>

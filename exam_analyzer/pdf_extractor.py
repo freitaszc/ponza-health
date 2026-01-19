@@ -857,3 +857,245 @@ def extract_exam_payload(
         "gender_hint": None,
         "timings": timings,
     }
+
+
+def _extract_bioresonancia_results(raw_text: str) -> List[Dict[str, Any]]:
+    """Extract bioresonância-specific results with their embedded reference ranges."""
+    results: List[Dict[str, Any]] = []
+    lines = raw_text.split("\n")
+    
+    # Common bioresonância patterns:
+    # "Item de teste | Faixa normal | Valor de medição real | Resultado do teste"
+    # Values like: "Viscosidade do sangue  48,264 - 65,371  58,066"
+    
+    current_section = ""
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Detect section headers (e.g., "Boletim do Relatório de Análise (Cardiovascular)")
+        section_match = re.search(r"Boletim do Relatório.*?\(([^)]+)\)", line)
+        if section_match:
+            current_section = section_match.group(1).strip()
+            i += 1
+            continue
+        
+        # Skip page footers and headers
+        if "Relatório de Teste" in line or "Pagina" in line:
+            i += 1
+            continue
+        
+        # Pattern 1: Table format with numeric ranges and values
+        # Example: "Viscosidade do sangue 48,264 - 65,371 58,066"
+        table_pattern = re.match(
+            r"^(.+?)\s+([\d,]+(?:\.\d+)?)\s*[-–]\s*([\d,]+(?:\.\d+)?)\s+([\d,]+(?:\.\d+)?)\s*$",
+            line
+        )
+        if table_pattern:
+            test_name = table_pattern.group(1).strip()
+            ref_low = table_pattern.group(2).replace(",", ".")
+            ref_high = table_pattern.group(3).replace(",", ".")
+            value = table_pattern.group(4).replace(",", ".")
+            
+            # Determine status based on value vs range
+            try:
+                val_float = float(value)
+                low_float = float(ref_low)
+                high_float = float(ref_high)
+                if val_float < low_float:
+                    status = "baixo"
+                elif val_float > high_float:
+                    status = "alto"
+                else:
+                    status = "normal"
+            except ValueError:
+                status = "indefinido"
+            
+            results.append({
+                "nome": test_name,
+                "valor": value,
+                "unidade": "",
+                "referencia": f"{ref_low} - {ref_high}",
+                "status": status,
+                "categoria": current_section,
+                "raw_line": line,
+            })
+            i += 1
+            continue
+        
+        # Pattern 2: Multi-line format where name, reference, and value are on separate lines
+        # Look for test name followed by reference range on next lines
+        if re.match(r"^[A-Za-záàâãéèêíïóôõúç\s]+(?:\([^)]*\))?$", line) and len(line) > 3:
+            potential_name = line
+            # Check next lines for numbers
+            if i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                range_match = re.match(r"^([\d,]+(?:\.\d+)?)\s*[-–]\s*([\d,]+(?:\.\d+)?)$", next_line)
+                if range_match and i + 2 < len(lines):
+                    value_line = lines[i + 2].strip()
+                    value_match = re.match(r"^([\d,]+(?:\.\d+)?)$", value_line)
+                    if value_match:
+                        ref_low = range_match.group(1).replace(",", ".")
+                        ref_high = range_match.group(2).replace(",", ".")
+                        value = value_match.group(1).replace(",", ".")
+                        
+                        try:
+                            val_float = float(value)
+                            low_float = float(ref_low)
+                            high_float = float(ref_high)
+                            if val_float < low_float:
+                                status = "baixo"
+                            elif val_float > high_float:
+                                status = "alto"
+                            else:
+                                status = "normal"
+                        except ValueError:
+                            status = "indefinido"
+                        
+                        results.append({
+                            "nome": potential_name,
+                            "valor": value,
+                            "unidade": "",
+                            "referencia": f"{ref_low} - {ref_high}",
+                            "status": status,
+                            "categoria": current_section,
+                            "raw_line": f"{potential_name} | {next_line} | {value_line}",
+                        })
+                        i += 3
+                        continue
+        
+        i += 1
+    
+    return results
+
+
+def _extract_bioresonancia_patient(raw_text: str) -> Dict[str, Any]:
+    """Extract patient info from bioresonância header."""
+    patient: Dict[str, Any] = {}
+    
+    # Typical bioresonância header:
+    # "Nome: ARTHUR INACIO CASTILHO"
+    # "Sexo: Masculino"
+    # "Idade: 15"
+    # "Figura: 178cm, 71kg"
+    
+    name_match = re.search(r"Nome:\s*(.+?)(?:\n|$)", raw_text, re.IGNORECASE)
+    if name_match:
+        patient["nome"] = name_match.group(1).strip()
+    
+    sex_match = re.search(r"Sexo:\s*(Masculino|Feminino|Outro)", raw_text, re.IGNORECASE)
+    if sex_match:
+        patient["sexo"] = sex_match.group(1).strip()
+    
+    age_match = re.search(r"Idade:\s*(\d+)", raw_text, re.IGNORECASE)
+    if age_match:
+        patient["idade"] = age_match.group(1)
+    
+    figure_match = re.search(r"Figura:\s*(\d+)cm[,\s]*(\d+)kg", raw_text, re.IGNORECASE)
+    if figure_match:
+        patient["altura"] = f"{figure_match.group(1)}cm"
+        patient["peso"] = f"{figure_match.group(2)}kg"
+    
+    date_match = re.search(r"Período do teste:\s*(.+?)(?:\n|$)", raw_text, re.IGNORECASE)
+    if date_match:
+        patient["data_exame"] = date_match.group(1).strip()
+    
+    return patient
+
+
+def extract_bioresonancia_payload(
+    file_bytes: bytes,
+    *,
+    timings: Dict[str, Any] | None = None,
+    max_pages: int = 30,
+) -> Dict[str, Any]:
+    """
+    Extract structured data specifically from Bioresonância PDF files.
+    Optimized to handle large files (100+ pages) efficiently.
+    
+    Args:
+        file_bytes: PDF file content
+        timings: Optional dict for timing metrics
+        max_pages: Maximum pages to process (to avoid memory issues)
+    
+    Returns:
+        Structured payload for AI analysis
+    """
+    if not file_bytes:
+        raise ValueError("PDF vazio ou corrompido.")
+    
+    timings = timings or {}
+    extract_start = time.perf_counter()
+    
+    # Process pages in chunks to manage memory
+    try:
+        with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+            total_pages = doc.page_count
+            pages_to_process = min(total_pages, max_pages)
+            
+            # Extract text from limited pages
+            text_chunks = []
+            for i in range(pages_to_process):
+                page = doc[i]
+                text_chunks.append(page.get_text("text"))
+                # Release page resources
+                page = None
+            
+            raw_text = "\n".join(text_chunks)
+            # Clear chunks to free memory
+            text_chunks = None
+    except Exception as e:
+        raise ValueError(f"Erro ao processar PDF de bioressonância: {e}")
+    
+    timings["pdf_extract_ms"] = round((time.perf_counter() - extract_start) * 1000)
+    timings["pdf_pages"] = total_pages
+    timings["pdf_pages_processed"] = pages_to_process
+    
+    # Extract patient info
+    patient = _extract_bioresonancia_patient(raw_text)
+    
+    # Extract bioresonância-specific results
+    lab_results = _extract_bioresonancia_results(raw_text)
+    
+    # If specific extraction didn't work well, fall back to generic extraction
+    if len(lab_results) < 5:
+        key_lines = _extract_key_lines(raw_text)
+        fallback_results = _parse_result_lines(key_lines.get("result_lines") or [])
+        if len(fallback_results) > len(lab_results):
+            lab_results = fallback_results
+    
+    # Prioritize abnormal results for large result sets
+    max_results = int(os.getenv("BIORESONANCIA_MAX_RESULTS", "200"))
+    if len(lab_results) > max_results:
+        # Sort by status priority: alto/baixo first, then normal
+        def status_priority(r):
+            status = str(r.get("status", "")).lower()
+            if status == "alto" or status == "baixo":
+                return 0
+            return 1
+        
+        lab_results.sort(key=status_priority)
+        lab_results = lab_results[:max_results]
+    
+    # Build key lines summary
+    key_lines = _extract_key_lines(raw_text)
+    merged_lines = (key_lines.get("patient_lines") or []) + (key_lines.get("result_lines") or [])
+    
+    max_excerpt = int(os.getenv("BIORESONANCIA_MAX_EXCERPT_CHARS", "20000"))
+    
+    return {
+        "patient": patient,
+        "lab_results": lab_results,
+        "suggestions": [],
+        "key_lines": merged_lines[:150],
+        "raw_excerpt": raw_text[:max_excerpt],
+        "reference_table": {},  # Bioresonância doesn't use external references
+        "references_path": None,
+        "artifacts": {
+            "bioresonancia": True,
+            "total_pages": total_pages,
+            "processed_pages": pages_to_process,
+        },
+        "gender_hint": patient.get("sexo"),
+        "timings": timings,
+    }

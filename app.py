@@ -39,8 +39,8 @@ from prescription import (
     send_quote_whatsapp,
     send_text,
 )
-from exam_analyzer.pdf_extractor import extract_exam_payload
-from exam_analyzer.ai import generate_ai_analysis
+from exam_analyzer.pdf_extractor import extract_exam_payload, extract_bioresonancia_payload
+from exam_analyzer.ai import generate_ai_analysis, generate_bioresonancia_analysis
 from flask import (
     Flask, Blueprint, render_template, request, redirect, url_for,
     session, flash, jsonify, abort, send_file, send_from_directory, g, current_app,
@@ -2601,14 +2601,15 @@ def api_upload():
 
     u = current_user()
     use_ai = str(request.form.get('use_ai') or '').lower() in {'1', 'true', 'on', 'yes'}
+    is_bioresonancia = str(request.form.get('bioresonancia') or '').lower() in {'1', 'true', 'on', 'yes'}
     wants_stream = str(request.form.get('stream') or '').lower() in {'1', 'true', 'yes'}
     if wants_stream:
-        return _stream_upload_response(request, u, analyze_pdf, use_ai=use_ai)
+        return _stream_upload_response(request, u, analyze_pdf, use_ai=use_ai, is_bioresonancia=is_bioresonancia)
 
     if request.form.get('manual_entry') == '1':
         ok, payload = _process_manual_entry_payload(request.form, u, analyze_pdf, use_ai=use_ai)
     else:
-        ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai)
+        ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai, is_bioresonancia=is_bioresonancia)
 
     if not ok:
         return jsonify({"success": False, "error": payload.get("error")}), 400
@@ -2616,18 +2617,19 @@ def api_upload():
     return jsonify({"success": True, **payload})
 
 
-def _stream_upload_response(request, u, analyze_pdf, *, use_ai: bool):
+def _stream_upload_response(request, u, analyze_pdf, *, use_ai: bool, is_bioresonancia: bool = False):
     def sse_event(name: str, data: dict[str, Any]) -> str:
         payload = json.dumps(data, ensure_ascii=False)
         return f"event: {name}\ndata: {payload}\n\n"
 
     def generate():
-        yield sse_event("status", {"step": "upload", "message": "Upload recebido. Iniciando análise..."})
+        step_msg = "Upload recebido. Iniciando análise de Bioressonância..." if is_bioresonancia else "Upload recebido. Iniciando análise..."
+        yield sse_event("status", {"step": "upload", "message": step_msg})
         timings: dict[str, Any] = {}
         if request.form.get('manual_entry') == '1':
             ok, payload = _process_manual_entry_payload(request.form, u, analyze_pdf, use_ai=use_ai, timings=timings)
         else:
-            ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai, timings=timings)
+            ok, payload = _process_pdf_upload_payload(request, u, analyze_pdf, use_ai=use_ai, timings=timings, is_bioresonancia=is_bioresonancia)
         if not ok:
             yield sse_event("error", {"error": payload.get("error") or "Falha ao processar o envio."})
             return
@@ -2724,6 +2726,7 @@ def _process_pdf_upload_payload(
     *,
     use_ai: bool = False,
     timings: dict[str, Any] | None = None,
+    is_bioresonancia: bool = False,
 ) -> tuple[bool, dict[str, Any]]:
     timings = timings or {}
     file = request.files.get('pdf_file')
@@ -2745,7 +2748,7 @@ def _process_pdf_upload_payload(
     db_start = time.perf_counter()
     sf = SecureFile(
         user_id=u.id,
-        kind="upload_pdf",
+        kind="upload_pdf_bioresonancia" if is_bioresonancia else "upload_pdf",
         filename=secure_filename(file.filename),
         mime_type="application/pdf",
         size_bytes=len(content),
@@ -2812,18 +2815,25 @@ def _process_pdf_upload_payload(
         if not preliminary_patient and preliminary_name:
             preliminary_patient = Patient.query.filter_by(user_id=u.id, name=preliminary_name).first()
         
-        # Get previous exam results for comparison if patient exists
+        # Get previous exam results for comparison if patient exists (not for bioresonância)
         previous_results = None
-        if preliminary_patient:
+        if preliminary_patient and not is_bioresonancia:
             previous_results = _get_patient_previous_exam(u.id, preliminary_patient.id)
         
         try:
-            analysis = _perform_ai_lab_analysis(
-                content,
-                manual_overrides,
-                timings=timings,
-                previous_results=previous_results,
-            )
+            if is_bioresonancia:
+                analysis = _perform_bioresonancia_analysis(
+                    content,
+                    manual_overrides,
+                    timings=timings,
+                )
+            else:
+                analysis = _perform_ai_lab_analysis(
+                    content,
+                    manual_overrides,
+                    timings=timings,
+                    previous_results=previous_results,
+                )
         except RuntimeError as exc:
             return False, {"error": str(exc)}
 
@@ -3143,9 +3153,7 @@ def _save_patient_exam_history(
     all_results: list[dict[str, Any]],
     pdf_file_id: int | None = None,
 ) -> PatientExamHistory:
-    """
-    Save exam results to history for future comparison.
-    """
+    """Save exam results to history for future comparison."""
     history = PatientExamHistory(
         user_id=user_id,
         patient_id=patient_id,
@@ -3221,6 +3229,83 @@ def _perform_ai_lab_analysis(
         analysis["has_comparison"] = True
         analysis["previous_exam_date"] = previous_results.get("exam_date")
         # comparacao_exames and evolucao_clinica should already be in analysis from AI
+    
+    timings["postprocess_ms"] = round((time.perf_counter() - post_start) * 1000)
+    return analysis
+
+
+def _perform_bioresonancia_analysis(
+    file_bytes: bytes,
+    overrides: dict[str, str],
+    *,
+    timings: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Perform AI analysis specifically for Bioressonância files.
+    Uses specialized extraction and AI prompts for large bioresonância PDFs.
+    """
+    timings = timings or {}
+    
+    # Use specialized bioresonância extraction
+    max_pages = int(os.getenv("BIORESONANCIA_MAX_PAGES", "30"))
+    payload = extract_bioresonancia_payload(file_bytes, timings=timings, max_pages=max_pages)
+    
+    # Use specialized bioresonância AI analysis
+    ai_response = generate_bioresonancia_analysis(payload, timings=timings)
+    if not ai_response.get("ok"):
+        raise RuntimeError(ai_response.get("error") or "Falha ao analisar o arquivo de Bioressonância.")
+    
+    post_start = time.perf_counter()
+    analysis = ai_response.get("analysis") or {}
+    
+    # Merge patient data from extraction and AI response
+    patient_block = analysis.get("paciente") or {}
+    payload_patient = payload.get("patient") or {}
+    for key in ("nome", "sexo", "data_nascimento", "cpf", "telefone", "idade", "altura", "peso"):
+        if not patient_block.get(key) and payload_patient.get(key):
+            patient_block[key] = payload_patient.get(key)
+    analysis["paciente"] = patient_block
+    
+    # Apply manual overrides
+    for key, value in overrides.items():
+        if value:
+            patient_block[key] = value
+    
+    # Ensure required fields exist
+    analysis.setdefault("exames", [])
+    analysis.setdefault("orientações", [])
+    analysis.setdefault("alertas", [])
+    analysis["raw_exams"] = list(analysis.get("exames") or [])
+    
+    # For bioresonância, we don't apply external reference rules
+    # The references are embedded in the document itself
+    abnormal_exams = [
+        exam for exam in analysis.get("exames") or []
+        if str(exam.get("status", "")).lower() in ("alto", "baixo")
+    ]
+    analysis["abnormal_exams"] = abnormal_exams
+    
+    # Keep existing prescription from AI (bioresonância-specific recommendations)
+    if not analysis.get("prescricao"):
+        analysis["prescricao"] = []
+    
+    # Ensure resumo_clinico is comprehensive for bioresonância
+    resumo = analysis.get("resumo_clinico") or ""
+    if not resumo or len(resumo) < 50:
+        # Build a basic summary from abnormal results
+        if abnormal_exams:
+            categories = set()
+            for exam in abnormal_exams[:20]:
+                cat = exam.get("categoria") or "Geral"
+                categories.add(cat)
+            cat_list = ", ".join(sorted(categories)[:5])
+            resumo = f"Análise de Bioressonância identificou alterações nas seguintes áreas: {cat_list}. Recomenda-se avaliação clínica complementar e acompanhamento dos parâmetros alterados."
+        else:
+            resumo = "Análise de Bioressonância não identificou alterações significativas. Parâmetros avaliados dentro das faixas de normalidade estabelecidas pelo equipamento."
+        analysis["resumo_clinico"] = resumo
+    
+    # Mark as bioresonância analysis
+    analysis["is_bioresonancia"] = True
     
     timings["postprocess_ms"] = round((time.perf_counter() - post_start) * 1000)
     return analysis
