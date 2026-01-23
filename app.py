@@ -1201,8 +1201,8 @@ WhatsApp: +55 33 98461-3689
         return False, "Não foi possível enviar o e-mail de verificação. Verifique se o e-mail está correto e tente novamente."
 
     message = (
-        "Conta criada com sucesso! Enviamos um link de confirmacao para "
-        f"{email}. Conclua a verificacao e depois faca login."
+        "Conta criada com sucesso! Enviamos um link de confirmação para "
+        f"{email}. Conclua a verificação e depois faça login."
     )
     return True, message
 
@@ -3308,12 +3308,19 @@ def _perform_bioresonancia_analysis(
     analysis.setdefault("exames", [])
     analysis.setdefault("orientações", [])
     analysis.setdefault("alertas", [])
-    analysis["raw_exams"] = list(analysis.get("exames") or [])
-    
-    # For bioresonância, we don't apply external reference rules
-    # The references are embedded in the document itself
+    extracted_results = payload.get("lab_results") or []
+    if extracted_results:
+        analysis["raw_exams"] = list(extracted_results)
+        if not analysis.get("exames"):
+            analysis["exames"] = list(extracted_results)
+    else:
+        analysis["raw_exams"] = list(analysis.get("exames") or [])
+
+    # For bioresonância, we don't apply external reference rules.
+    # The references are embedded in the document itself.
+    raw_exams = analysis.get("raw_exams") or []
     abnormal_exams = [
-        exam for exam in analysis.get("exames") or []
+        exam for exam in raw_exams
         if str(exam.get("status", "")).lower() in ("alto", "baixo")
     ]
     analysis["abnormal_exams"] = abnormal_exams
