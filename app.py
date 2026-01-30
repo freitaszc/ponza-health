@@ -112,7 +112,12 @@ mail = Mail(app)
 def serve_react_index():
     index_path = os.path.join(REACT_STATIC_DIR, "index.html")
     if os.path.exists(index_path):
-        return send_from_directory(REACT_STATIC_DIR, "index.html")
+        response = send_from_directory(REACT_STATIC_DIR, "index.html")
+        # Prevent stale HTML from pinning old asset hashes in client caches.
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     return (
         "React build not found. Run npm install and npm run build in templates/frontend.",
         503,
